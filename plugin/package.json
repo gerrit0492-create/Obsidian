@@ -1,0 +1,25 @@
+{
+	"name": "obsidian-companion",
+	"version": "0.1.0",
+	"description": "Live word-count and reading-time in the status bar, plus quick daily-heading insertion.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+	},
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin"
+	],
+	"author": "gerrit0492",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.11.0",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.25.5",
+		"obsidian": "latest",
+		"tslib": "^2.6.2",
+		"typescript": "^5.8.3"
+	}
+}

@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Plugin build output
+plugin/main.js
+plugin/*.js.map
+
+# OS / editor cruft
+.DS_Store
+*.log
+
+# Obsidian workspace state (per-machine, not worth tracking)
+vault/.obsidian/workspace.json
+vault/.obsidian/workspace-mobile.json
+vault/.obsidian/cache

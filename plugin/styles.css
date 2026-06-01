@@ -1,0 +1,8 @@
+/* Obsidian Companion — status bar readout */
+.obsidian-companion-statusbar {
+	color: var(--text-muted);
+}
+
+.obsidian-companion-statusbar:hover {
+	color: var(--text-normal);
+}
