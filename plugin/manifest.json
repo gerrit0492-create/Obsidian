@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-companion",
+	"name": "Obsidian Companion",
+	"version": "0.1.0",
+	"minAppVersion": "1.4.0",
+	"description": "Live word-count and reading-time in the status bar, plus quick daily-heading insertion.",
+	"author": "gerrit0492",
+	"authorUrl": "https://github.com/gerrit0492-create",
+	"isDesktopOnly": false
+}

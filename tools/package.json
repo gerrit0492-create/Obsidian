@@ -1,0 +1,20 @@
+{
+	"name": "obsidian-note-tools",
+	"version": "0.1.0",
+	"description": "Zero-dependency CLI to lint and analyze a vault of Obsidian markdown notes.",
+	"type": "module",
+	"bin": {
+		"note-lint": "./note-lint.mjs"
+	},
+	"scripts": {
+		"lint": "node note-lint.mjs"
+	},
+	"keywords": [
+		"obsidian",
+		"markdown",
+		"lint",
+		"cli"
+	],
+	"author": "gerrit0492",
+	"license": "MIT"
+}
