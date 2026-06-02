@@ -6,6 +6,10 @@ __pycache__/
 *.pyc
 .venv/
 
+# Secrets — never commit tokens
+.env
+dashboard/.streamlit/secrets.toml
+
 # Plugin build output
 plugin/main.js
 plugin/*.js.map
