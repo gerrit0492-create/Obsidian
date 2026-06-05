@@ -139,7 +139,9 @@ def load_sessions(source, car_map: dict | None = None) -> pd.DataFrame:
     # Friendly card label + RFID id from a token like "Driver A (AAAA000000A1)".
     df["card"] = df["token"].str.replace(r"\s*\(.*\)\s*", "", regex=True).str.strip()
     df["card_id"] = df["token"].str.extract(r"\(([^)]*)\)")
-    df["car"] = df["card_id"].map(car_map).fillna(df["card"])
+    # car_map may be keyed by RFID id or by the friendly card label; fall back to
+    # the card label when neither matches.
+    df["car"] = df["card_id"].map(car_map).fillna(df["card"].map(car_map)).fillna(df["card"])
 
     return df
 
