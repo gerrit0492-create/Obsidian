@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import io
 
+import pandas as pd
+
 from charging import (
     daily_summary,
     load_sessions,
     monthly_effective_price,
     nl_number,
     parse_metadata,
+    split_peak_offpeak,
 )
 
 SAMPLE = """# Laderinformatie
@@ -78,6 +81,36 @@ def test_monthly_effective_price() -> None:
     assert round(price["eur_per_kwh"].iloc[0], 3) == round(5.14 / 25.678, 3)
 
 
+def test_split_peak_offpeak() -> None:
+    # Monday sessions so the weekend rule doesn't apply; dal window 23:00–07:00.
+    df = pd.DataFrame(
+        {
+            "start": [pd.Timestamp("2026-01-05 19:00"), pd.Timestamp("2026-01-05 12:00")],
+            "stop": [pd.Timestamp("2026-01-06 06:00"), pd.Timestamp("2026-01-05 14:00")],
+            "energy_kwh": [11.0, 4.0],
+        }
+    )
+    out = split_peak_offpeak(df, dal_start=23, dal_end=7, weekend_offpeak=False)
+    # Session 1: 19–23 peak (4h), 23–06 off-peak (7h) -> 7 kWh off-peak.
+    assert round(out["energy_offpeak"].iloc[0], 2) == 7.0
+    assert round(out["energy_peak"].iloc[0], 2) == 4.0
+    # Session 2: 12–14 entirely peak.
+    assert out["energy_offpeak"].iloc[1] == 0.0
+
+
+def test_split_peak_offpeak_weekend() -> None:
+    # A Saturday session is fully off-peak when weekend_offpeak is on.
+    df = pd.DataFrame(
+        {
+            "start": [pd.Timestamp("2026-01-10 12:00")],  # Saturday
+            "stop": [pd.Timestamp("2026-01-10 14:00")],
+            "energy_kwh": [5.0],
+        }
+    )
+    out = split_peak_offpeak(df, weekend_offpeak=True)
+    assert out["energy_offpeak"].iloc[0] == 5.0
+
+
 if __name__ == "__main__":
     test_nl_number()
     test_metadata()
@@ -86,4 +119,6 @@ if __name__ == "__main__":
     test_power_kw()
     test_daily_summary()
     test_monthly_effective_price()
+    test_split_peak_offpeak()
+    test_split_peak_offpeak_weekend()
     print("All tests passed.")

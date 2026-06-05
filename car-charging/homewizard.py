@@ -61,6 +61,20 @@ def normalize(data: dict) -> Reading:
     return Reading(active_power_w=power, import_kwh=imp, export_kwh=exp, raw=data)
 
 
+def fetch_url(url: str, token: str | None = None) -> Reading:
+    """Fetch a reading from any URL serving v1/v2-shaped P1 JSON.
+
+    Use this when a relay at home (e.g. Home Assistant) republishes the meter's
+    JSON to an address the app can reach from anywhere.
+    """
+    import requests
+
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    resp = requests.get(url, headers=headers, timeout=TIMEOUT, verify=False)
+    resp.raise_for_status()
+    return normalize(resp.json())
+
+
 def fetch(host: str, token: str | None = None) -> Reading:
     """Fetch a live reading from the P1 meter at ``host`` (IP or hostname)."""
     import requests
