@@ -665,7 +665,66 @@ with tab_data:
         }
     )
 
-    d1, d2 = st.columns(2)
+    # Assemble a per-car context for the PDF report.
+    car_share = split.groupby("car")[["energy_offpeak", "energy_peak"]].sum()
+    per100_idx = per100.set_index("Car") if not per100.empty else None
+    per_car_ctx = []
+    for car in chosen:
+        sub = fdf[fdf["car"] == car]
+        e, cst = sub["energy_kwh"].sum(), sub["cost"].sum()
+        ns = int((sub["energy_kwh"] > 0).sum())
+        avgp = sub["power_kw"].mean()
+        off = float(car_share.loc[car, "energy_offpeak"]) if car in car_share.index else 0.0
+        pk = float(car_share.loc[car, "energy_peak"]) if car in car_share.index else 0.0
+        metrics = [
+            ("Sessions", f"{ns}"),
+            ("Energy", f"{e:,.1f} kWh"),
+            ("Cost", f"€{cst:,.2f}"),
+            ("Avg power", f"{avgp:,.1f} kW" if pd.notna(avgp) else "—"),
+            ("Effective €/kWh", f"€{cst / e:,.3f}" if e else "—"),
+            ("Off-peak share", f"{off / (off + pk) * 100 if (off + pk) else 0:.0f}%"),
+        ]
+        if per100_idx is not None and car in per100_idx.index:
+            metrics.append(("Est. distance", f"{int(per100_idx.loc[car, 'Est. km']):,} km"))
+            metrics.append(("Cost / 100 km", f"€{per100_idx.loc[car, '€/100km']:.2f}"))
+        per_car_ctx.append(
+            {
+                "name": car,
+                "color": CAR_COLOR.get(car, "#2a9d8f"),
+                "metrics": metrics,
+                "months": [[m, float(c)] for m, c in mbc[mbc["car"] == car][["month", "cost"]].values],
+            }
+        )
+
+    ov = by_car.assign(
+        share=lambda d: d["cost"] / d["cost"].sum() * 100 if d["cost"].sum() else 0
+    )
+    pdf_ctx = {
+        "title": "Car Charging Costs",
+        "subtitle": " · ".join(caption) if caption else "EV charging report",
+        "kpis": [
+            ("Charging sessions", f"{n_sessions}"),
+            ("Energy", f"{total_kwh:,.1f} kWh"),
+            ("Cost", f"€{total_cost:,.2f}"),
+            ("Avg €/session", f"€{avg_cost:,.2f}"),
+            ("Effective €/kWh", f"€{eur_per_kwh:,.3f}"),
+            ("Off-peak share", f"{off_share:.0f}%"),
+        ],
+        "overview": [["Car", "Sessions", "kWh", "Cost (€)", "Share"]]
+        + [
+            [r["car"], int(r["sessions"]), f"{r['energy_kwh']:.1f}", f"{r['cost']:.2f}", f"{r['share']:.0f}%"]
+            for _, r in ov.iterrows()
+        ],
+        "share": [(r["car"], float(r["cost"]), CAR_COLOR.get(r["car"], "#2a9d8f")) for _, r in by_car.iterrows()],
+        "tou": [["Period", "kWh", "Price (€/kWh)", "Cost (€)"]]
+        + [
+            [row["Period"], f"{row['kWh']:.1f}", "" if row["Price (€/kWh)"] is None else f"{row['Price (€/kWh)']:.2f}", f"{row['Cost (€)']:.2f}"]
+            for _, row in tou_summary.iterrows()
+        ],
+        "per_car": per_car_ctx,
+    }
+
+    d1, d2, d3 = st.columns(3)
     d1.download_button(
         "⬇️ Excel",
         to_excel(
@@ -683,7 +742,18 @@ with tab_data:
         file_name="charging_costs.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    d2.download_button(
+    try:
+        from report import build_pdf
+
+        d2.download_button(
+            "⬇️ PDF report",
+            build_pdf(pdf_ctx),
+            file_name="charging_report.pdf",
+            mime="application/pdf",
+        )
+    except Exception as exc:  # noqa: BLE001
+        d2.warning(f"PDF unavailable: {exc}")
+    d3.download_button(
         "⬇️ CSV",
         show.to_csv(index=False).encode("utf-8"),
         file_name="charging_sessions.csv",
