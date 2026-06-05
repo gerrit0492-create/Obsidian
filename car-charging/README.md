@@ -45,6 +45,7 @@ figure. In the app, scroll to **Home energy (HomeWizard P1)**, enter the meter's
 | ---- | ------- |
 | `APP_PASSWORD` | If set, the app asks for this password before showing anything (use it when deploying publicly). |
 | `CAR_MAP` | JSON mapping RFID card UID → car name, e.g. `{"AAAA000000A1": "Car A", "BBBB000000B2": "Car B"}`. Kept out of the code so UIDs aren't committed. Without it, cards show their label. |
+| `CAR_WLTP` | JSON mapping car name → manufacturer WLTP consumption in kWh/100km, e.g. `{"Car A": 18.2, "Car B": 13.5}`. Used as the default in the "Cost per 100 km" estimate. |
 
 ## Privacy
 The bundled `data/sample_meterdata.csv` is **anonymized demo data** — no real serial, UIDs, or
