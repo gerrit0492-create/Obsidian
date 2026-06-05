@@ -21,6 +21,11 @@ streamlit run app.py
 ```
 Opens at http://localhost:8501.
 
+### One-click (no typing)
+After you have Python installed, just **double-click `start.bat`** (Windows) or
+`start.command` (macOS). It installs everything on first run and opens the dashboard
+for you — no terminal needed.
+
 ### Run at home for live data (P1 + Peblar)
 The live **🏠 Home** panels (HomeWizard P1 and the Peblar charger) talk to devices on
 your LAN, so they only work when the app runs **on your home network** — a hosted
