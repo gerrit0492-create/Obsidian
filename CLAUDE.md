@@ -21,6 +21,6 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 3. Once the backup is done and MCP is verified, push
 
 ## Git constraints
-- Develop on branch `claude/funny-goldberg-mbyV5`; open a PR to merge into `main`
+- Develop on a feature branch; open a PR to merge into `main`
 - Only push to `gerrit0492-create/obsidian`
 - Never force-push or `reset --hard` without explicit user instruction
