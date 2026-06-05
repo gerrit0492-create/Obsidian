@@ -2,3 +2,8 @@
 __pycache__/
 *.pyc
 .venv/
+
+# Local secrets (tokens, P1_HOST, CAR_MAP, APP_PASSWORD) — never commit.
+# Copy .streamlit/secrets.toml.example to .streamlit/secrets.toml and fill it in.
+.streamlit/secrets.toml
+.env

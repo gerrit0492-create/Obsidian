@@ -21,6 +21,18 @@ streamlit run app.py
 ```
 Opens at http://localhost:8501.
 
+### Run at home for live data (P1 + Peblar)
+The live **🏠 Home** panels (HomeWizard P1 and the Peblar charger) talk to devices on
+your LAN, so they only work when the app runs **on your home network** — a hosted
+instance can't reach them. To set it up once:
+```bash
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # then paste your charger token
+streamlit run app.py
+```
+`P1_HOST` and `CHARGER_HOST` are pre-filled; you only need to paste the charger's
+**Local REST API** token into `secrets.toml` (it's git-ignored, so it stays local).
+Then open the **🏠 Home** tab and click **Read P1 now** / **Read charger now**.
+
 ## Deploy
 It's a standard Streamlit app, so it runs on any of:
 - **Streamlit Community Cloud** — point it at the repo, set `app.py` as the entry point.

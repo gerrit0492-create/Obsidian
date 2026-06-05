@@ -638,7 +638,7 @@ with tab_home:
         "the meter JSON — see the README."
     )
     h1, h2, h3 = st.columns(3)
-    hw_host = h1.text_input("P1 address (IP or hostname)", value=_setting("P1_HOST"))
+    hw_host = h1.text_input("P1 address (IP or hostname)", value=_setting("P1_HOST", "192.168.1.31"))
     hw_token = h2.text_input("Token (optional)", type="password")
     home_price = h3.number_input("Home €/kWh", min_value=0.0, value=0.35, step=0.01, format="%.2f")
     hw_remote = st.text_input(
