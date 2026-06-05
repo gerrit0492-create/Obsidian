@@ -46,7 +46,8 @@ run a small **relay** that republishes the meter JSON to a URL the app can reach
 **remote relay URL** field (or the `P1_REMOTE_URL` secret). With **Home Assistant** (always-on
 at home) the simplest relay is a REST command that periodically pushes the local API payload to
 a private store (e.g. a secret GitHub Gist), whose raw URL you paste into the app. The app reads
-any v1/v2-shaped P1 JSON via `homewizard.fetch_url`.
+any v1/v2-shaped P1 JSON via `homewizard.fetch_url`. See
+[docs/homeassistant-relay.md](./docs/homeassistant-relay.md) for a copy-paste recipe.
 
 ## Best time to charge (day/night tariff)
 Set your **dal/normaal** window and prices in the sidebar (**Tariff (day/night)**). The
