@@ -308,8 +308,8 @@ k[4].metric("Effective €/kWh", f"€{eur_per_kwh:,.3f}")
 if d_cost is not None:
     st.caption("Δ on cards = latest month vs the previous month.")
 
-tab_overview, tab_habits, tab_charging, tab_cars, tab_data = st.tabs(
-    ["📊 Overview", "🕒 Habits", "⚡ Charging", "🚗 Cars", "📑 Data"]
+tab_overview, tab_home, tab_habits, tab_charging, tab_cars, tab_data = st.tabs(
+    ["📊 Overview", "🏠 Home", "🕒 Habits", "⚡ Charging", "🚗 Cars", "📑 Data"]
 )
 
 # ===========================================================================
@@ -628,7 +628,61 @@ with tab_cars:
             st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 
 # ===========================================================================
-# Data: session log, downloads, home energy
+# Home energy (HomeWizard P1)
+# ===========================================================================
+with tab_home:
+    st.subheader("🏠 Home energy (HomeWizard P1)")
+    st.caption(
+        "Direct read works on your home network. To read it from anywhere (e.g. this "
+        "hosted app), point the relay URL at a Home Assistant endpoint that republishes "
+        "the meter JSON — see the README."
+    )
+    h1, h2, h3 = st.columns(3)
+    hw_host = h1.text_input("P1 address (IP or hostname)", value=_setting("P1_HOST"))
+    hw_token = h2.text_input("Token (optional)", type="password")
+    home_price = h3.number_input("Home €/kWh", min_value=0.0, value=0.35, step=0.01, format="%.2f")
+    hw_remote = st.text_input(
+        "…or remote relay URL (works away from home)",
+        value=_setting("P1_REMOTE_URL"),
+        placeholder="https://your-relay.example/p1.json",
+    )
+
+    if st.button("Read P1 now"):
+        if not hw_host.strip() and not hw_remote.strip():
+            st.error("Enter your P1 meter's address, or a remote relay URL.")
+        else:
+            try:
+                from homewizard import fetch, fetch_url
+
+                token = hw_token.strip() or None
+                if hw_remote.strip():
+                    r = fetch_url(hw_remote.strip(), token=token)
+                else:
+                    r = fetch(hw_host.strip(), token=token)
+                m = st.columns(4)
+                m[0].metric("Live power", f"{r.active_power_w:,.0f} W" if r.active_power_w is not None else "—")
+                m[1].metric("Imported (lifetime)", f"{r.import_kwh:,.0f} kWh" if r.import_kwh is not None else "—")
+                m[2].metric("Exported (lifetime)", f"{r.export_kwh:,.0f} kWh" if r.export_kwh is not None else "—")
+                if r.import_kwh is not None:
+                    m[3].metric("Home cost (lifetime)", f"€{r.import_kwh * home_price:,.0f}")
+                if r.import_kwh:
+                    share = total_kwh / r.import_kwh * 100
+                    st.info(
+                        f"Car charging in view ({total_kwh:,.0f} kWh) is ~{share:.1f}% of the home's "
+                        f"lifetime imported energy ({r.import_kwh:,.0f} kWh). Note: the home figure is "
+                        "lifetime, the car figure is the selected period — for a true side-by-side, "
+                        "log P1 readings over time."
+                    )
+            except Exception as exc:  # noqa: BLE001
+                st.error(
+                    f"Couldn't read the P1 meter: {exc}. A direct address only works on the same "
+                    "network (enable the Local API in the HomeWizard app); from elsewhere, use a "
+                    "remote relay URL."
+                )
+
+
+# ===========================================================================
+# Data: session log, downloads
 # ===========================================================================
 with tab_data:
     st.subheader("Sessions")
@@ -760,52 +814,3 @@ with tab_data:
         mime="text/csv",
     )
 
-    st.divider()
-    st.subheader("🏠 Home energy (HomeWizard P1)")
-    st.caption(
-        "Direct read works on your home network. To read it from anywhere (e.g. this "
-        "hosted app), point the relay URL at a Home Assistant endpoint that republishes "
-        "the meter JSON — see the README."
-    )
-    h1, h2, h3 = st.columns(3)
-    hw_host = h1.text_input("P1 address (IP or hostname)", value="")
-    hw_token = h2.text_input("Token (optional)", type="password")
-    home_price = h3.number_input("Home €/kWh", min_value=0.0, value=0.35, step=0.01, format="%.2f")
-    hw_remote = st.text_input(
-        "…or remote relay URL (works away from home)",
-        value=_setting("P1_REMOTE_URL"),
-        placeholder="https://your-relay.example/p1.json",
-    )
-
-    if st.button("Read P1 now"):
-        if not hw_host.strip() and not hw_remote.strip():
-            st.error("Enter your P1 meter's address, or a remote relay URL.")
-        else:
-            try:
-                from homewizard import fetch, fetch_url
-
-                token = hw_token.strip() or None
-                if hw_remote.strip():
-                    r = fetch_url(hw_remote.strip(), token=token)
-                else:
-                    r = fetch(hw_host.strip(), token=token)
-                m = st.columns(4)
-                m[0].metric("Live power", f"{r.active_power_w:,.0f} W" if r.active_power_w is not None else "—")
-                m[1].metric("Imported (lifetime)", f"{r.import_kwh:,.0f} kWh" if r.import_kwh is not None else "—")
-                m[2].metric("Exported (lifetime)", f"{r.export_kwh:,.0f} kWh" if r.export_kwh is not None else "—")
-                if r.import_kwh is not None:
-                    m[3].metric("Home cost (lifetime)", f"€{r.import_kwh * home_price:,.0f}")
-                if r.import_kwh:
-                    share = total_kwh / r.import_kwh * 100
-                    st.info(
-                        f"Car charging in view ({total_kwh:,.0f} kWh) is ~{share:.1f}% of the home's "
-                        f"lifetime imported energy ({r.import_kwh:,.0f} kWh). Note: the home figure is "
-                        "lifetime, the car figure is the selected period — for a true side-by-side, "
-                        "log P1 readings over time."
-                    )
-            except Exception as exc:  # noqa: BLE001
-                st.error(
-                    f"Couldn't read the P1 meter: {exc}. A direct address only works on the same "
-                    "network (enable the Local API in the HomeWizard app); from elsewhere, use a "
-                    "remote relay URL."
-                )

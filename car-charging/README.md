@@ -34,8 +34,9 @@ It's a standard Streamlit app, so it runs on any of:
 ## HomeWizard P1 (home energy)
 The dashboard can also read a **HomeWizard P1 meter** on your network to show live home power,
 lifetime imported/exported energy, an estimated home cost, and a rough "car as % of home"
-figure. In the app, scroll to **Home energy (HomeWizard P1)**, enter the meter's IP (enable the
-**Local API** in the HomeWizard app for v1, or paste a **v2 token**), and click **Read P1 now**.
+figure. Open the **🏠 Home** tab, enter the meter's IP (enable the **Local API** in the
+HomeWizard app for v1, or paste a **v2 token**), and click **Read P1 now**. Set the `P1_HOST`
+setting to pre-fill the address.
 
 > It's a live snapshot plus lifetime totals — for home cost *over time*, log readings
 > periodically.
