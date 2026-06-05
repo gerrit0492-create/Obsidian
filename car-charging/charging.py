@@ -131,6 +131,8 @@ def load_sessions(source, car_map: dict | None = None) -> pd.DataFrame:
 
     df["duration_h"] = (df["stop"] - df["start"]).dt.total_seconds() / 3600.0
     df.loc[df["duration_h"] < 0, "duration_h"] = pd.NA
+    df["power_kw"] = df["energy_kwh"] / df["duration_h"]
+    df.loc[~(df["duration_h"] > 0), "power_kw"] = pd.NA
     df["date"] = df["start"].dt.date
     df["month"] = df["start"].dt.to_period("M").astype(str)
 
@@ -168,3 +170,29 @@ def monthly_by_car(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
         .sort_values(["month", "car"])
     )
+
+
+def daily_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate energy, cost and session count per calendar day."""
+    return (
+        df.groupby("date")
+        .agg(
+            sessions=("session", "count"),
+            energy_kwh=("energy_kwh", "sum"),
+            cost=("cost", "sum"),
+        )
+        .reset_index()
+        .sort_values("date")
+    )
+
+
+def monthly_effective_price(df: pd.DataFrame) -> pd.DataFrame:
+    """Effective price paid per kWh (cost / energy) for each calendar month."""
+    m = (
+        df.groupby("month")
+        .agg(energy_kwh=("energy_kwh", "sum"), cost=("cost", "sum"))
+        .reset_index()
+        .sort_values("month")
+    )
+    m["eur_per_kwh"] = m["cost"] / m["energy_kwh"]
+    return m
