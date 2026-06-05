@@ -50,6 +50,17 @@ a private store (e.g. a secret GitHub Gist), whose raw URL you paste into the ap
 any v1/v2-shaped P1 JSON via `homewizard.fetch_url`. See
 [docs/homeassistant-relay.md](./docs/homeassistant-relay.md) for a copy-paste recipe.
 
+## Live charger (Peblar)
+For Peblar chargers, the **🏠 Home** tab can also show **live charger state** via the charger's
+official **Local REST API** (`http://<host>/api/wlac/v1/…`): live charging power, the current
+session's energy, the lifetime total, and the charging status. Enable the **Local REST API** in
+the charger's *Advanced* settings, copy the **token**, and set `CHARGER_TOKEN` (and
+`CHARGER_HOST` if your charger has a different name/IP).
+
+> This API exposes only live/cumulative meter state — it has **no session history**. The session
+> log and all the cost charts still come from the charger's CSV export, not this API. Works on
+> the home network only; treat the token like a password.
+
 ## Best time to charge (day/night tariff)
 Set your **dal/normaal** window and prices in the sidebar (**Tariff (day/night)**). The
 **Best time to charge** section splits each session's energy into off-peak vs peak by
@@ -63,6 +74,8 @@ window, and shades the off-peak hours on the habits heatmap.
 | `CAR_MAP` | JSON mapping RFID card UID → car name, e.g. `{"AAAA000000A1": "Car A", "BBBB000000B2": "Car B"}`. Kept out of the code so UIDs aren't committed. Without it, cards show their label. |
 | `CAR_WLTP` | JSON mapping car name → manufacturer WLTP consumption in kWh/100km, e.g. `{"Car A": 18.2, "Car B": 13.5}`. Used as the default in the "Cost per 100 km" estimate. |
 | `P1_REMOTE_URL` | Optional default URL for the HomeWizard relay, so the live home-energy panel works from a hosted instance (see above). |
+| `CHARGER_HOST` | Peblar charger IP or hostname for the live Local REST API (defaults to `pblr-0012237.local`). Home network only. |
+| `CHARGER_TOKEN` | Token for the Peblar **Local REST API** (sent in the `Authorization` header). Copy it from the charger's Advanced settings. Treat as a password — keep it out of any public repo. |
 
 ## Privacy
 The bundled `data/sample_meterdata.csv` is **anonymized demo data** — no real serial, UIDs, or

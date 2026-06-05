@@ -680,6 +680,43 @@ with tab_home:
                     "remote relay URL."
                 )
 
+    st.divider()
+    st.subheader("🔌 Live charger (Peblar)")
+    st.caption(
+        "Live state from the charger's local REST API — works on the home network. "
+        "Enable the Local REST API in the charger's Advanced settings and paste the token. "
+        "This is live state only; the session history comes from the CSV export."
+    )
+    c1, c2 = st.columns(2)
+    chg_host = c1.text_input(
+        "Charger address (IP or hostname)", value=_setting("CHARGER_HOST", "pblr-0012237.local")
+    )
+    chg_token = c2.text_input("API token", type="password", value=_setting("CHARGER_TOKEN"))
+
+    if st.button("Read charger now"):
+        if not chg_host.strip() or not chg_token.strip():
+            st.error("Enter the charger's address and its Local REST API token.")
+        else:
+            try:
+                from peblar import fetch as fetch_charger
+
+                r = fetch_charger(chg_host.strip(), chg_token.strip())
+                m = st.columns(4)
+                m[0].metric("Live power", f"{r.power_w:,.0f} W" if r.power_w is not None else "—")
+                m[1].metric("This session", f"{r.session_kwh:,.2f} kWh" if r.session_kwh is not None else "—")
+                m[2].metric("Lifetime", f"{r.total_kwh:,.0f} kWh" if r.total_kwh is not None else "—")
+                m[3].metric("Status", r.cp_state or "—")
+                if r.session_kwh and eur_per_kwh:
+                    st.caption(
+                        f"Current session ≈ €{r.session_kwh * eur_per_kwh:,.2f} at the effective "
+                        f"€{eur_per_kwh:,.3f}/kWh from the sessions."
+                    )
+            except Exception as exc:  # noqa: BLE001
+                st.error(
+                    f"Couldn't read the charger: {exc}. This only works on the same network as "
+                    "the charger, with the Local REST API enabled and a valid token."
+                )
+
 
 # ===========================================================================
 # Data: session log, downloads
