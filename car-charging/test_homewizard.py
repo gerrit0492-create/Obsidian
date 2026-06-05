@@ -34,7 +34,30 @@ def test_v2_combined() -> None:
     assert r.export_kwh == 10.0
 
 
+def test_details() -> None:
+    r = normalize(
+        {
+            "active_power_w": 415.0,
+            "active_power_l1_w": 200.0,
+            "active_voltage_l1_v": 230.1,
+            "active_tariff": 2,
+            "total_power_import_kwh": 11324.0,
+            "montly_power_peak_w": 9000.0,
+            "meter_model": "ISKRA",
+        }
+    )
+    d = r.details
+    assert d["Active power (W)"] == 415.0
+    assert d["Power L1 (W)"] == 200.0
+    assert d["Voltage L1 (V)"] == 230.1
+    assert d["Active tariff"] == 2
+    assert d["Monthly power peak (W)"] == 9000.0
+    assert d["Meter model"] == "ISKRA"
+    assert "Gas total (m³)" not in d  # only present fields are included
+
+
 if __name__ == "__main__":
     test_v1()
     test_v2_combined()
+    test_details()
     print("All tests passed.")

@@ -146,6 +146,27 @@ def to_excel(sheets: dict[str, pd.DataFrame]) -> bytes:
     return buf.getvalue()
 
 
+def p1_details_df(reading) -> pd.DataFrame:
+    """Every field the P1 meter returned, as a tidy two-column table."""
+    items = list((reading.details or {}).items())
+    return pd.DataFrame(items, columns=["Field", "Value"])
+
+
+def home_vs_car_df(reading, home_price: float, car_kwh: float, car_cost: float) -> pd.DataFrame:
+    """A small home-energy vs car-charging comparison table."""
+    rows: list[list] = []
+    if reading.import_kwh is not None:
+        rows.append(["Home imported (lifetime, kWh)", round(reading.import_kwh, 1)])
+        rows.append(["Home cost (lifetime, €)", round(reading.import_kwh * home_price, 2)])
+    if reading.export_kwh is not None:
+        rows.append(["Home exported (lifetime, kWh)", round(reading.export_kwh, 1)])
+    rows.append(["Car charging (selected period, kWh)", round(car_kwh, 1)])
+    rows.append(["Car cost (selected period, €)", round(car_cost, 2)])
+    if reading.import_kwh:
+        rows.append(["Car as % of home lifetime import", round(car_kwh / reading.import_kwh * 100, 1)])
+    return pd.DataFrame(rows, columns=["Metric", "Value"])
+
+
 def _setting(name: str, default: str = "") -> str:
     """Read a setting from Streamlit secrets, falling back to env vars."""
     try:
@@ -169,14 +190,19 @@ def _require_password() -> None:
     st.stop()
 
 
+# Card -> car mapping used unless overridden by the CAR_MAP setting. Keyed by the
+# friendly card label (or RFID id); see charging.load_sessions.
+_DEFAULT_CAR_MAP = {"ANWB": "Citroën ëC3", "ANWB Gerrit": "Kia Sorento"}
+
+
 def _car_map() -> dict:
     raw = _setting("CAR_MAP")
     if not raw:
-        return {}
+        return dict(_DEFAULT_CAR_MAP)
     try:
         return {str(k): str(v) for k, v in json.loads(raw).items()}
     except Exception:
-        return {}
+        return dict(_DEFAULT_CAR_MAP)
 
 
 def _car_wltp() -> dict:
@@ -656,29 +682,45 @@ with tab_home:
 
                 token = hw_token.strip() or None
                 if hw_remote.strip():
-                    r = fetch_url(hw_remote.strip(), token=token)
+                    st.session_state["p1_reading"] = fetch_url(hw_remote.strip(), token=token)
                 else:
-                    r = fetch(hw_host.strip(), token=token)
-                m = st.columns(4)
-                m[0].metric("Live power", f"{r.active_power_w:,.0f} W" if r.active_power_w is not None else "—")
-                m[1].metric("Imported (lifetime)", f"{r.import_kwh:,.0f} kWh" if r.import_kwh is not None else "—")
-                m[2].metric("Exported (lifetime)", f"{r.export_kwh:,.0f} kWh" if r.export_kwh is not None else "—")
-                if r.import_kwh is not None:
-                    m[3].metric("Home cost (lifetime)", f"€{r.import_kwh * home_price:,.0f}")
-                if r.import_kwh:
-                    share = total_kwh / r.import_kwh * 100
-                    st.info(
-                        f"Car charging in view ({total_kwh:,.0f} kWh) is ~{share:.1f}% of the home's "
-                        f"lifetime imported energy ({r.import_kwh:,.0f} kWh). Note: the home figure is "
-                        "lifetime, the car figure is the selected period — for a true side-by-side, "
-                        "log P1 readings over time."
-                    )
+                    st.session_state["p1_reading"] = fetch(hw_host.strip(), token=token)
             except Exception as exc:  # noqa: BLE001
                 st.error(
                     f"Couldn't read the P1 meter: {exc}. A direct address only works on the same "
                     "network (enable the Local API in the HomeWizard app); from elsewhere, use a "
                     "remote relay URL."
                 )
+
+    r = st.session_state.get("p1_reading")
+    if r is not None:
+        m = st.columns(4)
+        m[0].metric("Live power", f"{r.active_power_w:,.0f} W" if r.active_power_w is not None else "—")
+        m[1].metric("Imported (lifetime)", f"{r.import_kwh:,.0f} kWh" if r.import_kwh is not None else "—")
+        m[2].metric("Exported (lifetime)", f"{r.export_kwh:,.0f} kWh" if r.export_kwh is not None else "—")
+        if r.import_kwh is not None:
+            m[3].metric("Home cost (lifetime)", f"€{r.import_kwh * home_price:,.0f}")
+
+        if r.import_kwh:
+            share = total_kwh / r.import_kwh * 100
+            st.info(
+                f"Car charging in view ({total_kwh:,.0f} kWh) is ~{share:.1f}% of the home's "
+                f"lifetime imported energy ({r.import_kwh:,.0f} kWh). The home figure is lifetime, "
+                "the car figure is the selected period — log P1 readings over time for a true "
+                "side-by-side."
+            )
+
+        st.markdown("**Home vs car**")
+        st.dataframe(
+            home_vs_car_df(r, home_price, total_kwh, total_cost),
+            use_container_width=True, hide_index=True,
+        )
+
+        det = p1_details_df(r)
+        st.markdown(f"**All P1 data** — {len(det)} fields")
+        st.dataframe(det, use_container_width=True, hide_index=True)
+        with st.expander("Raw P1 JSON"):
+            st.json(r.raw or {})
 
     st.divider()
     st.subheader("🔌 Live charger (Peblar)")
@@ -815,21 +857,27 @@ with tab_data:
         "per_car": per_car_ctx,
     }
 
+    sheets = {
+        "Summary": summary,
+        "Sessions": show,
+        "Monthly": msum,
+        "By car": by_car,
+        "Daily": daily,
+        "Effective price": mprice,
+        "Peak vs off-peak": tou_summary,
+        "Cost per 100km": per100,
+    }
+    # Fold in the latest P1 reading (from the Home tab) so the download combines
+    # home energy with the charging data.
+    r_home = st.session_state.get("p1_reading")
+    if r_home is not None:
+        sheets["Home energy (P1)"] = p1_details_df(r_home)
+        sheets["Home vs car"] = home_vs_car_df(r_home, home_price, total_kwh, total_cost)
+
     d1, d2, d3 = st.columns(3)
     d1.download_button(
         "⬇️ Excel",
-        to_excel(
-            {
-                "Summary": summary,
-                "Sessions": show,
-                "Monthly": msum,
-                "By car": by_car,
-                "Daily": daily,
-                "Effective price": mprice,
-                "Peak vs off-peak": tou_summary,
-                "Cost per 100km": per100,
-            }
-        ),
+        to_excel(sheets),
         file_name="charging_costs.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )

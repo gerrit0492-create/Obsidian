@@ -55,6 +55,12 @@ figure. Open the **🏠 Home** tab, enter the meter's IP (enable the **Local API
 HomeWizard app for v1, or paste a **v2 token**), and click **Read P1 now**. Set the `P1_HOST`
 setting to pre-fill the address.
 
+Beyond the headline metrics, the panel pulls **every field the meter exposes** — per-phase
+power/voltage/current, active tariff, T1/T2 import & export, monthly power peak, power-failure
+and voltage sag/swell counts, and gas/water totals when present — in an "All P1 data" table
+(plus the raw JSON). It also shows a **Home vs car** comparison, and the last reading is folded
+into the Excel download as extra sheets so the export combines home energy with the charging data.
+
 > It's a live snapshot plus lifetime totals — for home cost *over time*, log readings
 > periodically.
 
@@ -88,7 +94,7 @@ window, and shades the off-peak hours on the habits heatmap.
 | Name | Purpose |
 | ---- | ------- |
 | `APP_PASSWORD` | If set, the app asks for this password before showing anything (use it when deploying publicly). |
-| `CAR_MAP` | JSON mapping RFID card UID → car name, e.g. `{"AAAA000000A1": "Car A", "BBBB000000B2": "Car B"}`. Kept out of the code so UIDs aren't committed. Without it, cards show their label. |
+| `CAR_MAP` | JSON mapping RFID card UID **or** card label → car name, e.g. `{"ANWB": "Citroën ëC3", "ANWB Gerrit": "Kia Sorento"}`. Overrides the built-in default. Without a match, cards show their label. |
 | `CAR_WLTP` | JSON mapping car name → manufacturer WLTP consumption in kWh/100km, e.g. `{"Car A": 18.2, "Car B": 13.5}`. Used as the default in the "Cost per 100 km" estimate. |
 | `P1_REMOTE_URL` | Optional default URL for the HomeWizard relay, so the live home-energy panel works from a hosted instance (see above). |
 | `CHARGER_HOST` | Peblar charger IP or hostname for the live Local REST API (defaults to `pblr-0012237.local`). Home network only. |
