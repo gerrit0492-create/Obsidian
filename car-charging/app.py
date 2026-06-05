@@ -177,6 +177,100 @@ def _setting(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+SECRETS_PATH = Path(__file__).parent / ".streamlit" / "secrets.toml"
+
+
+def _save_secrets(updates: dict) -> None:
+    """Persist key = "value" settings to the local (git-ignored) secrets.toml."""
+    SECRETS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lines = (
+        SECRETS_PATH.read_text(encoding="utf-8").splitlines()
+        if SECRETS_PATH.exists() else []
+    )
+    for key, val in updates.items():
+        escaped = str(val).replace("\\", "\\\\").replace('"', '\\"')
+        newline = f'{key} = "{escaped}"'
+        for i, ln in enumerate(lines):
+            stripped = ln.lstrip()
+            if not stripped.startswith("#") and (
+                stripped.startswith(f"{key} ") or stripped.startswith(f"{key}=")
+            ):
+                lines[i] = newline
+                break
+        else:
+            lines.append(newline)
+    SECRETS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _forget_secrets(keys: list) -> None:
+    """Remove the given keys from the local secrets.toml, keeping comments."""
+    if not SECRETS_PATH.exists():
+        return
+    kept = []
+    for ln in SECRETS_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = ln.lstrip()
+        if not stripped.startswith("#") and any(
+            stripped.startswith(f"{k} ") or stripped.startswith(f"{k}=") for k in keys
+        ):
+            continue
+        kept.append(ln)
+    SECRETS_PATH.write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+
+def _remember_controls(scope: str, values: dict) -> None:
+    """Render 'Remember on this PC' / 'Forget' buttons for local persistence."""
+    st.caption(
+        "💾 stores these on this computer in `.streamlit/secrets.toml` "
+        "(git-ignored, never uploaded), so they're filled in next time."
+    )
+    cols = st.columns(2)
+    if cols[0].button("💾 Remember on this PC", key=f"save_{scope}"):
+        try:
+            _save_secrets({k: v for k, v in values.items() if v})
+            st.success("Saved on this computer — it'll be here next time.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Couldn't save here (read-only host?): {exc}")
+    if cols[1].button("🗑️ Forget", key=f"forget_{scope}"):
+        try:
+            _forget_secrets(list(values.keys()))
+            st.info("Removed from this computer.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Couldn't update secrets: {exc}")
+
+
+REPO_ZIP_URL = "https://github.com/gerrit0492-create/Obsidian/archive/refs/heads/main.zip"
+
+
+def _self_update() -> str:
+    """Download the latest car-charging files from GitHub over this folder.
+
+    Local secrets are preserved; restart the app afterwards to load the changes.
+    """
+    import io as _io
+    import shutil
+    import urllib.request
+    import zipfile
+
+    here = Path(__file__).parent
+    with urllib.request.urlopen(REPO_ZIP_URL, timeout=60) as resp:
+        data = resp.read()
+    zf = zipfile.ZipFile(_io.BytesIO(data))
+    prefix = "Obsidian-main/car-charging/"
+    count = 0
+    for name in zf.namelist():
+        if not name.startswith(prefix) or name.endswith("/"):
+            continue
+        rel = name[len(prefix):]
+        if rel.startswith(".streamlit/secrets.toml"):  # never clobber local secrets
+            continue
+        dest = here / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(name) as src, open(dest, "wb") as out:
+            shutil.copyfileobj(src, out)
+        count += 1
+    return f"Updated {count} files from GitHub."
+
+
 def _require_password() -> None:
     expected = _setting("APP_PASSWORD")
     if not expected or st.session_state.get("authed"):
@@ -217,6 +311,16 @@ def _car_wltp() -> dict:
 
 
 _require_password()
+
+# --- App update ------------------------------------------------------------
+with st.sidebar.expander("⚙️ App"):
+    st.caption("Get the latest version from GitHub. Your saved settings are kept.")
+    if st.button("⬆️ Update app"):
+        try:
+            msg = _self_update()
+            st.success(f"{msg} Close this window and start the app again to apply.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Update failed: {exc}")
 
 # --- Data source -----------------------------------------------------------
 st.sidebar.header("Data")
@@ -665,13 +769,14 @@ with tab_home:
     )
     h1, h2, h3 = st.columns(3)
     hw_host = h1.text_input("P1 address (IP or hostname)", value=_setting("P1_HOST", "192.168.1.31"))
-    hw_token = h2.text_input("Token (optional)", type="password")
+    hw_token = h2.text_input("Token (optional)", type="password", value=_setting("P1_TOKEN"))
     home_price = h3.number_input("Home €/kWh", min_value=0.0, value=0.35, step=0.01, format="%.2f")
     hw_remote = st.text_input(
         "…or remote relay URL (works away from home)",
         value=_setting("P1_REMOTE_URL"),
         placeholder="https://your-relay.example/p1.json",
     )
+    _remember_controls("p1", {"P1_HOST": hw_host, "P1_TOKEN": hw_token, "P1_REMOTE_URL": hw_remote})
 
     if st.button("Read P1 now"):
         if not hw_host.strip() and not hw_remote.strip():
@@ -734,6 +839,7 @@ with tab_home:
         "Charger address (IP or hostname)", value=_setting("CHARGER_HOST", "pblr-0012237.local")
     )
     chg_token = c2.text_input("API token", type="password", value=_setting("CHARGER_TOKEN"))
+    _remember_controls("charger", {"CHARGER_HOST": chg_host, "CHARGER_TOKEN": chg_token})
 
     if st.button("Read charger now"):
         if not chg_host.strip() or not chg_token.strip():

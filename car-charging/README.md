@@ -26,6 +26,14 @@ After you have Python installed, just **double-click `start.bat`** (Windows) or
 `start.command` (macOS). It installs everything on first run and opens the dashboard
 for you — no terminal needed.
 
+### Remember settings & update — from the dashboard
+- In the **🏠 Home** tab, the P1 and charger panels have a **💾 Remember on this PC**
+  button: it saves the address/token to the local (git-ignored) `secrets.toml`, so you
+  don't retype them next time. **🗑️ Forget** removes them again.
+- The sidebar's **⚙️ App → ⬆️ Update app** button pulls the latest version straight from
+  GitHub (your saved settings are kept) — no need to re-download the ZIP. Restart the app
+  afterwards to apply.
+
 ### Run at home for live data (P1 + Peblar)
 The live **🏠 Home** panels (HomeWizard P1 and the Peblar charger) talk to devices on
 your LAN, so they only work when the app runs **on your home network** — a hosted
