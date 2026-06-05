@@ -158,14 +158,20 @@ CAR_COLOR = {car: CAR_PALETTE[i % len(CAR_PALETTE)] for i, car in enumerate(cars
 
 # Day/night (dal) tariff settings — drive the "Best time to charge" view.
 st.sidebar.header("Tariff (day/night)")
+st.sidebar.caption(
+    "Your real home prices. Both default to the charger's logged price; set a "
+    "lower dal price to estimate day/night savings."
+)
+# Default to the charger's own price so figures match the CSV until you set a split.
+default_price = round(float(meta.price_per_kwh), 2) if pd.notna(meta.price_per_kwh) else 0.30
 dal_start = st.sidebar.number_input("Off-peak starts (hour)", 0, 23, 23)
 dal_end = st.sidebar.number_input("Off-peak ends (hour)", 0, 23, 7)
 weekend_off = st.sidebar.checkbox("Weekends fully off-peak", value=True)
 price_normaal = st.sidebar.number_input(
-    "Peak €/kWh (normaal)", min_value=0.0, value=0.40, step=0.01, format="%.2f"
+    "Peak €/kWh (normaal)", min_value=0.0, value=default_price, step=0.01, format="%.2f"
 )
 price_dal = st.sidebar.number_input(
-    "Off-peak €/kWh (dal)", min_value=0.0, value=0.30, step=0.01, format="%.2f"
+    "Off-peak €/kWh (dal)", min_value=0.0, value=default_price, step=0.01, format="%.2f"
 )
 
 
@@ -335,8 +341,18 @@ c[0].metric("Charged off-peak", f"{off_share:.0f}%")
 c[1].metric("Cost at home tariff", f"€{home_cost:,.2f}")
 c[2].metric("If all off-peak", f"€{all_off_cost:,.2f}")
 c[3].metric("Potential saving", f"€{savings:,.2f}")
+st.caption(
+    "What-if on your **home** day/night tariff (sidebar) — separate from the flat "
+    "price the charger logs in the CSV."
+)
 
-if savings > 0.01:
+if abs(price_normaal - price_dal) < 1e-9:
+    st.info(
+        "Set a lower **off-peak (dal)** price than **peak (normaal)** in the sidebar "
+        "to estimate day/night savings — both currently match the charger's flat price, "
+        "so there's nothing to compare yet."
+    )
+elif savings > 0.01:
     st.success(
         f"**Charge during the dal window ({window_txt}).** You charged {off_share:.0f}% "
         f"off-peak — shifting the rest would save about €{savings:,.2f} at "
