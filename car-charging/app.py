@@ -25,6 +25,7 @@ from charging import (
     monthly_effective_price,
     monthly_summary,
     parse_metadata,
+    split_peak_offpeak,
 )
 
 DEFAULT_CSV = Path(__file__).parent / "data" / "sample_meterdata.csv"
@@ -155,6 +156,25 @@ chosen = st.sidebar.multiselect("Cars", cars, default=cars)
 # One colour per car, stable across every chart and regardless of the filter.
 CAR_COLOR = {car: CAR_PALETTE[i % len(CAR_PALETTE)] for i, car in enumerate(cars)}
 
+# Day/night (dal) tariff settings — drive the "Best time to charge" view.
+st.sidebar.header("Tariff (day/night)")
+dal_start = st.sidebar.number_input("Off-peak starts (hour)", 0, 23, 23)
+dal_end = st.sidebar.number_input("Off-peak ends (hour)", 0, 23, 7)
+weekend_off = st.sidebar.checkbox("Weekends fully off-peak", value=True)
+price_normaal = st.sidebar.number_input(
+    "Peak €/kWh (normaal)", min_value=0.0, value=0.40, step=0.01, format="%.2f"
+)
+price_dal = st.sidebar.number_input(
+    "Off-peak €/kWh (dal)", min_value=0.0, value=0.30, step=0.01, format="%.2f"
+)
+
+
+def hour_is_off(hour: int) -> bool:
+    """Off-peak by clock hour only (ignores the weekend rule), for shading charts."""
+    if dal_start <= dal_end:
+        return dal_start <= hour < dal_end
+    return hour >= dal_start or hour < dal_end
+
 mask = df["car"].isin(chosen)
 if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
     start_d, end_d = date_range
@@ -277,6 +297,10 @@ with left:
         coloraxis_colorbar=dict(title="kWh", thickness=12),
     )
     fig.update_xaxes(dtick=2, range=[-0.5, 23.5])
+    # Outline the off-peak (dal) hours so habits can be read against the tariff.
+    off_hours = [h for h in range(24) if hour_is_off(h)]
+    for h in off_hours:
+        fig.add_vrect(x0=h - 0.5, x1=h + 0.5, fillcolor="#2a9d8f", opacity=0.10, line_width=0)
     st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 with right:
     total_hab = hab["energy_kwh"].sum()
@@ -288,6 +312,86 @@ with right:
     st.metric("Charged 23:00–07:00", f"{night / total_hab * 100 if total_hab else 0:.0f}%")
     weekend = hab[hab["weekday"].isin(["Saturday", "Sunday"])]["energy_kwh"].sum()
     st.metric("Weekend share", f"{weekend / total_hab * 100 if total_hab else 0:.0f}%")
+
+# --- Best time to charge (day/night tariff) -------------------------------
+st.divider()
+st.subheader("⏰ Best time to charge")
+split = split_peak_offpeak(
+    fdf, dal_start=int(dal_start), dal_end=int(dal_end), weekend_offpeak=weekend_off
+)
+off_kwh = split["energy_offpeak"].sum()
+peak_kwh = split["energy_peak"].sum()
+tou_total = off_kwh + peak_kwh
+off_share = off_kwh / tou_total * 100 if tou_total else 0.0
+home_cost = off_kwh * price_dal + peak_kwh * price_normaal
+all_off_cost = tou_total * price_dal
+savings = peak_kwh * (price_normaal - price_dal)
+window_txt = f"{int(dal_start):02d}:00–{int(dal_end):02d}:00" + (
+    " + weekends" if weekend_off else ""
+)
+
+c = st.columns(4)
+c[0].metric("Charged off-peak", f"{off_share:.0f}%")
+c[1].metric("Cost at home tariff", f"€{home_cost:,.2f}")
+c[2].metric("If all off-peak", f"€{all_off_cost:,.2f}")
+c[3].metric("Potential saving", f"€{savings:,.2f}")
+
+if savings > 0.01:
+    st.success(
+        f"**Charge during the dal window ({window_txt}).** You charged {off_share:.0f}% "
+        f"off-peak — shifting the rest would save about €{savings:,.2f} at "
+        f"€{price_normaal:.2f}/€{price_dal:.2f} per kWh (peak/off-peak)."
+    )
+else:
+    st.success(
+        f"Nicely timed — almost all of your charging already falls in the dal window "
+        f"({window_txt})."
+    )
+
+left, right = st.columns(2)
+with left:
+    st.caption("Off-peak vs peak energy by car")
+    tou = (
+        split.groupby("car")[["energy_offpeak", "energy_peak"]]
+        .sum()
+        .reset_index()
+        .melt(id_vars="car", var_name="period", value_name="kwh")
+    )
+    tou["period"] = tou["period"].map({"energy_offpeak": "Off-peak", "energy_peak": "Peak"})
+    fig = px.bar(
+        tou, x="car", y="kwh", color="period", barmode="stack",
+        color_discrete_map={"Off-peak": "#2a9d8f", "Peak": "#e9c46a"},
+    )
+    fig.update_layout(yaxis_title="kWh", xaxis_title="", yaxis_ticksuffix=" kWh")
+    st.plotly_chart(style_fig(fig), use_container_width=True)
+with right:
+    st.caption("Energy by hour of day (green = off-peak)")
+    hh = split.dropna(subset=["start"]).copy()
+    hh["hour"] = hh["start"].dt.hour
+    by_hour = (
+        hh.groupby("hour")["energy_kwh"].sum().reindex(range(24), fill_value=0).reset_index()
+    )
+    by_hour["period"] = by_hour["hour"].map(lambda h: "Off-peak" if hour_is_off(h) else "Peak")
+    fig = px.bar(
+        by_hour, x="hour", y="energy_kwh", color="period",
+        color_discrete_map={"Off-peak": "#2a9d8f", "Peak": "#e9c46a"},
+    )
+    fig.update_layout(yaxis_title="kWh", xaxis_title="Hour of day", yaxis_ticksuffix=" kWh")
+    fig.update_xaxes(dtick=2)
+    st.plotly_chart(style_fig(fig), use_container_width=True)
+
+tou_summary = pd.DataFrame(
+    {
+        "Period": ["Off-peak (dal)", "Peak (normaal)", "Total"],
+        "kWh": [round(off_kwh, 1), round(peak_kwh, 1), round(tou_total, 1)],
+        "Price (€/kWh)": [price_dal, price_normaal, None],
+        "Cost (€)": [
+            round(off_kwh * price_dal, 2),
+            round(peak_kwh * price_normaal, 2),
+            round(home_cost, 2),
+        ],
+    }
+)
 
 # --- Charge speed ----------------------------------------------------------
 st.divider()
@@ -506,11 +610,12 @@ summary = pd.DataFrame(
     {
         "Metric": [
             "Charging sessions", "Energy (kWh)", "Cost (€)", "Avg €/session",
-            "Effective €/kWh", "Total charging hours", "Period", "Cars",
+            "Effective €/kWh", "Total charging hours", "Off-peak share (%)",
+            "Period", "Cars",
         ],
         "Value": [
             n_sessions, round(total_kwh, 1), round(total_cost, 2), round(avg_cost, 2),
-            round(eur_per_kwh, 3), round(total_hours, 1),
+            round(eur_per_kwh, 3), round(total_hours, 1), round(off_share, 0),
             f"{fdf['date'].min()} → {fdf['date'].max()}", ", ".join(chosen),
         ],
     }
@@ -527,6 +632,7 @@ d1.download_button(
             "By car": by_car,
             "Daily": daily,
             "Effective price": mprice,
+            "Peak vs off-peak": tou_summary,
             "Cost per 100km": per100,
         }
     ),
@@ -544,22 +650,32 @@ d2.download_button(
 st.divider()
 st.subheader("🏠 Home energy (HomeWizard P1)")
 st.caption(
-    "Live reading from your P1 meter — works when this app runs on your home network. "
-    "Enable the Local API in the HomeWizard app (v1), or paste a v2 token."
+    "Direct read works on your home network. To read it from anywhere (e.g. this "
+    "hosted app), point the relay URL at a Home Assistant endpoint that republishes "
+    "the meter JSON — see the README."
 )
 h1, h2, h3 = st.columns(3)
 hw_host = h1.text_input("P1 address (IP or hostname)", value="")
-hw_token = h2.text_input("v2 token (optional)", type="password")
+hw_token = h2.text_input("Token (optional)", type="password")
 home_price = h3.number_input("Home €/kWh", min_value=0.0, value=0.35, step=0.01, format="%.2f")
+hw_remote = st.text_input(
+    "…or remote relay URL (works away from home)",
+    value=_setting("P1_REMOTE_URL"),
+    placeholder="https://your-relay.example/p1.json",
+)
 
 if st.button("Read P1 now"):
-    if not hw_host.strip():
-        st.error("Enter your P1 meter's IP address or hostname.")
+    if not hw_host.strip() and not hw_remote.strip():
+        st.error("Enter your P1 meter's address, or a remote relay URL.")
     else:
         try:
-            from homewizard import fetch
+            from homewizard import fetch, fetch_url
 
-            r = fetch(hw_host.strip(), token=hw_token.strip() or None)
+            token = hw_token.strip() or None
+            if hw_remote.strip():
+                r = fetch_url(hw_remote.strip(), token=token)
+            else:
+                r = fetch(hw_host.strip(), token=token)
             m = st.columns(4)
             m[0].metric("Live power", f"{r.active_power_w:,.0f} W" if r.active_power_w is not None else "—")
             m[1].metric("Imported (lifetime)", f"{r.import_kwh:,.0f} kWh" if r.import_kwh is not None else "—")
@@ -576,6 +692,7 @@ if st.button("Read P1 now"):
                 )
         except Exception as exc:  # noqa: BLE001
             st.error(
-                f"Couldn't read the P1 meter: {exc}. This only works on the same network as the "
-                "device (and the Local API must be enabled in the HomeWizard app for v1)."
+                f"Couldn't read the P1 meter: {exc}. A direct address only works on the same "
+                "network (enable the Local API in the HomeWizard app); from elsewhere, use a "
+                "remote relay URL."
             )

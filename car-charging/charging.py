@@ -196,3 +196,46 @@ def monthly_effective_price(df: pd.DataFrame) -> pd.DataFrame:
     )
     m["eur_per_kwh"] = m["cost"] / m["energy_kwh"]
     return m
+
+
+def _is_offpeak(ts, dal_start: int, dal_end: int, weekend_offpeak: bool) -> bool:
+    """Whether a timestamp falls in the off-peak (dal) window."""
+    if weekend_offpeak and ts.weekday() >= 5:  # Saturday/Sunday
+        return True
+    hour = ts.hour
+    if dal_start <= dal_end:
+        return dal_start <= hour < dal_end
+    return hour >= dal_start or hour < dal_end  # window wraps past midnight
+
+
+def split_peak_offpeak(
+    df: pd.DataFrame,
+    dal_start: int = 23,
+    dal_end: int = 7,
+    weekend_offpeak: bool = True,
+) -> pd.DataFrame:
+    """Allocate each session's energy to off-peak (dal) vs peak (normaal).
+
+    Energy is split in proportion to the share of the session's duration that
+    falls inside the off-peak window, assuming roughly constant power.
+    """
+    out = df.copy()
+    fracs = []
+    for start, stop in zip(out["start"], out["stop"]):
+        if pd.isna(start) or pd.isna(stop) or stop <= start:
+            fracs.append(float("nan"))
+            continue
+        total = (stop - start).total_seconds()
+        off = 0.0
+        cur = start
+        while cur < stop:
+            nxt = min(cur + pd.Timedelta(hours=1), stop)
+            mid = cur + (nxt - cur) / 2
+            if _is_offpeak(mid, dal_start, dal_end, weekend_offpeak):
+                off += (nxt - cur).total_seconds()
+            cur = nxt
+        fracs.append(off / total if total else float("nan"))
+    out["offpeak_frac"] = fracs
+    out["energy_offpeak"] = out["energy_kwh"] * out["offpeak_frac"].fillna(0)
+    out["energy_peak"] = out["energy_kwh"] - out["energy_offpeak"]
+    return out
