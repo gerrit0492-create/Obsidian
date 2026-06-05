@@ -9,6 +9,7 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 - Match the style of the surrounding code — don't introduce new patterns
 - Don't refactor or rename things that weren't part of the requested change
 - The plugin build artifact `plugin/main.js` and `node_modules/` are git-ignored — never commit them
+- When a feature adds or changes a data view, keep its export (e.g. the Excel/CSV download) in sync in the same commit so the download always matches the UI
 
 ## Building & checking
 - Plugin: `cd plugin && npm install && npm run build` (runs the `tsc` typecheck + esbuild bundle)
