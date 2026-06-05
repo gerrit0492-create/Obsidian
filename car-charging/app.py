@@ -33,6 +33,27 @@ CHARGER_URL = "http://pblr-0012237.local/charging-history"
 st.set_page_config(page_title="Car Charging Costs", page_icon="🔌", layout="wide")
 st.title("🔌 Car Charging Costs")
 
+# A fixed, high-contrast qualitative palette so each car keeps one colour
+# across every chart in the app (the actual map is built once cars are known).
+CAR_PALETTE = px.colors.qualitative.Bold
+INK = "#1f2a44"
+
+
+def style_fig(fig, *, legend: bool = True):
+    """Apply one consistent, professional look to every Plotly figure."""
+    fig.update_layout(
+        template="plotly_white",
+        font=dict(family="Inter, Segoe UI, Helvetica, sans-serif", size=13, color=INK),
+        margin=dict(l=10, r=10, t=30, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""),
+        hoverlabel=dict(font_size=12),
+        showlegend=legend,
+        bargap=0.18,
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="#eef1f6", zeroline=False)
+    return fig
+
 
 def _setting(name: str, default: str = "") -> str:
     """Read a setting from Streamlit secrets, falling back to env vars."""
@@ -63,6 +84,17 @@ def _car_map() -> dict:
         return {}
     try:
         return {str(k): str(v) for k, v in json.loads(raw).items()}
+    except Exception:
+        return {}
+
+
+def _car_wltp() -> dict:
+    """Map car name -> manufacturer WLTP consumption (kWh/100km), from CAR_WLTP."""
+    raw = _setting("CAR_WLTP")
+    if not raw:
+        return {}
+    try:
+        return {str(k): float(v) for k, v in json.loads(raw).items()}
     except Exception:
         return {}
 
@@ -120,6 +152,9 @@ date_range = st.sidebar.date_input(
 cars = sorted(df["car"].dropna().unique())
 chosen = st.sidebar.multiselect("Cars", cars, default=cars)
 
+# One colour per car, stable across every chart and regardless of the filter.
+CAR_COLOR = {car: CAR_PALETTE[i % len(CAR_PALETTE)] for i, car in enumerate(cars)}
+
 mask = df["car"].isin(chosen)
 if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
     start_d, end_d = date_range
@@ -160,50 +195,72 @@ st.divider()
 
 # --- Monthly trends --------------------------------------------------------
 msum = monthly_summary(fdf)
+mbc = monthly_by_car(fdf)
 left, right = st.columns(2)
 with left:
-    st.subheader("Cost per month (by car)")
-    mbc = monthly_by_car(fdf)
-    fig = px.bar(mbc, x="month", y="cost", color="car", text_auto=".0f")
-    fig.update_layout(yaxis_title="€", xaxis_title="", legend_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Cost per month")
+    fig = px.bar(
+        mbc, x="month", y="cost", color="car", text_auto=".2f",
+        color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_traces(hovertemplate="%{x}<br>%{fullData.name}: €%{y:.2f}<extra></extra>")
+    fig.update_layout(barmode="stack", yaxis_title="€", xaxis_title="", yaxis_tickprefix="€")
+    st.plotly_chart(style_fig(fig), use_container_width=True)
 with right:
     st.subheader("Energy per month")
-    fig = px.bar(msum, x="month", y="energy_kwh", text_auto=".0f")
-    fig.update_layout(yaxis_title="kWh", xaxis_title="", showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    fig = px.bar(
+        mbc, x="month", y="energy_kwh", text_auto=".0f", color="car",
+        color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_traces(hovertemplate="%{x}<br>%{fullData.name}: %{y:.1f} kWh<extra></extra>")
+    fig.update_layout(barmode="stack", yaxis_title="kWh", xaxis_title="", yaxis_ticksuffix=" kWh")
+    st.plotly_chart(style_fig(fig), use_container_width=True)
 
-# --- Cumulative cost + per-card --------------------------------------------
+# --- Cumulative cost + cost share -----------------------------------------
 left, right = st.columns([3, 2])
 with left:
-    st.subheader("Cumulative cost")
-    cum = fdf.sort_values("start")
-    cum = cum.assign(cumulative_cost=cum["cost"].cumsum())
-    fig = px.area(cum, x="start", y="cumulative_cost")
-    fig.update_layout(yaxis_title="€", xaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Cumulative cost by car")
+    cum = fdf.sort_values("start").copy()
+    cum["cumulative_cost"] = cum.groupby("car")["cost"].cumsum()
+    fig = px.area(
+        cum, x="start", y="cumulative_cost", color="car",
+        color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_traces(hovertemplate="%{x|%d %b %Y}<br>%{fullData.name}: €%{y:.2f}<extra></extra>")
+    fig.update_layout(yaxis_title="€", xaxis_title="", yaxis_tickprefix="€")
+    st.plotly_chart(style_fig(fig), use_container_width=True)
 with right:
-    st.subheader("By car")
+    st.subheader("Cost share by car")
     by_car = (
         fdf.groupby("car")
         .agg(sessions=("session", "count"), energy_kwh=("energy_kwh", "sum"), cost=("cost", "sum"))
         .reset_index()
     )
-    fig = px.bar(by_car, x="car", y="cost", color="car", text_auto=".2f")
-    fig.update_layout(yaxis_title="€", xaxis_title="", showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    fig = px.pie(
+        by_car, names="car", values="cost", hole=0.55,
+        color="car", color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_traces(
+        textposition="inside",
+        texttemplate="%{label}<br>€%{value:.0f}",
+        hovertemplate="%{label}: €%{value:.2f} (%{percent})<extra></extra>",
+    )
+    fig.update_layout(
+        annotations=[dict(text=f"€{total_cost:,.0f}", x=0.5, y=0.5, font_size=18, showarrow=False)]
+    )
+    st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 
 # --- Charging habits -------------------------------------------------------
 st.divider()
 st.subheader("When you charge")
 hab = fdf.dropna(subset=["start"]).copy()
+hab["hour"] = hab["start"].dt.hour
+hab["weekday"] = hab["start"].dt.day_name()
+weekday_order = [
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+]
 left, right = st.columns([3, 1])
 with left:
-    hab["hour"] = hab["start"].dt.hour
-    hab["weekday"] = hab["start"].dt.day_name()
-    weekday_order = [
-        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
-    ]
     fig = px.density_heatmap(
         hab,
         x="hour",
@@ -212,21 +269,25 @@ with left:
         histfunc="sum",
         nbinsx=24,
         category_orders={"weekday": weekday_order},
-        color_continuous_scale="Blues",
+        color_continuous_scale="Tealgrn",
     )
+    fig.update_traces(hovertemplate="%{y} at %{x}:00<br>%{z:.1f} kWh<extra></extra>")
     fig.update_layout(
-        xaxis_title="Hour of day", yaxis_title="", coloraxis_colorbar_title="kWh"
+        xaxis_title="Hour of day", yaxis_title="",
+        coloraxis_colorbar=dict(title="kWh", thickness=12),
     )
     fig.update_xaxes(dtick=2, range=[-0.5, 23.5])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 with right:
+    total_hab = hab["energy_kwh"].sum()
     start_frac = hab["start"].dt.hour + hab["start"].dt.minute / 60.0
     if not start_frac.empty:
         avg_h = start_frac.mean()
         st.metric("Typical plug-in time", f"{int(avg_h):02d}:{int((avg_h % 1) * 60):02d}")
     night = hab[(hab["hour"] >= 23) | (hab["hour"] < 7)]["energy_kwh"].sum()
-    night_share = night / hab["energy_kwh"].sum() * 100 if hab["energy_kwh"].sum() else 0
-    st.metric("Charged 23:00–07:00", f"{night_share:.0f}%")
+    st.metric("Charged 23:00–07:00", f"{night / total_hab * 100 if total_hab else 0:.0f}%")
+    weekend = hab[hab["weekday"].isin(["Saturday", "Sunday"])]["energy_kwh"].sum()
+    st.metric("Weekend share", f"{weekend / total_hab * 100 if total_hab else 0:.0f}%")
 
 # --- Charge speed ----------------------------------------------------------
 st.divider()
@@ -234,26 +295,40 @@ st.subheader("Charge speed")
 sp = fdf.dropna(subset=["power_kw"])
 left, right = st.columns(2)
 with left:
-    st.caption("Distribution of average power per session")
-    fig = px.histogram(sp, x="power_kw", nbins=20)
-    fig.update_layout(xaxis_title="kW", yaxis_title="Sessions", showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Power per session, spread by car")
+    fig = px.box(
+        sp, x="car", y="power_kw", color="car", points="all",
+        color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_layout(yaxis_title="kW", xaxis_title="", yaxis_ticksuffix=" kW")
+    st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 with right:
     st.caption("Average power by car")
     by_car_power = sp.groupby("car")["power_kw"].mean().reset_index()
-    fig = px.bar(by_car_power, x="car", y="power_kw", color="car", text_auto=".1f")
-    fig.update_layout(yaxis_title="kW", xaxis_title="", showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    fig = px.bar(
+        by_car_power, x="car", y="power_kw", color="car", text_auto=".1f",
+        color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+    )
+    fig.update_traces(hovertemplate="%{x}: %{y:.2f} kW<extra></extra>")
+    fig.update_layout(yaxis_title="kW", xaxis_title="", yaxis_ticksuffix=" kW")
+    st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 
 # --- Daily trend + forecast ------------------------------------------------
 st.divider()
 st.subheader("Daily trend & forecast")
 daily = daily_summary(fdf)
 daily["cost_7d_avg"] = daily["cost"].rolling(7, min_periods=1).mean()
-fig = px.bar(daily, x="date", y="cost")
-fig.add_scatter(x=daily["date"], y=daily["cost_7d_avg"], mode="lines", name="7-day avg")
-fig.update_layout(yaxis_title="€", xaxis_title="", legend_title="")
-st.plotly_chart(fig, use_container_width=True)
+daily_by_car = fdf.groupby(["date", "car"])["cost"].sum().reset_index()
+fig = px.bar(
+    daily_by_car, x="date", y="cost", color="car",
+    color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+)
+fig.add_scatter(
+    x=daily["date"], y=daily["cost_7d_avg"], mode="lines", name="7-day avg",
+    line=dict(color=INK, width=2, dash="dot"),
+)
+fig.update_layout(barmode="stack", yaxis_title="€", xaxis_title="", yaxis_tickprefix="€")
+st.plotly_chart(style_fig(fig), use_container_width=True)
 
 span_days = (fdf["date"].max() - fdf["date"].min()).days + 1
 avg_daily_cost = total_cost / span_days if span_days else 0.0
@@ -271,25 +346,44 @@ st.caption(
 st.divider()
 st.subheader("Effective price per kWh over time")
 mprice = monthly_effective_price(fdf)
-fig = px.line(mprice, x="month", y="eur_per_kwh", markers=True)
-fig.update_layout(yaxis_title="€/kWh", xaxis_title="")
+mprice_car = (
+    fdf.groupby(["month", "car"])
+    .agg(energy_kwh=("energy_kwh", "sum"), cost=("cost", "sum"))
+    .reset_index()
+)
+mprice_car["eur_per_kwh"] = mprice_car["cost"] / mprice_car["energy_kwh"]
+fig = px.line(
+    mprice_car, x="month", y="eur_per_kwh", color="car", markers=True,
+    color_discrete_map=CAR_COLOR, category_orders={"car": cars},
+)
+fig.update_traces(hovertemplate="%{x}<br>%{fullData.name}: €%{y:.3f}/kWh<extra></extra>")
+fig.update_layout(yaxis_title="€/kWh", xaxis_title="", yaxis_tickprefix="€")
 if pd.notna(meta.price_per_kwh):
     fig.add_hline(
         y=meta.price_per_kwh,
         line_dash="dot",
+        line_color="#888",
         annotation_text=f"charger setting €{meta.price_per_kwh:.3f}",
         annotation_position="top left",
     )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(style_fig(fig), use_container_width=True)
 
 # --- Cost per 100 km (estimate) -------------------------------------------
 st.divider()
 st.subheader("Cost per 100 km (estimate)")
-st.caption("Enter each car's consumption to turn energy into running cost.")
+st.caption(
+    "Defaults to each car's manufacturer WLTP consumption (set via the CAR_WLTP "
+    "secret); adjust for your real-world driving."
+)
+wltp = _car_wltp()
 eff_cols = st.columns(len(chosen) or 1)
 effs = {
     car: eff_cols[i].number_input(
-        f"{car} — kWh/100km", min_value=1.0, value=18.0, step=0.5, key=f"eff_{car}"
+        f"{car} — kWh/100km" + (" (WLTP)" if car in wltp else ""),
+        min_value=1.0,
+        value=float(wltp.get(car, 18.0)),
+        step=0.5,
+        key=f"eff_{car}",
     )
     for i, car in enumerate(chosen)
 }
@@ -310,7 +404,18 @@ for car in chosen:
         }
     )
 per100 = pd.DataFrame(per100_rows)
-st.dataframe(per100, use_container_width=True, hide_index=True)
+left, right = st.columns([2, 3])
+with left:
+    st.dataframe(per100, use_container_width=True, hide_index=True)
+with right:
+    if not per100.empty:
+        fig = px.bar(
+            per100, x="Car", y="€/100km", color="Car", text_auto=".2f",
+            color_discrete_map=CAR_COLOR, category_orders={"Car": cars},
+        )
+        fig.update_traces(hovertemplate="%{x}: €%{y:.2f}/100km<extra></extra>")
+        fig.update_layout(yaxis_title="€/100km", xaxis_title="", yaxis_tickprefix="€")
+        st.plotly_chart(style_fig(fig, legend=False), use_container_width=True)
 
 # --- Session log + downloads ----------------------------------------------
 st.divider()
@@ -334,29 +439,97 @@ show = (
 st.dataframe(show, use_container_width=True, hide_index=True)
 
 
-def to_excel(
-    sessions: pd.DataFrame,
-    months: pd.DataFrame,
-    by_car: pd.DataFrame,
-    days: pd.DataFrame,
-    price: pd.DataFrame,
-    per_100km: pd.DataFrame,
-) -> bytes:
+def _number_format(col: str) -> str | None:
+    name = str(col).lower()
+    if "per_kwh" in name:
+        return "€#,##0.000"
+    if "cost" in name or "€" in str(col) or "eur" in name:
+        return "€#,##0.00"
+    if "kwh" in name:
+        return "#,##0.0"
+    if "km" in name:
+        return "#,##0"
+    return None
+
+
+def to_excel(sheets: dict[str, pd.DataFrame]) -> bytes:
+    """Write a formatted, multi-sheet workbook with native charts."""
+    from openpyxl.chart import BarChart, Reference
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as xl:
-        sessions.to_excel(xl, sheet_name="Sessions", index=False)
-        months.to_excel(xl, sheet_name="Monthly", index=False)
-        by_car.to_excel(xl, sheet_name="By car", index=False)
-        days.to_excel(xl, sheet_name="Daily", index=False)
-        price.to_excel(xl, sheet_name="Effective price", index=False)
-        per_100km.to_excel(xl, sheet_name="Cost per 100km", index=False)
+        for name, frame in sheets.items():
+            frame.to_excel(xl, sheet_name=name, index=False)
+        wb = xl.book
+        header_fill = PatternFill("solid", fgColor="1F2A44")
+        header_font = Font(bold=True, color="FFFFFF")
+        for name, frame in sheets.items():
+            ws = wb[name]
+            for col_idx, col in enumerate(frame.columns, start=1):
+                cell = ws.cell(row=1, column=col_idx)
+                cell.fill, cell.font = header_fill, header_font
+                cell.alignment = Alignment(horizontal="center")
+                values = [str(v) for v in frame[col]] if len(frame) else []
+                width = max([len(str(col))] + [len(v) for v in values]) + 2
+                ws.column_dimensions[get_column_letter(col_idx)].width = min(max(width, 11), 42)
+                fmt = _number_format(col)
+                if fmt and len(frame):
+                    for row in range(2, len(frame) + 2):
+                        ws.cell(row=row, column=col_idx).number_format = fmt
+            ws.freeze_panes = "A2"
+            if len(frame):
+                ws.auto_filter.ref = ws.dimensions
+
+        def add_bar(sheet: str, value_col: int, title: str, anchor: str) -> None:
+            ws = wb[sheet]
+            if ws.max_row < 2:
+                return
+            chart = BarChart()
+            chart.type, chart.title, chart.legend = "col", title, None
+            chart.height, chart.width = 8, 18
+            chart.add_data(
+                Reference(ws, min_col=value_col, min_row=1, max_row=ws.max_row),
+                titles_from_data=True,
+            )
+            chart.set_categories(Reference(ws, min_col=1, min_row=2, max_row=ws.max_row))
+            ws.add_chart(chart, anchor)
+
+        add_bar("Monthly", 4, "Cost per month (€)", "F2")
+        add_bar("By car", 4, "Cost by car (€)", "F2")
+        add_bar("Cost per 100km", 5, "€ per 100 km", "G2")
     return buf.getvalue()
 
+
+summary = pd.DataFrame(
+    {
+        "Metric": [
+            "Charging sessions", "Energy (kWh)", "Cost (€)", "Avg €/session",
+            "Effective €/kWh", "Total charging hours", "Period", "Cars",
+        ],
+        "Value": [
+            n_sessions, round(total_kwh, 1), round(total_cost, 2), round(avg_cost, 2),
+            round(eur_per_kwh, 3), round(total_hours, 1),
+            f"{fdf['date'].min()} → {fdf['date'].max()}", ", ".join(chosen),
+        ],
+    }
+)
 
 d1, d2 = st.columns(2)
 d1.download_button(
     "⬇️ Excel",
-    to_excel(show, msum, by_car, daily, mprice, per100),
+    to_excel(
+        {
+            "Summary": summary,
+            "Sessions": show,
+            "Monthly": msum,
+            "By car": by_car,
+            "Daily": daily,
+            "Effective price": mprice,
+            "Cost per 100km": per100,
+        }
+    ),
     file_name="charging_costs.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
