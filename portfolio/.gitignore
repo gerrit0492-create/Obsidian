@@ -10,3 +10,5 @@ data/
 # raw CV with personal details (address/phone/DOB)
 *.docx
 # assets/cv.pdf is intentionally committed — it's the clean, privacy-safe CV.
+# generated motivation letters are per-application — keep them out of the repo
+assets/motivation.pdf
