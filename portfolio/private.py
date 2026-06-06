@@ -190,9 +190,19 @@ def render_tracker() -> None:
 
 def render_vacancies() -> None:
     st.subheader("Live vacatures zoeken")
-    has_key = bool(setting("ADZUNA_APP_ID") and setting("ADZUNA_APP_KEY"))
-    st.caption("Bron: Adzuna (NL)." if has_key else
-               "Bron: keyless fallback. Zet ADZUNA_APP_ID/APP_KEY in secrets voor betere NL-dekking.")
+
+    app_id = st.session_state.get("adz_id") or setting("ADZUNA_APP_ID")
+    app_key = st.session_state.get("adz_key") or setting("ADZUNA_APP_KEY")
+    with st.expander("🔑 Adzuna-key — betere NL-resultaten", expanded=not (app_id and app_key)):
+        st.caption("Gratis key via developer.adzuna.com (registreer → App ID + App Key). "
+                   "Plak hieronder; blijft in deze sessie. Of zet ADZUNA_APP_ID/KEY in secrets.")
+        ka, kb = st.columns(2)
+        app_id = ka.text_input("Adzuna App ID", value=app_id)
+        app_key = kb.text_input("Adzuna App Key", value=app_key, type="password")
+        st.session_state["adz_id"], st.session_state["adz_key"] = app_id, app_key
+
+    st.caption("Bron: Adzuna (NL) — volledige dekking." if (app_id and app_key) else
+               "Nog geen key → lichte keyless-bron. Vul hierboven je Adzuna-key in voor volledige NL-dekking.")
     f1, f2, f3 = st.columns([3, 1, 1])
     kw_raw = f1.text_input("Zoektermen (komma-gescheiden)", value=", ".join(vacancies.DEFAULT_KEYWORDS))
     where = f2.text_input("Regio", value="Eindhoven")
@@ -203,7 +213,7 @@ def render_vacancies() -> None:
         with st.spinner("Zoeken…"):
             st.session_state["vacancies"] = vacancies.search(
                 keywords=kws, where=where.strip() or "Eindhoven", distance=distance,
-                app_id=setting("ADZUNA_APP_ID"), app_key=setting("ADZUNA_APP_KEY"))
+                app_id=app_id, app_key=app_key)
 
     results = st.session_state.get("vacancies")
     if results is None:
