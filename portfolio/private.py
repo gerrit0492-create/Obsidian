@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import io
 import os
+import re
+import tempfile
+import zipfile
 from datetime import date
 from pathlib import Path
 
@@ -223,16 +226,35 @@ def render_vacancies() -> None:
     elif not results:
         st.warning("Geen vacatures gevonden. Probeer bredere termen of een grotere straal.")
     else:
-        vdf = pd.DataFrame(results)[["Title", "Company", "Location", "Posted", "Source", "Link"]]
-        st.success(f"{len(vdf)} vacatures gevonden.")
-        st.dataframe(vdf, use_container_width=True, hide_index=True,
-                     column_config={"Link": st.column_config.LinkColumn("Link", display_text="open")})
-        st.download_button("📱 Download dit overzicht (HTML)",
-                           data=_overview_bytes(load_apps(), results),
+        st.success(f"{len(results)} vacatures gevonden. Klik bij een vacature op **Solliciteer** "
+                   "→ CV + motivatiebrief worden meteen op maat gemaakt.")
+        cc1, cc2 = st.columns(2)
+        contact = cc1.text_input("Contactpersoon voor de brief", value="de heer/mevrouw", key="vac_contact")
+        reason = cc2.text_input("Waarom dit bedrijf (optioneel)", value="", key="vac_reason")
+
+        for i, v in enumerate(results[:25]):
+            col = st.columns([6, 2, 2])
+            link = f" · [vacature]({v['Link']})" if v.get("Link") else ""
+            posted = f" · {v['Posted']}" if v.get("Posted") else ""
+            col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted}{link}")
+            if col[1].button("✍️ Solliciteer", key=f"gen_{i}"):
+                try:
+                    pkg, _ = _application_package(v["Company"], v["Title"], contact, reason, v.get("Description", ""))
+                    st.session_state[f"pkg_{i}"] = pkg
+                except Exception as exc:  # noqa: BLE001
+                    st.session_state[f"pkg_{i}"] = None
+                    col[0].error(f"Kon pakket niet maken: {exc}")
+            if st.session_state.get(f"pkg_{i}"):
+                col[2].download_button("📦 Download", data=st.session_state[f"pkg_{i}"],
+                                       file_name=f"sollicitatie_{_slug(v['Company'])}.zip",
+                                       mime="application/zip", key=f"dl_{i}")
+
+        st.divider()
+        d1, d2 = st.columns(2)
+        d1.download_button("📱 Overzicht (HTML)", data=_overview_bytes(load_apps(), results),
                            file_name="job_overview.html", mime="text/html")
-        if st.button("➕ Voeg nieuwe toe aan tracker"):
-            added = add_vacancies(results)
-            st.success(f"{added} nieuwe vacature(s) toegevoegd aan de tracker.")
+        if d2.button("➕ Alles toevoegen aan tracker"):
+            st.success(f"{add_vacancies(results)} nieuwe vacature(s) toegevoegd aan de tracker.")
 
 
 # Keywords we scan a vacancy text for, to tailor the CV's keyword line.
@@ -251,10 +273,34 @@ def _matched_keywords(vacancy_text: str) -> list[str]:
     return [k for k in MASTER_KEYWORDS if k in text]
 
 
-def render_tailor() -> None:
-    import tempfile
-    import zipfile
+def _slug(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "_", (text or "sollicitatie")).strip("_") or "sollicitatie"
 
+
+def _application_package(company, role, contact="", reason="", vacancy_text=""):
+    """Build a tailored CV + motivation letter (PDF + Word) and return (zip_bytes, matched)."""
+    matched = _matched_keywords(f"{vacancy_text} {role}")
+    kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
+    role_title = (role or "").strip() or generate_cv.ROLE
+    comp = (company or "").strip() or "[Bedrijf]"
+    cont = (contact or "").strip() or "de heer/mevrouw"
+    rsn = (reason or "").strip() or (
+        f"de functie {role_title} en jullie organisatie goed aansluiten bij mijn ervaring in "
+        "kostentechniek en de maakindustrie")
+    buf = io.BytesIO()
+    with tempfile.TemporaryDirectory() as td:
+        tdp = Path(td)
+        generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
+        generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
+        generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
+        generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
+        with zipfile.ZipFile(buf, "w") as z:
+            for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
+                z.write(tdp / f, arcname=f)
+    return buf.getvalue(), matched
+
+
+def render_tailor() -> None:
     st.subheader("Sollicitatie op maat — CV + brief per vacature")
     st.caption("Vul de velden in (en plak desgewenst de vacaturetekst); je krijgt een afgestemde "
                "CV én motivatiebrief in PDF + Word als één download.")
@@ -267,25 +313,10 @@ def render_tailor() -> None:
 
     if st.button("✍️ Genereer CV + brief", type="primary"):
         try:
-            matched = _matched_keywords(vac)
-            kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
-            role_title = role.strip() or generate_cv.ROLE
-            comp = company.strip() or "[Bedrijf]"
-            cont = contact.strip() or "[Contactpersoon]"
-            rsn = reason.strip() or "[reden]"
-            buf = io.BytesIO()
-            with tempfile.TemporaryDirectory() as td:
-                tdp = Path(td)
-                generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
-                generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
-                generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
-                generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
-                with zipfile.ZipFile(buf, "w") as z:
-                    for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
-                        z.write(tdp / f, arcname=f)
-            st.session_state["pkg"] = buf.getvalue()
+            pkg, matched = _application_package(company, role, contact, reason, vac)
+            st.session_state["pkg"] = pkg
             st.session_state["pkg_matched"] = matched
-            st.session_state["pkg_name"] = (comp or "sollicitatie").replace(" ", "_").replace("[", "").replace("]", "")
+            st.session_state["pkg_name"] = _slug(company)
         except Exception as exc:  # noqa: BLE001
             st.error(f"Kon het pakket niet maken: {exc}. Tip: reboot de app zodat de nieuwste "
                      "code en pakketten (python-docx) geladen zijn.")
@@ -294,8 +325,6 @@ def render_tailor() -> None:
         matched = st.session_state.get("pkg_matched") or []
         if matched:
             st.success("Keywords uit de vacature meegenomen: " + ", ".join(matched))
-        else:
-            st.info("Geen specifieke keywords gevonden — standaard keyword-set gebruikt.")
         st.download_button(
             "📦 Download pakket (CV + brief · PDF + Word)",
             data=st.session_state["pkg"],

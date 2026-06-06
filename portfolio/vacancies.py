@@ -30,6 +30,7 @@ def _norm_adzuna(results) -> list[dict]:
             "Location": ((r.get("location") or {}).get("display_name") or "").strip(),
             "Link": r.get("redirect_url", ""),
             "Posted": (r.get("created") or "")[:10],
+            "Description": (r.get("description") or "")[:1500],
             "Source": "Adzuna",
         })
     return out
@@ -48,6 +49,7 @@ def _norm_arbeitnow(data, keywords) -> list[dict]:
             "Location": (j.get("location") or "").strip(),
             "Link": j.get("url", ""),
             "Posted": "",
+            "Description": (j.get("description") or "")[:1500],
             "Source": "Arbeitnow",
         })
     return out
