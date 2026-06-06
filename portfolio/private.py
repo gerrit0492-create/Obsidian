@@ -172,6 +172,34 @@ def render_tracker() -> None:
                        file_name="job_overview.html", mime="text/html",
                        help="Self-contained snapshot — save it on your phone and open offline.")
 
+    # --- Per-application package: CV + motivation letter, tied to a tracked app ---
+    st.subheader("Sollicitatiepakket (CV + motivatiebrief)")
+    apps_list = [r for r in edited.to_dict("records") if str(r.get("Company") or "").strip()]
+    if not apps_list:
+        st.caption("Voeg een sollicitatie toe (hierboven, of via Vacatures) om een pakket te maken.")
+    else:
+        labels = [f"{r['Company']} — {r.get('Role') or ''}".strip(" —") for r in apps_list]
+        idx = st.selectbox("Kies sollicitatie", range(len(labels)),
+                           format_func=lambda i: labels[i], key="pkg_pick")
+        chosen = apps_list[idx]
+        rsn = st.text_input("Waarom dit bedrijf (optioneel)", key="pkg_reason")
+        if st.button("✍️ Genereer CV + brief", key="pkg_make", type="primary"):
+            try:
+                pkg, matched = _application_package(
+                    chosen["Company"], chosen.get("Role", ""), chosen.get("Contact", ""),
+                    rsn, str(chosen.get("Notes") or ""))
+                st.session_state["trk_pkg"] = pkg
+                st.session_state["trk_pkg_name"] = _slug(chosen["Company"])
+                if matched:
+                    st.caption("Keywords meegenomen: " + ", ".join(matched))
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Kon pakket niet maken: {exc}. Reboot de app voor de nieuwste code/pakketten.")
+        if st.session_state.get("trk_pkg"):
+            st.download_button("📦 Download pakket (CV + brief · PDF + Word)",
+                               data=st.session_state["trk_pkg"],
+                               file_name=f"sollicitatie_{st.session_state.get('trk_pkg_name', '')}.zip",
+                               mime="application/zip", key="trk_dl")
+
     st.subheader("Follow-ups")
     fu = edited.copy()
     fu["Next date"] = pd.to_datetime(fu["Next date"], errors="coerce")
@@ -239,6 +267,7 @@ def render_vacancies() -> None:
             col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted}{link}")
             if col[1].button("✍️ Solliciteer", key=f"gen_{i}"):
                 try:
+                    add_vacancies([v])  # also track it (skipped if already there)
                     pkg, _ = _application_package(v["Company"], v["Title"], contact, reason, v.get("Description", ""))
                     st.session_state[f"pkg_{i}"] = pkg
                 except Exception as exc:  # noqa: BLE001

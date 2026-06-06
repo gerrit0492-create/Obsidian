@@ -134,14 +134,8 @@ with tab_public:
     render_portfolio(c)
 with tab_private:
     if private.unlock(require_password=True):
-        sub_t, sub_v, sub_m = st.tabs(["📋 Tracker", "🔎 Vacatures (live)", "✍️ Op maat"])
+        sub_t, sub_v = st.tabs(["📋 Sollicitaties", "🔎 Vacatures (live)"])
         with sub_t:
             private.render_tracker()
         with sub_v:
             private.render_vacancies()
-        with sub_m:
-            try:
-                private.render_tailor()
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"'Op maat' kon niet laden: {exc}. Reboot de app "
-                         "(Manage app → Reboot) voor de nieuwste code en pakketten.")
