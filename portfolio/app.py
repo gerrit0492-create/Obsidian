@@ -63,8 +63,6 @@ cv_path = HERE / PROFILE["cv_file"]
 buttons = [f'<a class="btn" href="mailto:{PROFILE["email"]}">✉️ {c["cta_contact"]}</a>']
 if PROFILE.get("linkedin"):
     buttons.append(f'<a class="btn ghost" href="{PROFILE["linkedin"]}" target="_blank">in LinkedIn</a>')
-if PROFILE.get("github"):
-    buttons.append(f'<a class="btn ghost" href="{PROFILE["github"]}" target="_blank">GitHub</a>')
 
 st.markdown(
     f"""
