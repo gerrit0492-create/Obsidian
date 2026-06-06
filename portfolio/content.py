@@ -20,7 +20,7 @@ CONTENT = {
     "nl": {
         "role": "Cost Engineer · Calculator · Werkvoorbereider",
         "available": "Beschikbaar voor een nieuwe rol",
-        "tagline": "Ik vertaal techniek naar betrouwbare kostprijzen — en bouw zelf de tools (Power BI, Python, SAP) die calculaties sneller en scherper maken.",
+        "tagline": "Ik vertaal techniek naar betrouwbare kostprijzen en houd kosten beheersbaar — van offerte tot nacalculatie.",
         "cta_contact": "Neem contact op",
         "cta_cv": "Download CV",
         "nav": ["Over mij", "Kwaliteiten", "Resultaten", "Projecten", "Ervaring", "Contact"],
@@ -28,11 +28,12 @@ CONTENT = {
         "about_title": "Over mij",
         "about": (
             "Cost engineer met 35+ jaar in de maakindustrie — DAF, VDL ETG, Andritz, Wilting "
-            "en Wärtsilä. Ik ken het product én de werkvloer, en vertaal dat naar onderbouwde "
-            "kostprijzen. Waar anderen stoppen bij Excel bouw ik modellen die fouten zichtbaar "
-            "maken. Lean Six Sigma Green Belt. Ik zoek "
-            "een rol als cost engineer, calculator of werkvoorbereider waarin ik calculatie en "
-            "kostenbeheersing aantoonbaar verbeter."
+            "en Wärtsilä. Ik ken het product én de werkvloer en vertaal dat naar onderbouwde "
+            "kostprijzen, in nauwe samenwerking met engineering, inkoop, verkoop en business "
+            "control. Lean Six Sigma Green Belt. Waar nodig pak ik zelf data en tooling "
+            "(Power BI, SAP) op om calculaties te verscherpen. Ik zoek een rol als cost "
+            "engineer, calculator of werkvoorbereider waarin ik calculatie en kostenbeheersing "
+            "aantoonbaar verbeter."
         ),
 
         "skills_title": "Kernkwaliteiten",
@@ -45,9 +46,9 @@ CONTENT = {
 
         "highlights_title": "Resultaten",
         "highlights": [
-            {"metric": "Power BI", "title": "Eigen kostenmodellen", "text": "Pre/post-calculatiemodel dat begroot versus werkelijk transparant maakt en afwijkingen vroeg zichtbaar maakt."},
-            {"metric": "35+ jr", "title": "Maakindustrie & calculatie", "text": "Van werkvloer tot kostprijs: DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Verbeteringen via DMAIC, Kaizen, 5S en FMEA — kwaliteit, levertijd én kosten omlaag."},
+            {"metric": "35+ jr", "title": "Kostentechniek in de maakindustrie", "text": "Calculaties voor ontwikkel-, klant- en niet-standaard projecten, van offerte tot nacalculatie."},
+            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structureel betere kwaliteit, levertijd én kosten via DMAIC, Kaizen, 5S en FMEA."},
+            {"metric": "+", "title": "Data & tooling (extra)", "text": "Pakt waar nodig zelf modellen op (o.a. pre/post-calculatie) om begroot versus werkelijk transparant te maken."},
         ],
 
         "projects_title": "Projecten",
@@ -89,7 +90,7 @@ CONTENT = {
     "en": {
         "role": "Cost Engineer · Estimator · Manufacturing Engineer",
         "available": "Available for a new role",
-        "tagline": "I turn engineering into reliable cost prices — and build the tools (Power BI, Python, SAP) that make estimating faster and sharper.",
+        "tagline": "I turn engineering into reliable cost prices and keep costs in control — from quote to post-calculation.",
         "cta_contact": "Get in touch",
         "cta_cv": "Download CV",
         "nav": ["About", "Strengths", "Impact", "Projects", "Experience", "Contact"],
@@ -97,11 +98,12 @@ CONTENT = {
         "about_title": "About me",
         "about": (
             "Cost engineer with 35+ years in manufacturing — DAF, VDL ETG, Andritz, Wilting "
-            "and Wärtsilä. I know the product and the shop floor, and translate both into "
-            "well-founded cost prices. Where others stop at Excel I build models that surface "
-            "deviations early. Lean Six Sigma Green Belt. I'm looking "
-            "for a cost engineer, estimator or manufacturing-engineer role where I measurably "
-            "improve estimating and cost control."
+            "and Wärtsilä. I know the product and the shop floor and translate both into "
+            "well-founded cost prices, working closely with engineering, purchasing, sales and "
+            "business control. Lean Six Sigma Green Belt. Where useful I build my own data and "
+            "tooling (Power BI, SAP) to sharpen the numbers. I'm looking for a cost engineer, "
+            "estimator or manufacturing-engineer role where I measurably improve estimating and "
+            "cost control."
         ),
 
         "skills_title": "Core strengths",
@@ -114,9 +116,9 @@ CONTENT = {
 
         "highlights_title": "Impact",
         "highlights": [
-            {"metric": "Power BI", "title": "Own cost models", "text": "A pre/post calculation model that makes budget-vs-actual transparent and surfaces deviations early."},
-            {"metric": "35+ yrs", "title": "Manufacturing & costing", "text": "From shop floor to cost price: DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Improvements via DMAIC, Kaizen, 5S and FMEA — quality, lead time and cost down."},
+            {"metric": "35+ yrs", "title": "Cost engineering in manufacturing", "text": "Calculations for development, customer and non-standard projects, from quote to post-calculation."},
+            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structurally better quality, lead time and cost via DMAIC, Kaizen, 5S and FMEA."},
+            {"metric": "+", "title": "Data & tooling (extra)", "text": "Builds models where useful (e.g. pre/post calculation) to make budget-vs-actual transparent."},
         ],
 
         "projects_title": "Projects",
