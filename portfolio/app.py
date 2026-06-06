@@ -134,8 +134,10 @@ with tab_public:
     render_portfolio(c)
 with tab_private:
     if private.unlock(require_password=True):
-        sub_t, sub_v = st.tabs(["📋 Tracker", "🔎 Vacatures (live)"])
+        sub_t, sub_v, sub_m = st.tabs(["📋 Tracker", "🔎 Vacatures (live)", "✍️ Op maat"])
         with sub_t:
             private.render_tracker()
         with sub_v:
             private.render_vacancies()
+        with sub_m:
+            private.render_tailor()
