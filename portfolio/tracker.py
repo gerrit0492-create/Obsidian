@@ -30,8 +30,8 @@ HERE = Path(__file__).parent
 DATA = HERE / "data" / "applications.xlsx"
 
 COLUMNS = [
-    "Company", "Role", "Location", "Travel", "Source", "Contact", "Link",
-    "Priority", "Applied", "Status", "Next action", "Next date", "Notes",
+    "Company", "Role", "Location", "Travel", "Source", "Contact", "Email", "Phone",
+    "Link", "Priority", "Applied", "Status", "Next action", "Next date", "Notes",
 ]
 DATE_COLS = ["Applied", "Next date"]
 STATUSES = ["Lead", "Applied", "Screening", "Interview", "Offer", "Rejected", "On hold", "Closed"]
@@ -168,9 +168,10 @@ with tab_track:
         "⬇️ Excel", data=_to_excel_bytes(edited), file_name="applications.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+    pf_url = _setting("PORTFOLIO_URL", "https://gerrit0492-create.github.io/Obsidian/")
     c3.download_button(
         "📱 Mobiel overzicht (HTML)",
-        data=overview.render(edited, st.session_state.get("vacancies")).encode("utf-8"),
+        data=overview.render(edited, st.session_state.get("vacancies"), portfolio_url=pf_url).encode("utf-8"),
         file_name="job_overview.html", mime="text/html",
         help="Self-contained snapshot — save it on your phone and open offline.",
     )
@@ -236,7 +237,10 @@ with tab_vac:
         )
         st.download_button(
             "📱 Download dit overzicht (HTML)",
-            data=overview.render(edited, results).encode("utf-8"),
+            data=overview.render(
+                edited, results,
+                portfolio_url=_setting("PORTFOLIO_URL", "https://gerrit0492-create.github.io/Obsidian/"),
+            ).encode("utf-8"),
             file_name="job_overview.html", mime="text/html",
             help="Self-contained snapshot — save it on your phone and open offline.",
         )
