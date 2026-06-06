@@ -1,0 +1,223 @@
+"""Shared private area: the application tracker + live vacancy search.
+
+Used by both the combined one-page app (app.py, behind a password) and the
+standalone local tracker (tracker.py). Streamlit-driven render functions plus the
+data helpers. Tracker data lives in the git-ignored data/applications.xlsx.
+"""
+
+from __future__ import annotations
+
+import io
+import os
+from datetime import date
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+import overview
+import vacancies
+
+HERE = Path(__file__).parent
+DATA = HERE / "data" / "applications.xlsx"
+PORTFOLIO_URL_DEFAULT = "https://gerrit0492-create.github.io/Obsidian/"
+
+COLUMNS = [
+    "Company", "Role", "Location", "Travel", "Source", "Contact", "Email", "Phone",
+    "Link", "Priority", "Applied", "Status", "Next action", "Next date", "Notes",
+]
+DATE_COLS = ["Applied", "Next date"]
+STATUSES = ["Lead", "Applied", "Screening", "Interview", "Offer", "Rejected", "On hold", "Closed"]
+SOURCES = ["Direct", "Bureau", "Vacature", "LinkedIn", "Referral", "Other"]
+PRIORITIES = ["High", "Medium", "Low"]
+CLOSED = {"Rejected", "Closed"}
+PIPELINE = ["Lead", "Applied", "Screening", "Interview", "Offer"]
+
+
+def setting(name: str, default: str = "") -> str:
+    try:
+        if name in st.secrets:
+            return str(st.secrets[name])
+    except Exception:
+        pass
+    return os.environ.get(name, default)
+
+
+def unlock(require_password: bool) -> bool:
+    """Gate the private area. Returns True when access is granted.
+
+    require_password=True (public deploy): a password is mandatory; without one
+    configured the area stays locked. require_password=False (local tracker):
+    a password is optional.
+    """
+    expected = setting("PRIVATE_PASSWORD") or setting("TRACKER_PASSWORD")
+    if not expected:
+        if require_password:
+            st.info("🔒 Private area. Set PRIVATE_PASSWORD in .streamlit/secrets.toml to enable it.")
+            return False
+        st.warning("No password set — fine on your own computer. Set PRIVATE_PASSWORD to lock it.")
+        return True
+    if st.session_state.get("private_authed"):
+        return True
+    pw = st.text_input("Password", type="password", key="private_pw")
+    if pw and pw == expected:
+        st.session_state["private_authed"] = True
+        st.rerun()
+    elif pw:
+        st.error("Wrong password.")
+    return False
+
+
+def load_apps() -> pd.DataFrame:
+    if DATA.exists():
+        df = pd.read_excel(DATA)
+    else:
+        df = pd.DataFrame(columns=COLUMNS)
+    for col in COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
+    df = df[COLUMNS]
+    for col in DATE_COLS:
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+    return df
+
+
+def save_apps(df: pd.DataFrame) -> None:
+    DATA.parent.mkdir(parents=True, exist_ok=True)
+    df.to_excel(DATA, index=False)
+
+
+def _to_excel_bytes(df: pd.DataFrame) -> bytes:
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    return buf.getvalue()
+
+
+def _overview_bytes(apps, vacs) -> bytes:
+    try:
+        url = setting("PORTFOLIO_URL", PORTFOLIO_URL_DEFAULT)
+        return overview.render(apps, vacs, portfolio_url=url).encode("utf-8")
+    except Exception as exc:  # noqa: BLE001
+        import html as _h
+        return (f"<!doctype html><meta charset=utf-8><p>Kon overzicht niet maken: "
+                f"{_h.escape(str(exc))}</p>").encode("utf-8")
+
+
+def add_vacancies(found: list[dict]) -> int:
+    df = load_apps()
+    existing = {(str(c).strip().lower(), str(r).strip().lower())
+                for c, r in zip(df["Company"], df["Role"])}
+    new_rows = []
+    for v in found:
+        key = (v["Company"].strip().lower(), v["Title"].strip().lower())
+        if not v["Company"] or key in existing:
+            continue
+        existing.add(key)
+        new_rows.append({
+            "Company": v["Company"], "Role": v["Title"], "Location": v["Location"],
+            "Source": "Vacature", "Link": v["Link"], "Priority": "Medium",
+            "Applied": pd.NaT, "Status": "Lead", "Next action": "Bekijk vacature + solliciteer",
+            "Next date": pd.NaT, "Notes": f"Gevonden via {v['Source']}" + (f" · {v['Posted']}" if v["Posted"] else ""),
+        })
+    if new_rows:
+        save_apps(pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)[COLUMNS])
+    return len(new_rows)
+
+
+def render_tracker() -> None:
+    df = load_apps()
+
+    active = df[~df["Status"].isin(CLOSED)]
+    applied_plus = df[df["Status"].isin(["Applied", "Screening", "Interview", "Offer"])]
+    k = st.columns(5)
+    k[0].metric("Total", len(df))
+    k[1].metric("Active", len(active))
+    k[2].metric("Applied+", len(applied_plus))
+    k[3].metric("Interviews", int((df["Status"] == "Interview").sum()))
+    k[4].metric("Offers", int((df["Status"] == "Offer").sum()))
+
+    st.subheader("Pipeline")
+    pcols = st.columns(len(PIPELINE))
+    for col, s in zip(pcols, PIPELINE):
+        col.metric(s, int((df["Status"] == s).sum()))
+
+    st.subheader("Applications")
+    st.caption("Add a row at the bottom, edit any cell, or select a row and press ⌫ to delete. Then Save.")
+    edited = st.data_editor(
+        df, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor",
+        column_config={
+            "Link": st.column_config.LinkColumn("Link", display_text="open", width="small"),
+            "Applied": st.column_config.DateColumn("Applied", format="YYYY-MM-DD"),
+            "Next date": st.column_config.DateColumn("Next date", format="YYYY-MM-DD"),
+            "Status": st.column_config.SelectboxColumn("Status", options=STATUSES, default="Lead"),
+            "Source": st.column_config.SelectboxColumn("Source", options=SOURCES),
+            "Priority": st.column_config.SelectboxColumn("Priority", options=PRIORITIES, default="Medium"),
+            "Notes": st.column_config.TextColumn("Notes", width="large"),
+        },
+    )
+
+    c1, c2, c3, _ = st.columns([1, 1, 1.4, 3])
+    if c1.button("💾 Save", type="primary"):
+        save_apps(edited)
+        st.success("Saved to data/applications.xlsx")
+    c2.download_button("⬇️ Excel", data=_to_excel_bytes(edited), file_name="applications.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    c3.download_button("📱 Mobiel overzicht (HTML)",
+                       data=_overview_bytes(edited, st.session_state.get("vacancies")),
+                       file_name="job_overview.html", mime="text/html",
+                       help="Self-contained snapshot — save it on your phone and open offline.")
+
+    st.subheader("Follow-ups")
+    fu = edited.copy()
+    fu["Next date"] = pd.to_datetime(fu["Next date"], errors="coerce")
+    fu = fu.dropna(subset=["Next date"]).sort_values("Next date")
+    fu = fu[~fu["Status"].isin(CLOSED)]
+    if fu.empty:
+        st.info("No upcoming follow-ups. Set a 'Next date' on an application to see it here.")
+    else:
+        today = pd.Timestamp(date.today())
+        overdue = int((fu["Next date"] < today).sum())
+        if overdue:
+            st.error(f"🔴 {overdue} follow-up(s) overdue.")
+        for _, row in fu.iterrows():
+            flag = "🔴 overdue" if row["Next date"] < today else "🟢"
+            prio = f" · {row['Priority']}" if (pd.notna(row.get("Priority")) and row.get("Priority")) else ""
+            st.markdown(
+                f"**{row['Next date'].date()}** {flag} — **{row['Company'] or '—'}** · {row['Role'] or ''} "
+                f"· _{row['Status'] or ''}_{prio} → {row['Next action'] or '—'}"
+            )
+
+
+def render_vacancies() -> None:
+    st.subheader("Live vacatures zoeken")
+    has_key = bool(setting("ADZUNA_APP_ID") and setting("ADZUNA_APP_KEY"))
+    st.caption("Bron: Adzuna (NL)." if has_key else
+               "Bron: keyless fallback. Zet ADZUNA_APP_ID/APP_KEY in secrets voor betere NL-dekking.")
+    f1, f2, f3 = st.columns([3, 1, 1])
+    kw_raw = f1.text_input("Zoektermen (komma-gescheiden)", value=", ".join(vacancies.DEFAULT_KEYWORDS))
+    where = f2.text_input("Regio", value="Eindhoven")
+    distance = f3.slider("Straal (km)", 5, 100, 40, step=5)
+
+    if st.button("🔄 Update vacatures", type="primary"):
+        kws = [k.strip() for k in kw_raw.split(",") if k.strip()]
+        with st.spinner("Zoeken…"):
+            st.session_state["vacancies"] = vacancies.search(
+                keywords=kws, where=where.strip() or "Eindhoven", distance=distance,
+                app_id=setting("ADZUNA_APP_ID"), app_key=setting("ADZUNA_APP_KEY"))
+
+    results = st.session_state.get("vacancies")
+    if results is None:
+        st.info("Klik op **Update vacatures** om de laatst beschikbare functies op te halen.")
+    elif not results:
+        st.warning("Geen vacatures gevonden. Probeer bredere termen of een grotere straal.")
+    else:
+        vdf = pd.DataFrame(results)[["Title", "Company", "Location", "Posted", "Source", "Link"]]
+        st.success(f"{len(vdf)} vacatures gevonden.")
+        st.dataframe(vdf, use_container_width=True, hide_index=True,
+                     column_config={"Link": st.column_config.LinkColumn("Link", display_text="open")})
+        st.download_button("📱 Download dit overzicht (HTML)",
+                           data=_overview_bytes(load_apps(), results),
+                           file_name="job_overview.html", mime="text/html")
+        if st.button("➕ Voeg nieuwe toe aan tracker"):
+            added = add_vacancies(results)
+            st.success(f"{added} nieuwe vacature(s) toegevoegd aan de tracker.")
