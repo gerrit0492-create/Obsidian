@@ -24,6 +24,7 @@ import pandas as pd
 import streamlit as st
 
 import vacancies
+import overview
 
 HERE = Path(__file__).parent
 DATA = HERE / "data" / "applications.xlsx"
@@ -159,13 +160,19 @@ with tab_track:
         },
     )
 
-    c1, c2, _ = st.columns([1, 1, 4])
+    c1, c2, c3, _ = st.columns([1, 1, 1.4, 3])
     if c1.button("💾 Save", type="primary"):
         _save(edited)
         st.success("Saved to data/applications.xlsx")
     c2.download_button(
         "⬇️ Excel", data=_to_excel_bytes(edited), file_name="applications.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    c3.download_button(
+        "📱 Mobiel overzicht (HTML)",
+        data=overview.render(edited, st.session_state.get("vacancies")).encode("utf-8"),
+        file_name="job_overview.html", mime="text/html",
+        help="Self-contained snapshot — save it on your phone and open offline.",
     )
 
     st.subheader("Follow-ups")
@@ -226,6 +233,12 @@ with tab_vac:
         st.dataframe(
             vdf, use_container_width=True, hide_index=True,
             column_config={"Link": st.column_config.LinkColumn("Link", display_text="open")},
+        )
+        st.download_button(
+            "📱 Download dit overzicht (HTML)",
+            data=overview.render(edited, results).encode("utf-8"),
+            file_name="job_overview.html", mime="text/html",
+            help="Self-contained snapshot — save it on your phone and open offline.",
         )
         st.caption("Nieuwe bedrijven/functies worden als 'Lead' toegevoegd; bestaande worden overgeslagen.")
         if st.button("➕ Voeg nieuwe toe aan tracker"):
