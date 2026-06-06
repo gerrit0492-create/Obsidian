@@ -22,6 +22,7 @@ import overview
 import vacancies
 import generate_cv
 import generate_letter
+import store
 
 HERE = Path(__file__).parent
 DATA = HERE / "data" / "applications.xlsx"
@@ -73,11 +74,7 @@ def unlock(require_password: bool) -> bool:
     return False
 
 
-def load_apps() -> pd.DataFrame:
-    if DATA.exists():
-        df = pd.read_excel(DATA)
-    else:
-        df = pd.DataFrame(columns=COLUMNS)
+def _normalise(df: pd.DataFrame) -> pd.DataFrame:
     for col in COLUMNS:
         if col not in df.columns:
             df[col] = pd.NA
@@ -87,9 +84,53 @@ def load_apps() -> pd.DataFrame:
     return df
 
 
+def _records(df: pd.DataFrame) -> list[dict]:
+    out = []
+    for r in df.to_dict("records"):
+        rec = {}
+        for k, v in r.items():
+            if pd.isna(v):
+                rec[k] = None
+            elif k in DATE_COLS:
+                t = pd.to_datetime(v, errors="coerce")
+                rec[k] = None if pd.isna(t) else t.date().isoformat()
+            else:
+                rec[k] = v
+        out.append(rec)
+    return out
+
+
+def _load_source() -> pd.DataFrame:
+    token, gid = setting("GIST_TOKEN"), setting("GIST_ID")
+    if store.enabled(token, gid):
+        try:
+            recs = store.load(token, gid)
+            return _normalise(pd.DataFrame(recs) if recs else pd.DataFrame(columns=COLUMNS))
+        except Exception as exc:  # noqa: BLE001
+            st.warning(f"Gist niet bereikbaar ({exc}) — lokale data gebruikt.")
+    df = pd.read_excel(DATA) if DATA.exists() else pd.DataFrame(columns=COLUMNS)
+    return _normalise(df)
+
+
+def load_apps(force: bool = False) -> pd.DataFrame:
+    """Cached load (per session) so the editor has a stable base; refresh with force=True."""
+    if force or "apps_df" not in st.session_state:
+        st.session_state["apps_df"] = _load_source()
+    return st.session_state["apps_df"].copy()
+
+
 def save_apps(df: pd.DataFrame) -> None:
-    DATA.parent.mkdir(parents=True, exist_ok=True)
-    df.to_excel(DATA, index=False)
+    df = _normalise(df)
+    token, gid = setting("GIST_TOKEN"), setting("GIST_ID")
+    if store.enabled(token, gid):
+        try:
+            store.save(token, gid, _records(df))
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Opslaan naar Gist mislukt: {exc}")
+    else:
+        DATA.parent.mkdir(parents=True, exist_ok=True)
+        df.to_excel(DATA, index=False)
+    st.session_state["apps_df"] = df.copy()
 
 
 def _to_excel_bytes(df: pd.DataFrame) -> bytes:
@@ -131,6 +172,15 @@ def add_vacancies(found: list[dict]) -> int:
 
 def render_tracker() -> None:
     df = load_apps()
+
+    token, gid = setting("GIST_TOKEN"), setting("GIST_ID")
+    sc1, sc2 = st.columns([4, 1])
+    sc1.caption("☁️ Opslag: privé GitHub Gist — gesynct op al je apparaten, blijft bewaard."
+                if store.enabled(token, gid) else
+                "💾 Opslag: lokaal bestand (op de cloud niet blijvend). Zet GIST_TOKEN + GIST_ID voor sync.")
+    if sc2.button("🔄 Herladen", help="Haal de laatste data op (bv. na bewerken op een ander apparaat)"):
+        load_apps(force=True)
+        st.rerun()
 
     active = df[~df["Status"].isin(CLOSED)]
     applied_plus = df[df["Status"].isin(["Applied", "Screening", "Interview", "Offer"])]
