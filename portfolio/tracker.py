@@ -96,6 +96,17 @@ def _to_excel_bytes(df: pd.DataFrame) -> bytes:
     return buf.getvalue()
 
 
+def _overview_bytes(apps, vacs) -> bytes:
+    """Render the mobile overview, never letting a render error crash the app."""
+    try:
+        url = _setting("PORTFOLIO_URL", "https://gerrit0492-create.github.io/Obsidian/")
+        return overview.render(apps, vacs, portfolio_url=url).encode("utf-8")
+    except Exception as exc:  # noqa: BLE001
+        import html as _h
+        return (f"<!doctype html><meta charset=utf-8><p>Kon overzicht niet maken: "
+                f"{_h.escape(str(exc))}</p>").encode("utf-8")
+
+
 def _add_vacancies_to_tracker(found: list[dict]) -> int:
     """Append newly-found vacancies (as Leads) to the saved tracker; returns count added."""
     df = _load()
@@ -171,7 +182,7 @@ with tab_track:
     pf_url = _setting("PORTFOLIO_URL", "https://gerrit0492-create.github.io/Obsidian/")
     c3.download_button(
         "📱 Mobiel overzicht (HTML)",
-        data=overview.render(edited, st.session_state.get("vacancies"), portfolio_url=pf_url).encode("utf-8"),
+        data=_overview_bytes(edited, st.session_state.get("vacancies")),
         file_name="job_overview.html", mime="text/html",
         help="Self-contained snapshot — save it on your phone and open offline.",
     )
@@ -237,10 +248,7 @@ with tab_vac:
         )
         st.download_button(
             "📱 Download dit overzicht (HTML)",
-            data=overview.render(
-                edited, results,
-                portfolio_url=_setting("PORTFOLIO_URL", "https://gerrit0492-create.github.io/Obsidian/"),
-            ).encode("utf-8"),
+            data=_overview_bytes(edited, results),
             file_name="job_overview.html", mime="text/html",
             help="Self-contained snapshot — save it on your phone and open offline.",
         )
