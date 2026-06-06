@@ -26,7 +26,7 @@ GREY = HexColor("#475569")
 
 NAME = "Gerrit Düthler"
 ROLE = "Cost Engineer · Calculator · Werkvoorbereider"
-CONTACT = "gerrit@duthler.info · Eindhoven, NL · linkedin.com/in/… · github.com/gerrit0492-create"
+CONTACT = "gerrit@duthler.info · Eindhoven, NL · linkedin.com/in/gerrit-d-90a50234"
 
 PROFILE = (
     "Cost engineer met 35+ jaar ervaring in de maakindustrie (DAF, VDL ETG, Andritz, "
