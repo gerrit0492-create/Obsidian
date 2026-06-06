@@ -31,6 +31,11 @@ h2{font-size:1.05rem;margin:22px 0 8px;color:#16223d}
 .s-warn{background:#fdecec;color:#c0392b}
 a{color:#1d7d6e;text-decoration:none}
 .empty{color:#8a97a8;font-size:.9rem}
+.ico{display:inline-block;background:#16223d;color:#fff;border-radius:8px;padding:3px 10px;
+  font-size:.8rem;margin:6px 6px 0 0}
+.top a.pf{display:inline-block;background:#2a9d8f;color:#fff;border-radius:10px;padding:8px 14px;
+  font-weight:600;font-size:.9rem;margin-bottom:6px}
+.closed .card{opacity:.72}
 """
 
 
@@ -45,27 +50,40 @@ def _d(x) -> str:
     return "" if pd.isna(t) else t.date().isoformat()
 
 
-def render(apps: pd.DataFrame, vacancies=None, title="Sollicitatie-overzicht") -> str:
+def _card(r, active=True) -> str:
+    pill_cls = "s-active" if active else "s-lead"
+    link = f' · <a href="{_e(r.get("Link"))}">vacature</a>' if _e(r.get("Link")) else ""
+    nxt = ""
+    if _e(r.get("Next action")):
+        when = f' ({_d(r.get("Next date"))})' if _d(r.get("Next date")) else ""
+        nxt = f'<br>→ {_e(r.get("Next action"))}{when}'
+    btns = ""
+    if _e(r.get("Email")):
+        btns += f'<a class="ico" href="mailto:{_e(r.get("Email"))}">✉︎ mail</a>'
+    if _e(r.get("Phone")):
+        btns += f'<a class="ico" href="tel:{_e(str(r.get("Phone")).replace(" ", ""))}">☎ bel</a>'
+    contact = f' · {_e(r.get("Contact"))}' if _e(r.get("Contact")) else ""
+    return (f'<div class="card"><span class="pill {pill_cls}">{_e(r.get("Status"))}</span>'
+            f'<span class="co">{_e(r.get("Company"))}</span> — {_e(r.get("Role"))}'
+            f'<div class="meta">{_e(r.get("Location"))}{contact}{link}{nxt}</div>{btns}</div>')
+
+
+def render(apps: pd.DataFrame, vacancies=None, title="Sollicitatie-overzicht", portfolio_url="") -> str:
     apps = apps.copy() if apps is not None else pd.DataFrame()
     today = pd.Timestamp(date.today())
 
     total = len(apps)
     active = apps[~apps["Status"].isin(CLOSED)] if "Status" in apps else apps
+    closed = apps[apps["Status"].isin(CLOSED)] if "Status" in apps else apps.iloc[0:0]
     interviews = int((apps.get("Status") == "Interview").sum()) if "Status" in apps else 0
     offers = int((apps.get("Status") == "Offer").sum()) if "Status" in apps else 0
     kpis = "".join(f'<span class="kpi">{lbl}: {val}</span>' for lbl, val in
                    [("Totaal", total), ("Actief", len(active)), ("Interviews", interviews), ("Offers", offers)])
 
-    # Active applications
-    cards = ""
-    for _, r in active.iterrows():
-        link = f' · <a href="{_e(r.get("Link"))}">open</a>' if _e(r.get("Link")) else ""
-        nxt = f'<br>→ {_e(r.get("Next action"))}' + (f' ({_d(r.get("Next date"))})' if _d(r.get("Next date")) else "") if _e(r.get("Next action")) else ""
-        cards += (f'<div class="card"><span class="pill s-active">{_e(r.get("Status"))}</span>'
-                  f'<span class="co">{_e(r.get("Company"))}</span> — {_e(r.get("Role"))}'
-                  f'<div class="meta">{_e(r.get("Location"))}{link}{nxt}</div></div>')
-    if not cards:
-        cards = '<div class="empty">Geen actieve sollicitaties.</div>'
+    cards = "".join(_card(r, True) for _, r in active.iterrows()) or '<div class="empty">Geen actieve sollicitaties.</div>'
+    closed_cards = "".join(_card(r, False) for _, r in closed.iterrows())
+    closed_section = f'<h2>Afgesloten ({len(closed)})</h2><div class="closed">{closed_cards}</div>' if len(closed) else ""
+    pf = f'<div class="top"><a class="pf" href="{_e(portfolio_url)}">Mijn portfolio →</a></div>' if portfolio_url else ""
 
     # Follow-ups
     fu = ""
@@ -95,10 +113,12 @@ def render(apps: pd.DataFrame, vacancies=None, title="Sollicitatie-overzicht") -
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(title)}</title><style>{CSS}</style></head>
 <body><div class="wrap">
+  {pf}
   <h1>{html.escape(title)}</h1>
   <div class="sub">Momentopname · {date.today().isoformat()}</div>
   <div class="kpis">{kpis}</div>
   <h2>Actieve sollicitaties</h2>{cards}
   <h2>Opvolging</h2>{fu}
+  {closed_section}
   {vac_section}
 </div></body></html>"""
