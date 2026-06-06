@@ -266,25 +266,29 @@ def render_tailor() -> None:
     vac = st.text_area("Vacaturetekst (optioneel — voor keyword-afstemming)", height=170)
 
     if st.button("✍️ Genereer CV + brief", type="primary"):
-        matched = _matched_keywords(vac)
-        kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
-        role_title = role.strip() or generate_cv.ROLE
-        comp = company.strip() or "[Bedrijf]"
-        cont = contact.strip() or "[Contactpersoon]"
-        rsn = reason.strip() or "[reden]"
-        buf = io.BytesIO()
-        with tempfile.TemporaryDirectory() as td:
-            tdp = Path(td)
-            generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
-            generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
-            generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
-            generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
-            with zipfile.ZipFile(buf, "w") as z:
-                for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
-                    z.write(tdp / f, arcname=f)
-        st.session_state["pkg"] = buf.getvalue()
-        st.session_state["pkg_matched"] = matched
-        st.session_state["pkg_name"] = (comp or "sollicitatie").replace(" ", "_").replace("[", "").replace("]", "")
+        try:
+            matched = _matched_keywords(vac)
+            kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
+            role_title = role.strip() or generate_cv.ROLE
+            comp = company.strip() or "[Bedrijf]"
+            cont = contact.strip() or "[Contactpersoon]"
+            rsn = reason.strip() or "[reden]"
+            buf = io.BytesIO()
+            with tempfile.TemporaryDirectory() as td:
+                tdp = Path(td)
+                generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
+                generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
+                generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
+                generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
+                with zipfile.ZipFile(buf, "w") as z:
+                    for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
+                        z.write(tdp / f, arcname=f)
+            st.session_state["pkg"] = buf.getvalue()
+            st.session_state["pkg_matched"] = matched
+            st.session_state["pkg_name"] = (comp or "sollicitatie").replace(" ", "_").replace("[", "").replace("]", "")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Kon het pakket niet maken: {exc}. Tip: reboot de app zodat de nieuwste "
+                     "code en pakketten (python-docx) geladen zijn.")
 
     if st.session_state.get("pkg"):
         matched = st.session_state.get("pkg_matched") or []
