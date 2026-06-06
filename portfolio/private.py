@@ -219,100 +219,89 @@ def render_tracker() -> None:
         f"<div class='kpi'><div class='n'>{n}</div><div class='l'>{lbl}</div></div>" for lbl, n in kpis
     ) + "</div>", unsafe_allow_html=True)
 
-    # --- Pipeline board ---
-    st.markdown("#### Pijplijn")
-    st.caption("**→** schuift een sollicitatie een fase op · **📦** maakt direct CV + brief.")
+    # --- Compact pipeline overview ---
     today = pd.Timestamp(date.today())
-    stage_next = dict(zip(PIPELINE, PIPELINE[1:]))
-    cols = st.columns(len(PIPELINE))
-    for ci, stage in enumerate(PIPELINE):
-        with cols[ci]:
-            sub = df[df["Status"] == stage]
-            st.markdown(f"<div class='stage'>{stage} · {len(sub)}</div>", unsafe_allow_html=True)
-            for idx, row in sub.iterrows():
-                nd = pd.to_datetime(row.get("Next date"), errors="coerce")
-                nxt = ""
-                if str(row.get("Next action") or "").strip():
-                    od = pd.notna(nd) and nd < today
-                    when = f" ({nd.date()})" if pd.notna(nd) else ""
-                    nxt = f"<div class='nx {'od' if od else ''}'>→ {row['Next action']}{when}</div>"
-                loc = f" · {row['Location']}" if str(row.get("Location") or "").strip() else ""
-                m = row.get("Match")
-                fit = row.get("Fit") if pd.notna(row.get("Fit")) else ""
-                bits = [f"match {int(m)}%" if pd.notna(m) else "", f"past: {fit}" if fit else ""]
-                meta = " · ".join(x for x in bits if x)
-                metah = f"<div class='nx'>{meta}</div>" if meta else ""
-                st.markdown(
-                    f"<div class='appcard'><div class='co'>{row.get('Company') or '—'}</div>"
-                    f"<div class='rl'>{row.get('Role') or ''}{loc}</div>{metah}{nxt}</div>",
-                    unsafe_allow_html=True,
-                )
-                if stage in stage_next and st.button(f"→ {stage_next[stage]}", key=f"adv_{idx}"):
-                    d2 = load_apps()
-                    d2.loc[idx, "Status"] = stage_next[stage]
-                    save_apps(d2)
-                    st.rerun()
+    st.caption("Pijplijn — " + " · ".join(f"{s}: {int((df['Status'] == s).sum())}" for s in PIPELINE))
 
-    other = df[df["Status"].isin(CLOSED) | (df["Status"] == "On hold")]
-    if len(other):
-        with st.expander(f"Overig / afgerond ({len(other)})"):
-            for _, row in other.iterrows():
-                st.markdown(f"- _{row.get('Status') or ''}_ — **{row.get('Company') or '—'}** · {row.get('Role') or ''}")
-
-    # --- Per-application: follow, judge fit, append-only log, documents ---
-    st.markdown("#### Volgen & documenten")
+    # --- One application: the whole process in one overview ---
+    st.markdown("#### Sollicitatie")
     opts = [i for i in df.index if str(df.at[i, "Company"] or "").strip()]
     if not opts:
-        st.caption("Nog geen sollicitaties — voeg er een toe via Vacatures of de tabel hieronder.")
+        st.info("Nog geen sollicitaties. Ga naar **🔎 Vacatures**, zoek en klik **➕ In tracker**.")
     else:
-        sel = st.selectbox("Sollicitatie", opts, key="detail_sel",
-                           format_func=lambda i: f"{df.at[i, 'Company']} — {df.at[i, 'Role'] or ''}".strip(" —"))
-        row = df.loc[sel]
-        m1, m2, m3 = st.columns(3)
-        mv = row.get("Match")
-        m1.metric("Match", f"{int(mv)}%" if pd.notna(mv) else "—")
-        m2.metric("Past het?", row.get("Fit") if (pd.notna(row.get("Fit")) and row.get("Fit")) else "—")
-        if m3.button("🔁 Herbereken match"):
-            d = load_apps()
-            d.at[sel, "Match"] = _match_score(f"{d.at[sel, 'Role'] or ''} {d.at[sel, 'Notes'] or ''}")
-            save_apps(d)
-            st.rerun()
-
-        if setting("ANTHROPIC_API_KEY"):
-            if st.button("🤖 AI-beoordeling van de match"):
-                try:
-                    st.session_state["ai_verdict"] = _ai_assess(f"{row.get('Role', '')}\n{row.get('Notes', '')}")
-                except Exception as exc:  # noqa: BLE001
-                    st.error(f"AI-beoordeling mislukt: {exc}")
-            if st.session_state.get("ai_verdict"):
-                st.info(st.session_state["ai_verdict"])
+        flt = st.selectbox("Filter op status", ["Alle"] + STATUSES, key="flt")
+        shown = [i for i in opts if flt == "Alle" or str(df.at[i, "Status"]) == flt]
+        if not shown:
+            st.caption("Geen sollicitaties in deze status.")
         else:
-            st.caption("Tip: zet ANTHROPIC_API_KEY in secrets voor een AI-oordeel over de match.")
+            sel = st.selectbox(
+                "Kies sollicitatie", shown, key="sel",
+                format_func=lambda i: f"{df.at[i, 'Company']} — {df.at[i, 'Role'] or ''} "
+                                      f"[{df.at[i, 'Status'] or 'Lead'}]".strip())
+            row = df.loc[sel]
 
-        with st.form(f"logform_{sel}", clear_on_submit=True):
-            entry = st.text_input("Update toevoegen aan logboek (wordt toegevoegd, niet overschreven)")
-            if st.form_submit_button("➕ Toevoegen") and entry.strip():
+            link = f" · [vacature]({row['Link']})" if str(row.get("Link") or "").strip() else ""
+            st.markdown(f"**{row.get('Company') or '—'}** — {row.get('Role') or ''} · "
+                        f"{row.get('Location') or ''}{link}")
+            mc = st.columns(3)
+            mv = row.get("Match")
+            mc[0].metric("Match", f"{int(mv)}%" if pd.notna(mv) else "—")
+            mc[1].metric("Past het?", row.get("Fit") if (pd.notna(row.get("Fit")) and row.get("Fit")) else "—")
+            if mc[2].button("🔁 Herbereken match"):
                 d = load_apps()
-                stamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
-                prev = str(d.at[sel, "Log"]) if pd.notna(d.at[sel, "Log"]) else ""
-                d.at[sel, "Log"] = f"{stamp} — {entry.strip()}" + (("\n" + prev) if prev else "")
+                d.at[sel, "Match"] = _match_score(f"{d.at[sel, 'Role'] or ''} {d.at[sel, 'Notes'] or ''}")
                 save_apps(d)
                 st.rerun()
-        log = str(row.get("Log")) if pd.notna(row.get("Log")) else ""
-        if log.strip():
-            st.text_area("Logboek (nieuwste boven)", value=log, height=130, disabled=True, key=f"logview_{sel}")
 
-        rsn = st.text_input("Waarom dit bedrijf (voor de brief)", key="detail_reason")
-        if st.button("📄 Genereer CV + motivatiebrief", type="primary", key="detail_gen"):
-            try:
-                files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
-                                               row.get("Contact", ""), rsn, str(row.get("Notes") or ""))
-                st.session_state["detail_files"] = files
-                st.session_state["detail_slug"] = _slug(str(row.get("Company") or ""))
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Genereren mislukt: {exc}")
-        if st.session_state.get("detail_files"):
-            _dl_buttons(st.session_state["detail_files"], "detaildl", st.session_state.get("detail_slug", ""))
+            # One form: status + fit + follow-up + optional log entry
+            cur_nd = pd.to_datetime(row.get("Next date"), errors="coerce")
+            cur_status = row.get("Status") if row.get("Status") in STATUSES else "Lead"
+            cur_fit = row.get("Fit") if (pd.notna(row.get("Fit")) and row.get("Fit") in FIT_OPTIONS) else ""
+            with st.form(f"edit_{sel}"):
+                fc = st.columns(2)
+                status = fc[0].selectbox("Status", STATUSES, index=STATUSES.index(cur_status))
+                fit = fc[1].selectbox("Past het?", FIT_OPTIONS, index=FIT_OPTIONS.index(cur_fit))
+                na = st.text_input("Volgende actie", value=str(row.get("Next action") or ""))
+                nd = st.date_input("Volgende datum", value=cur_nd.date() if pd.notna(cur_nd) else None)
+                note = st.text_input("Notitie toevoegen aan logboek (optioneel)")
+                if st.form_submit_button("💾 Opslaan", type="primary"):
+                    d = load_apps()
+                    d.at[sel, "Status"] = status
+                    d.at[sel, "Fit"] = fit
+                    d.at[sel, "Next action"] = na
+                    d.at[sel, "Next date"] = pd.Timestamp(nd) if nd else pd.NaT
+                    if note.strip():
+                        stamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                        prev = str(d.at[sel, "Log"]) if pd.notna(d.at[sel, "Log"]) else ""
+                        d.at[sel, "Log"] = f"{stamp} — {note.strip()}" + (("\n" + prev) if prev else "")
+                    save_apps(d)
+                    st.success("Opgeslagen.")
+                    st.rerun()
+
+            log = str(row.get("Log")) if pd.notna(row.get("Log")) else ""
+            if log.strip():
+                st.text_area("Logboek (nieuwste boven)", value=log, height=120, disabled=True, key=f"logv_{sel}")
+
+            if setting("ANTHROPIC_API_KEY"):
+                if st.button("🤖 AI-beoordeling van de match"):
+                    try:
+                        st.session_state[f"ai_{sel}"] = _ai_assess(f"{row.get('Role', '')}\n{row.get('Notes', '')}")
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(f"AI-beoordeling mislukt: {exc}")
+                if st.session_state.get(f"ai_{sel}"):
+                    st.info(st.session_state[f"ai_{sel}"])
+
+            st.markdown("**Documenten**")
+            rsn = st.text_input("Waarom dit bedrijf (voor de brief)", key=f"rsn_{sel}")
+            if st.button("📄 Genereer CV + motivatiebrief", key=f"gen_{sel}"):
+                try:
+                    files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
+                                                   row.get("Contact", ""), rsn, str(row.get("Notes") or ""))
+                    st.session_state[f"files_{sel}"] = files
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Genereren mislukt: {exc}")
+            if st.session_state.get(f"files_{sel}"):
+                _dl_buttons(st.session_state[f"files_{sel}"], f"ddl_{sel}", _slug(str(row.get("Company") or "")))
 
     # --- Follow-ups ---
     st.markdown("#### Opvolging")
@@ -393,11 +382,8 @@ def render_vacancies() -> None:
     elif not results:
         st.warning("Geen vacatures gevonden. Probeer bredere termen of een grotere straal.")
     else:
-        st.success(f"{len(results)} vacatures gevonden. Klik bij een vacature op **Solliciteer** "
-                   "→ CV + motivatiebrief worden meteen op maat gemaakt.")
-        cc1, cc2 = st.columns(2)
-        contact = cc1.text_input("Contactpersoon voor de brief", value="de heer/mevrouw", key="vac_contact")
-        reason = cc2.text_input("Waarom dit bedrijf (optioneel)", value="", key="vac_reason")
+        st.success(f"{len(results)} vacatures gevonden. Klik op **➕ In tracker** om er een te volgen; "
+                   "in **📋 Sollicitaties** beheer je daarna status, opvolging en CV/brief.")
 
         for i, v in enumerate(results[:25]):
             col = st.columns([6, 2])
@@ -406,16 +392,11 @@ def render_vacancies() -> None:
             score = _match_score(f"{v.get('Title', '')} {v.get('Description', '')}")
             col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted} · "
                             f"match {score}%{link}")
-            if col[1].button("✍️ Solliciteer", key=f"gen_{i}"):
-                try:
-                    add_vacancies([v])  # also track it (skipped if already there)
-                    files, _ = _application_package(v["Company"], v["Title"], contact, reason, v.get("Description", ""))
-                    st.session_state[f"files_{i}"] = files
-                except Exception as exc:  # noqa: BLE001
-                    st.session_state[f"files_{i}"] = None
-                    col[0].error(f"Kon documenten niet maken: {exc}")
-            if st.session_state.get(f"files_{i}"):
-                _dl_buttons(st.session_state[f"files_{i}"], f"vdl_{i}", _slug(v["Company"]))
+            if col[1].button("➕ In tracker", key=f"add_{i}"):
+                add_vacancies([v])
+                st.session_state[f"added_{i}"] = True
+            if st.session_state.get(f"added_{i}"):
+                col[1].caption("toegevoegd ✓")
 
         st.divider()
         d1, d2 = st.columns(2)
