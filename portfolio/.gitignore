@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Private — never commit/upload
+.streamlit/secrets.toml
+data/                 # the application tracker data
+*.docx                # raw CV with personal details (address/phone/DOB)
+# assets/cv.pdf is intentionally committed — it's the clean, privacy-safe CV.
