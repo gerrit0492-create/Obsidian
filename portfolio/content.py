@@ -30,7 +30,7 @@ CONTENT = {
             "Cost engineer met 35+ jaar in de maakindustrie — DAF, VDL ETG, Andritz, Wilting "
             "en Wärtsilä. Ik ken het product én de werkvloer, en vertaal dat naar onderbouwde "
             "kostprijzen. Waar anderen stoppen bij Excel bouw ik modellen die fouten zichtbaar "
-            "maken — zo ving ik een gemiste korting van €195k. Lean Six Sigma Green Belt. Ik zoek "
+            "maken. Lean Six Sigma Green Belt. Ik zoek "
             "een rol als cost engineer, calculator of werkvoorbereider waarin ik calculatie en "
             "kostenbeheersing aantoonbaar verbeter."
         ),
@@ -45,7 +45,7 @@ CONTENT = {
 
         "highlights_title": "Resultaten",
         "highlights": [
-            {"metric": "€195k", "title": "Kostenfout voorkomen", "text": "Mijn zelfgebouwde pre/post-model in Power BI ving een gemiste korting van €195k — geld dat anders was misgelopen."},
+            {"metric": "Power BI", "title": "Eigen kostenmodellen", "text": "Pre/post-calculatiemodel dat begroot versus werkelijk transparant maakt en afwijkingen vroeg zichtbaar maakt."},
             {"metric": "35+ jr", "title": "Maakindustrie & calculatie", "text": "Van werkvloer tot kostprijs: DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
             {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Verbeteringen via DMAIC, Kaizen, 5S en FMEA — kwaliteit, levertijd én kosten omlaag."},
         ],
@@ -54,7 +54,7 @@ CONTENT = {
         "projects": [
             {
                 "title": "Pre/post-calculatiemodel (Wärtsilä)",
-                "text": "Pre/post-calculatiemodel in Power BI, opgezet met business control om begroot vs. werkelijk te bewaken — spoorde o.a. een gemiste korting van €195k op.",
+                "text": "Pre/post-calculatiemodel in Power BI, opgezet met business control om begroot vs. werkelijk te bewaken en afwijkingen vroeg te signaleren.",
                 "tags": ["Power BI", "Kosten", "SAP"],
                 "link": "",
             },
@@ -99,7 +99,7 @@ CONTENT = {
             "Cost engineer with 35+ years in manufacturing — DAF, VDL ETG, Andritz, Wilting "
             "and Wärtsilä. I know the product and the shop floor, and translate both into "
             "well-founded cost prices. Where others stop at Excel I build models that surface "
-            "errors — one caught a missed €195k discount. Lean Six Sigma Green Belt. I'm looking "
+            "deviations early. Lean Six Sigma Green Belt. I'm looking "
             "for a cost engineer, estimator or manufacturing-engineer role where I measurably "
             "improve estimating and cost control."
         ),
@@ -114,7 +114,7 @@ CONTENT = {
 
         "highlights_title": "Impact",
         "highlights": [
-            {"metric": "€195k", "title": "Cost error prevented", "text": "My self-built pre/post model in Power BI caught a missed €195k discount — money that would otherwise have been lost."},
+            {"metric": "Power BI", "title": "Own cost models", "text": "A pre/post calculation model that makes budget-vs-actual transparent and surfaces deviations early."},
             {"metric": "35+ yrs", "title": "Manufacturing & costing", "text": "From shop floor to cost price: DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
             {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Improvements via DMAIC, Kaizen, 5S and FMEA — quality, lead time and cost down."},
         ],
@@ -123,7 +123,7 @@ CONTENT = {
         "projects": [
             {
                 "title": "Pre/post calculation model (Wärtsilä)",
-                "text": "A pre/post calculation model in Power BI, set up with business control to track budgeted vs. actual — and it flagged a missed €195k discount.",
+                "text": "A pre/post calculation model in Power BI, set up with business control to track budgeted vs. actual and surface deviations early.",
                 "tags": ["Power BI", "Cost", "SAP"],
                 "link": "",
             },

@@ -30,10 +30,10 @@ ROLE = "Cost Engineer · Calculator · Werkvoorbereider"
 CONTACT = "gerrit@duthler.info · Eindhoven, NL · linkedin.com/in/gerrit-d-90a50234"
 
 PROFILE = (
-    "Cost engineer met 35+ jaar ervaring in de maakindustrie (DAF, VDL ETG, Andritz, "
-    "Wilting, Wärtsilä). Vertaalt techniek naar kostprijzen en bouwt eigen tools (Power BI, "
-    "Excel/SAP, Python) die handwerk wegnemen en betere kostenbeslissingen mogelijk maken. "
-    "Lean Six Sigma Green Belt."
+    "Cost engineer die de werkvloer én de cijfers kent. 35+ jaar in de maakindustrie "
+    "(DAF Trucks, VDL ETG, Andritz, Wärtsilä), met een ongebruikelijke combinatie: diep "
+    "technisch inzicht plus zelfgebouwde data-tools (Power BI, SAP, Python) waarmee "
+    "calculaties sneller, accurater en transparanter worden. Lean Six Sigma Green Belt."
 )
 
 # ATS keyword line — comma-separated, mirrors common cost/estimating job ads.
@@ -45,10 +45,12 @@ KEYWORDS = (
 )
 
 HIGHLIGHTS = [
-    "Spoorde via een zelfgebouwd pre/post-calculatiemodel (Power BI) een quantity-fout op: "
-    "een korting van <b>€195k</b> die niet was meegenomen.",
-    "Zette nacalculatie- en kostenopvolgingsmodellen op samen met business control.",
-    "Realiseerde proces- en kostenverbeteringen via Lean/DMAIC, Kaizen, 5S en FMEA.",
+    "Bouwt eigen calculatie- en data-tools (Power BI, Python, SAP) die handwerk wegnemen en "
+    "offertes sneller en accurater maken.",
+    "Zette met business control een pre/post-calculatiemodel op: begroot versus werkelijk "
+    "transparant, met afwijkingen vroeg in beeld.",
+    "Verbetert processen, kwaliteit en kosten structureel via Lean Six Sigma (Green Belt): "
+    "DMAIC, Kaizen, 5S en FMEA.",
 ]
 
 EXPERIENCE = [
