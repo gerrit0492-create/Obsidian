@@ -89,7 +89,7 @@ def _plain(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
-def build_pdf(path: Path) -> None:
+def build_pdf(path: Path, role_title: str = ROLE, keywords: str = KEYWORDS) -> None:
     styles = getSampleStyleSheet()
     body = ParagraphStyle("body", parent=styles["Normal"], fontSize=9.5, leading=13, textColor=INK, alignment=TA_LEFT)
     name = ParagraphStyle("name", parent=body, fontSize=20, leading=22, spaceAfter=1)
@@ -104,10 +104,10 @@ def build_pdf(path: Path) -> None:
                             bulletType="bullet", start="•", leftIndent=8, spaceBefore=1)
 
     flow = [
-        Paragraph(NAME, name), Paragraph(ROLE, role), Paragraph(CONTACT, contact),
+        Paragraph(NAME, name), Paragraph(role_title, role), Paragraph(CONTACT, contact),
         HRFlowable(width="100%", thickness=1, color=ACCENT, spaceAfter=6),
         Paragraph("Profiel", h2), Paragraph(PROFILE, body),
-        Paragraph("Kerncompetenties", h2), Paragraph(KEYWORDS, body),
+        Paragraph("Kerncompetenties", h2), Paragraph(keywords, body),
         Paragraph("Belangrijkste resultaten", h2), bullets(HIGHLIGHTS),
         Paragraph("Werkervaring", h2),
     ]
@@ -123,7 +123,7 @@ def build_pdf(path: Path) -> None:
                       topMargin=14 * mm, bottomMargin=12 * mm, title=f"CV {NAME}", author=NAME).build(flow)
 
 
-def build_docx(path: Path) -> None:
+def build_docx(path: Path, role_title: str = ROLE, keywords: str = KEYWORDS) -> None:
     """Word version — the most ATS-friendly format: single column, plain styles."""
     from docx import Document
     from docx.shared import Pt
@@ -142,13 +142,13 @@ def build_docx(path: Path) -> None:
     r = title.add_run(NAME)
     r.bold = True
     r.font.size = Pt(20)
-    doc.add_paragraph(ROLE)
+    doc.add_paragraph(role_title)
     doc.add_paragraph(CONTACT)
 
     heading("Profiel")
     doc.add_paragraph(PROFILE)
     heading("Kerncompetenties")
-    doc.add_paragraph(KEYWORDS)
+    doc.add_paragraph(keywords)
     heading("Belangrijkste resultaten")
     for h in HIGHLIGHTS:
         doc.add_paragraph(_plain(h), style="List Bullet")

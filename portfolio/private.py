@@ -17,6 +17,8 @@ import streamlit as st
 
 import overview
 import vacancies
+import generate_cv
+import generate_letter
 
 HERE = Path(__file__).parent
 DATA = HERE / "data" / "applications.xlsx"
@@ -231,3 +233,68 @@ def render_vacancies() -> None:
         if st.button("➕ Voeg nieuwe toe aan tracker"):
             added = add_vacancies(results)
             st.success(f"{added} nieuwe vacature(s) toegevoegd aan de tracker.")
+
+
+# Keywords we scan a vacancy text for, to tailor the CV's keyword line.
+MASTER_KEYWORDS = [
+    "cost engineer", "cost engineering", "cost estimator", "calculator", "calculatie",
+    "kostprijs", "kostencalculatie", "should-cost", "nacalculatie", "offertecalculatie",
+    "werkvoorbereider", "werkvoorbereiding", "manufacturing engineer", "industrialisatie",
+    "routing", "maakstrategie", "lean", "six sigma", "green belt", "dmaic", "kaizen",
+    "5s", "fmea", "sap", "power bi", "excel", "vba", "python", "cnc", "procesverbetering",
+    "inkoop", "supply chain", "project management", "engineering",
+]
+
+
+def _matched_keywords(vacancy_text: str) -> list[str]:
+    text = (vacancy_text or "").lower()
+    return [k for k in MASTER_KEYWORDS if k in text]
+
+
+def render_tailor() -> None:
+    import tempfile
+    import zipfile
+
+    st.subheader("Sollicitatie op maat — CV + brief per vacature")
+    st.caption("Vul de velden in (en plak desgewenst de vacaturetekst); je krijgt een afgestemde "
+               "CV én motivatiebrief in PDF + Word als één download.")
+    c1, c2 = st.columns(2)
+    company = c1.text_input("Bedrijf")
+    role = c2.text_input("Functie (zoals in de vacature)")
+    contact = c1.text_input("Contactpersoon", value="de heer/mevrouw")
+    reason = c2.text_input("Waarom dit bedrijf", value="jullie focus op complexe high-tech maakindustrie")
+    vac = st.text_area("Vacaturetekst (optioneel — voor keyword-afstemming)", height=170)
+
+    if st.button("✍️ Genereer CV + brief", type="primary"):
+        matched = _matched_keywords(vac)
+        kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
+        role_title = role.strip() or generate_cv.ROLE
+        comp = company.strip() or "[Bedrijf]"
+        cont = contact.strip() or "[Contactpersoon]"
+        rsn = reason.strip() or "[reden]"
+        buf = io.BytesIO()
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
+            generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
+            generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
+            generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
+            with zipfile.ZipFile(buf, "w") as z:
+                for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
+                    z.write(tdp / f, arcname=f)
+        st.session_state["pkg"] = buf.getvalue()
+        st.session_state["pkg_matched"] = matched
+        st.session_state["pkg_name"] = (comp or "sollicitatie").replace(" ", "_").replace("[", "").replace("]", "")
+
+    if st.session_state.get("pkg"):
+        matched = st.session_state.get("pkg_matched") or []
+        if matched:
+            st.success("Keywords uit de vacature meegenomen: " + ", ".join(matched))
+        else:
+            st.info("Geen specifieke keywords gevonden — standaard keyword-set gebruikt.")
+        st.download_button(
+            "📦 Download pakket (CV + brief · PDF + Word)",
+            data=st.session_state["pkg"],
+            file_name=f"sollicitatie_{st.session_state.get('pkg_name', '')}.zip",
+            mime="application/zip",
+        )
