@@ -19,6 +19,7 @@ PROFILE = {
 CONTENT = {
     "nl": {
         "role": "Cost Engineer · Calculator · Werkvoorbereider",
+        "available": "Beschikbaar voor een nieuwe rol",
         "tagline": "Ik vertaal techniek naar betrouwbare kostprijzen — en bouw zelf de tools (Power BI, Python, SAP) die calculaties sneller en scherper maken.",
         "cta_contact": "Neem contact op",
         "cta_cv": "Download CV",
@@ -87,6 +88,7 @@ CONTENT = {
 
     "en": {
         "role": "Cost Engineer · Estimator · Manufacturing Engineer",
+        "available": "Available for a new role",
         "tagline": "I turn engineering into reliable cost prices — and build the tools (Power BI, Python, SAP) that make estimating faster and sharper.",
         "cta_contact": "Get in touch",
         "cta_cv": "Download CV",

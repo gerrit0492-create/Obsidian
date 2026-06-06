@@ -5,6 +5,8 @@ __pycache__/
 
 # Private — never commit/upload
 .streamlit/secrets.toml
-data/                 # the application tracker data
-*.docx                # raw CV with personal details (address/phone/DOB)
+# the application tracker data
+data/
+# raw CV with personal details (address/phone/DOB)
+*.docx
 # assets/cv.pdf is intentionally committed — it's the clean, privacy-safe CV.
