@@ -182,93 +182,121 @@ def render_tracker() -> None:
         load_apps(force=True)
         st.rerun()
 
-    active = df[~df["Status"].isin(CLOSED)]
-    applied_plus = df[df["Status"].isin(["Applied", "Screening", "Interview", "Offer"])]
-    k = st.columns(5)
-    k[0].metric("Total", len(df))
-    k[1].metric("Active", len(active))
-    k[2].metric("Applied+", len(applied_plus))
-    k[3].metric("Interviews", int((df["Status"] == "Interview").sum()))
-    k[4].metric("Offers", int((df["Status"] == "Offer").sum()))
-
-    st.subheader("Pipeline")
-    pcols = st.columns(len(PIPELINE))
-    for col, s in zip(pcols, PIPELINE):
-        col.metric(s, int((df["Status"] == s).sum()))
-
-    st.subheader("Applications")
-    st.caption("Add a row at the bottom, edit any cell, or select a row and press ⌫ to delete. Then Save.")
-    edited = st.data_editor(
-        df, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor",
-        column_config={
-            "Link": st.column_config.LinkColumn("Link", display_text="open", width="small"),
-            "Applied": st.column_config.DateColumn("Applied", format="YYYY-MM-DD"),
-            "Next date": st.column_config.DateColumn("Next date", format="YYYY-MM-DD"),
-            "Status": st.column_config.SelectboxColumn("Status", options=STATUSES, default="Lead"),
-            "Source": st.column_config.SelectboxColumn("Source", options=SOURCES),
-            "Priority": st.column_config.SelectboxColumn("Priority", options=PRIORITIES, default="Medium"),
-            "Notes": st.column_config.TextColumn("Notes", width="large"),
-        },
+    st.markdown(
+        """<style>
+        .kpis{display:flex;gap:10px;flex-wrap:wrap;margin:.2rem 0 .7rem}
+        .kpi{flex:1;min-width:84px;background:#16223d;color:#fff;border-radius:12px;padding:10px 12px}
+        .kpi .n{font-size:1.5rem;font-weight:800;line-height:1}
+        .kpi .l{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;opacity:.82;margin-top:2px}
+        .stage{font-weight:700;color:#16223d;border-bottom:3px solid #2a9d8f;padding-bottom:4px;
+               margin-bottom:8px;font-size:.92rem}
+        .appcard{background:#fff;border:1px solid #e6ebf1;border-left:4px solid #2a9d8f;border-radius:10px;
+                 padding:8px 10px;margin-bottom:6px;box-shadow:0 1px 4px rgba(22,34,61,.05)}
+        .appcard .co{font-weight:700;color:#16223d;font-size:.88rem;line-height:1.15}
+        .appcard .rl{color:#566377;font-size:.78rem}
+        .appcard .nx{font-size:.74rem;margin-top:3px;color:#475569}
+        .appcard .od{color:#c0392b;font-weight:600}
+        </style>""",
+        unsafe_allow_html=True,
     )
 
-    c1, c2, c3, _ = st.columns([1, 1, 1.4, 3])
-    if c1.button("💾 Save", type="primary"):
-        save_apps(edited)
-        st.success("Saved to data/applications.xlsx")
-    c2.download_button("⬇️ Excel", data=_to_excel_bytes(edited), file_name="applications.xlsx",
-                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    c3.download_button("📱 Mobiel overzicht (HTML)",
-                       data=_overview_bytes(edited, st.session_state.get("vacancies")),
-                       file_name="job_overview.html", mime="text/html",
-                       help="Self-contained snapshot — save it on your phone and open offline.")
+    # --- KPIs ---
+    active = df[~df["Status"].isin(CLOSED)]
+    kpis = [("Totaal", len(df)), ("Actief", len(active)),
+            ("Interviews", int((df["Status"] == "Interview").sum())),
+            ("Offers", int((df["Status"] == "Offer").sum()))]
+    st.markdown("<div class='kpis'>" + "".join(
+        f"<div class='kpi'><div class='n'>{n}</div><div class='l'>{lbl}</div></div>" for lbl, n in kpis
+    ) + "</div>", unsafe_allow_html=True)
 
-    # --- Per-application package: CV + motivation letter, tied to a tracked app ---
-    st.subheader("Sollicitatiepakket (CV + motivatiebrief)")
-    apps_list = [r for r in edited.to_dict("records") if str(r.get("Company") or "").strip()]
-    if not apps_list:
-        st.caption("Voeg een sollicitatie toe (hierboven, of via Vacatures) om een pakket te maken.")
-    else:
-        labels = [f"{r['Company']} — {r.get('Role') or ''}".strip(" —") for r in apps_list]
-        idx = st.selectbox("Kies sollicitatie", range(len(labels)),
-                           format_func=lambda i: labels[i], key="pkg_pick")
-        chosen = apps_list[idx]
-        rsn = st.text_input("Waarom dit bedrijf (optioneel)", key="pkg_reason")
-        if st.button("✍️ Genereer CV + brief", key="pkg_make", type="primary"):
-            try:
-                pkg, matched = _application_package(
-                    chosen["Company"], chosen.get("Role", ""), chosen.get("Contact", ""),
-                    rsn, str(chosen.get("Notes") or ""))
-                st.session_state["trk_pkg"] = pkg
-                st.session_state["trk_pkg_name"] = _slug(chosen["Company"])
-                if matched:
-                    st.caption("Keywords meegenomen: " + ", ".join(matched))
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Kon pakket niet maken: {exc}. Reboot de app voor de nieuwste code/pakketten.")
-        if st.session_state.get("trk_pkg"):
-            st.download_button("📦 Download pakket (CV + brief · PDF + Word)",
-                               data=st.session_state["trk_pkg"],
-                               file_name=f"sollicitatie_{st.session_state.get('trk_pkg_name', '')}.zip",
-                               mime="application/zip", key="trk_dl")
+    # --- Pipeline board ---
+    st.markdown("#### Pijplijn")
+    st.caption("**→** schuift een sollicitatie een fase op · **📦** maakt direct CV + brief.")
+    today = pd.Timestamp(date.today())
+    stage_next = dict(zip(PIPELINE, PIPELINE[1:]))
+    cols = st.columns(len(PIPELINE))
+    for ci, stage in enumerate(PIPELINE):
+        with cols[ci]:
+            sub = df[df["Status"] == stage]
+            st.markdown(f"<div class='stage'>{stage} · {len(sub)}</div>", unsafe_allow_html=True)
+            for idx, row in sub.iterrows():
+                nd = pd.to_datetime(row.get("Next date"), errors="coerce")
+                nxt = ""
+                if str(row.get("Next action") or "").strip():
+                    od = pd.notna(nd) and nd < today
+                    when = f" ({nd.date()})" if pd.notna(nd) else ""
+                    nxt = f"<div class='nx {'od' if od else ''}'>→ {row['Next action']}{when}</div>"
+                loc = f" · {row['Location']}" if str(row.get("Location") or "").strip() else ""
+                st.markdown(
+                    f"<div class='appcard'><div class='co'>{row.get('Company') or '—'}</div>"
+                    f"<div class='rl'>{row.get('Role') or ''}{loc}</div>{nxt}</div>",
+                    unsafe_allow_html=True,
+                )
+                b = st.columns(2)
+                if stage in stage_next and b[0].button("→", key=f"adv_{idx}", help=f"Naar {stage_next[stage]}"):
+                    d2 = load_apps()
+                    d2.loc[idx, "Status"] = stage_next[stage]
+                    save_apps(d2)
+                    st.rerun()
+                if b[1].button("📦", key=f"cardpkg_{idx}", help="Genereer CV + brief"):
+                    try:
+                        pkg, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
+                                                     row.get("Contact", ""), "", str(row.get("Notes") or ""))
+                        st.session_state[f"cardpkg_{idx}"] = pkg
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(f"Pakket mislukt: {exc}")
+                if st.session_state.get(f"cardpkg_{idx}"):
+                    st.download_button("⬇️ pakket", st.session_state[f"cardpkg_{idx}"],
+                                       file_name=f"sollicitatie_{_slug(str(row.get('Company') or ''))}.zip",
+                                       mime="application/zip", key=f"carddl_{idx}")
 
-    st.subheader("Follow-ups")
-    fu = edited.copy()
+    other = df[df["Status"].isin(CLOSED) | (df["Status"] == "On hold")]
+    if len(other):
+        with st.expander(f"Overig / afgerond ({len(other)})"):
+            for _, row in other.iterrows():
+                st.markdown(f"- _{row.get('Status') or ''}_ — **{row.get('Company') or '—'}** · {row.get('Role') or ''}")
+
+    # --- Follow-ups ---
+    st.markdown("#### Opvolging")
+    fu = df.copy()
     fu["Next date"] = pd.to_datetime(fu["Next date"], errors="coerce")
-    fu = fu.dropna(subset=["Next date"]).sort_values("Next date")
-    fu = fu[~fu["Status"].isin(CLOSED)]
+    fu = fu.dropna(subset=["Next date"])
+    fu = fu[~fu["Status"].isin(CLOSED)].sort_values("Next date")
     if fu.empty:
-        st.info("No upcoming follow-ups. Set a 'Next date' on an application to see it here.")
+        st.info("Geen geplande opvolging. Zet een 'Next date' op een sollicitatie (in de tabel hieronder).")
     else:
-        today = pd.Timestamp(date.today())
         overdue = int((fu["Next date"] < today).sum())
         if overdue:
-            st.error(f"🔴 {overdue} follow-up(s) overdue.")
+            st.error(f"🔴 {overdue} opvolging(en) over tijd.")
         for _, row in fu.iterrows():
-            flag = "🔴 overdue" if row["Next date"] < today else "🟢"
-            prio = f" · {row['Priority']}" if (pd.notna(row.get("Priority")) and row.get("Priority")) else ""
-            st.markdown(
-                f"**{row['Next date'].date()}** {flag} — **{row['Company'] or '—'}** · {row['Role'] or ''} "
-                f"· _{row['Status'] or ''}_{prio} → {row['Next action'] or '—'}"
-            )
+            flag = "🔴" if row["Next date"] < today else "🟢"
+            st.markdown(f"{flag} **{row['Next date'].date()}** — {row.get('Company') or '—'} · "
+                        f"_{row.get('Status') or ''}_ → {row.get('Next action') or '—'}")
+
+    # --- Power editing (table) ---
+    with st.expander("✏️ Alle sollicitaties bewerken (tabel)"):
+        st.caption("Voeg onderaan een rij toe, bewerk cellen, selecteer + ⌫ om te verwijderen. Dan Opslaan.")
+        edited = st.data_editor(
+            df, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor",
+            column_config={
+                "Link": st.column_config.LinkColumn("Link", display_text="open", width="small"),
+                "Applied": st.column_config.DateColumn("Applied", format="YYYY-MM-DD"),
+                "Next date": st.column_config.DateColumn("Next date", format="YYYY-MM-DD"),
+                "Status": st.column_config.SelectboxColumn("Status", options=STATUSES, default="Lead"),
+                "Source": st.column_config.SelectboxColumn("Source", options=SOURCES),
+                "Priority": st.column_config.SelectboxColumn("Priority", options=PRIORITIES, default="Medium"),
+                "Notes": st.column_config.TextColumn("Notes", width="large"),
+            },
+        )
+        e1, e2, e3 = st.columns(3)
+        if e1.button("💾 Opslaan", type="primary"):
+            save_apps(edited)
+            st.success("Opgeslagen.")
+            st.rerun()
+        e2.download_button("⬇️ Excel", data=_to_excel_bytes(edited), file_name="applications.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        e3.download_button("📱 Mobiel overzicht", data=_overview_bytes(edited, st.session_state.get("vacancies")),
+                           file_name="job_overview.html", mime="text/html")
 
 
 def render_vacancies() -> None:
