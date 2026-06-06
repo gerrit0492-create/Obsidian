@@ -11,7 +11,6 @@ import io
 import os
 import re
 import tempfile
-import zipfile
 from datetime import date
 from pathlib import Path
 
@@ -30,14 +29,20 @@ PORTFOLIO_URL_DEFAULT = "https://gerrit0492-create.github.io/Obsidian/"
 
 COLUMNS = [
     "Company", "Role", "Location", "Travel", "Source", "Contact", "Email", "Phone",
-    "Link", "Priority", "Applied", "Status", "Next action", "Next date", "Notes",
+    "Link", "Priority", "Match", "Fit", "Applied", "Status", "Next action", "Next date",
+    "Notes", "Log",
 ]
 DATE_COLS = ["Applied", "Next date"]
 STATUSES = ["Lead", "Applied", "Screening", "Interview", "Offer", "Rejected", "On hold", "Closed"]
 SOURCES = ["Direct", "Bureau", "Vacature", "LinkedIn", "Referral", "Other"]
 PRIORITIES = ["High", "Medium", "Low"]
+FIT_OPTIONS = ["", "Ja", "Misschien", "Nee"]
 CLOSED = {"Rejected", "Closed"}
 PIPELINE = ["Lead", "Applied", "Screening", "Interview", "Offer"]
+
+DOCS = ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx")
+_MIME = {"pdf": "application/pdf",
+         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 
 
 def setting(name: str, default: str = "") -> str:
@@ -159,11 +164,16 @@ def add_vacancies(found: list[dict]) -> int:
         if not v["Company"] or key in existing:
             continue
         existing.add(key)
+        desc = v.get("Description", "")
+        note = f"Gevonden via {v['Source']}" + (f" · {v['Posted']}" if v.get("Posted") else "")
+        if desc:
+            note += "\n" + desc[:600]
         new_rows.append({
             "Company": v["Company"], "Role": v["Title"], "Location": v["Location"],
             "Source": "Vacature", "Link": v["Link"], "Priority": "Medium",
+            "Match": _match_score(f"{v.get('Title', '')} {desc}"),
             "Applied": pd.NaT, "Status": "Lead", "Next action": "Bekijk vacature + solliciteer",
-            "Next date": pd.NaT, "Notes": f"Gevonden via {v['Source']}" + (f" · {v['Posted']}" if v["Posted"] else ""),
+            "Next date": pd.NaT, "Notes": note,
         })
     if new_rows:
         save_apps(pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)[COLUMNS])
@@ -227,34 +237,82 @@ def render_tracker() -> None:
                     when = f" ({nd.date()})" if pd.notna(nd) else ""
                     nxt = f"<div class='nx {'od' if od else ''}'>→ {row['Next action']}{when}</div>"
                 loc = f" · {row['Location']}" if str(row.get("Location") or "").strip() else ""
+                m = row.get("Match")
+                fit = row.get("Fit") if pd.notna(row.get("Fit")) else ""
+                bits = [f"match {int(m)}%" if pd.notna(m) else "", f"past: {fit}" if fit else ""]
+                meta = " · ".join(x for x in bits if x)
+                metah = f"<div class='nx'>{meta}</div>" if meta else ""
                 st.markdown(
                     f"<div class='appcard'><div class='co'>{row.get('Company') or '—'}</div>"
-                    f"<div class='rl'>{row.get('Role') or ''}{loc}</div>{nxt}</div>",
+                    f"<div class='rl'>{row.get('Role') or ''}{loc}</div>{metah}{nxt}</div>",
                     unsafe_allow_html=True,
                 )
-                b = st.columns(2)
-                if stage in stage_next and b[0].button("→", key=f"adv_{idx}", help=f"Naar {stage_next[stage]}"):
+                if stage in stage_next and st.button(f"→ {stage_next[stage]}", key=f"adv_{idx}"):
                     d2 = load_apps()
                     d2.loc[idx, "Status"] = stage_next[stage]
                     save_apps(d2)
                     st.rerun()
-                if b[1].button("📦", key=f"cardpkg_{idx}", help="Genereer CV + brief"):
-                    try:
-                        pkg, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
-                                                     row.get("Contact", ""), "", str(row.get("Notes") or ""))
-                        st.session_state[f"cardpkg_{idx}"] = pkg
-                    except Exception as exc:  # noqa: BLE001
-                        st.error(f"Pakket mislukt: {exc}")
-                if st.session_state.get(f"cardpkg_{idx}"):
-                    st.download_button("⬇️ pakket", st.session_state[f"cardpkg_{idx}"],
-                                       file_name=f"sollicitatie_{_slug(str(row.get('Company') or ''))}.zip",
-                                       mime="application/zip", key=f"carddl_{idx}")
 
     other = df[df["Status"].isin(CLOSED) | (df["Status"] == "On hold")]
     if len(other):
         with st.expander(f"Overig / afgerond ({len(other)})"):
             for _, row in other.iterrows():
                 st.markdown(f"- _{row.get('Status') or ''}_ — **{row.get('Company') or '—'}** · {row.get('Role') or ''}")
+
+    # --- Per-application: follow, judge fit, append-only log, documents ---
+    st.markdown("#### Volgen & documenten")
+    opts = [i for i in df.index if str(df.at[i, "Company"] or "").strip()]
+    if not opts:
+        st.caption("Nog geen sollicitaties — voeg er een toe via Vacatures of de tabel hieronder.")
+    else:
+        sel = st.selectbox("Sollicitatie", opts, key="detail_sel",
+                           format_func=lambda i: f"{df.at[i, 'Company']} — {df.at[i, 'Role'] or ''}".strip(" —"))
+        row = df.loc[sel]
+        m1, m2, m3 = st.columns(3)
+        mv = row.get("Match")
+        m1.metric("Match", f"{int(mv)}%" if pd.notna(mv) else "—")
+        m2.metric("Past het?", row.get("Fit") if (pd.notna(row.get("Fit")) and row.get("Fit")) else "—")
+        if m3.button("🔁 Herbereken match"):
+            d = load_apps()
+            d.at[sel, "Match"] = _match_score(f"{d.at[sel, 'Role'] or ''} {d.at[sel, 'Notes'] or ''}")
+            save_apps(d)
+            st.rerun()
+
+        if setting("ANTHROPIC_API_KEY"):
+            if st.button("🤖 AI-beoordeling van de match"):
+                try:
+                    st.session_state["ai_verdict"] = _ai_assess(f"{row.get('Role', '')}\n{row.get('Notes', '')}")
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"AI-beoordeling mislukt: {exc}")
+            if st.session_state.get("ai_verdict"):
+                st.info(st.session_state["ai_verdict"])
+        else:
+            st.caption("Tip: zet ANTHROPIC_API_KEY in secrets voor een AI-oordeel over de match.")
+
+        with st.form(f"logform_{sel}", clear_on_submit=True):
+            entry = st.text_input("Update toevoegen aan logboek (wordt toegevoegd, niet overschreven)")
+            if st.form_submit_button("➕ Toevoegen") and entry.strip():
+                d = load_apps()
+                stamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                prev = str(d.at[sel, "Log"]) if pd.notna(d.at[sel, "Log"]) else ""
+                d.at[sel, "Log"] = f"{stamp} — {entry.strip()}" + (("\n" + prev) if prev else "")
+                save_apps(d)
+                st.rerun()
+        log = str(row.get("Log")) if pd.notna(row.get("Log")) else ""
+        if log.strip():
+            st.text_area("Logboek (nieuwste boven)", value=log, height=130, disabled=True, key=f"logview_{sel}")
+
+        rsn = st.text_input("Waarom dit bedrijf (voor de brief)", key="detail_reason")
+        if st.button("📄 Genereer CV + motivatiebrief", type="primary", key="detail_gen"):
+            try:
+                files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
+                                               row.get("Contact", ""), rsn, str(row.get("Notes") or ""))
+                st.session_state["detail_files"] = files
+                st.session_state["detail_slug"] = _slug(str(row.get("Company") or ""))
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Genereren mislukt: {exc}")
+        if st.session_state.get("detail_files"):
+            _dl_buttons(st.session_state["detail_files"], "detaildl", st.session_state.get("detail_slug", ""))
 
     # --- Follow-ups ---
     st.markdown("#### Opvolging")
@@ -285,7 +343,10 @@ def render_tracker() -> None:
                 "Status": st.column_config.SelectboxColumn("Status", options=STATUSES, default="Lead"),
                 "Source": st.column_config.SelectboxColumn("Source", options=SOURCES),
                 "Priority": st.column_config.SelectboxColumn("Priority", options=PRIORITIES, default="Medium"),
+                "Fit": st.column_config.SelectboxColumn("Fit", options=FIT_OPTIONS),
+                "Match": st.column_config.NumberColumn("Match", format="%d%%"),
                 "Notes": st.column_config.TextColumn("Notes", width="large"),
+                "Log": st.column_config.TextColumn("Log", width="large"),
             },
         )
         e1, e2, e3 = st.columns(3)
@@ -339,22 +400,22 @@ def render_vacancies() -> None:
         reason = cc2.text_input("Waarom dit bedrijf (optioneel)", value="", key="vac_reason")
 
         for i, v in enumerate(results[:25]):
-            col = st.columns([6, 2, 2])
+            col = st.columns([6, 2])
             link = f" · [vacature]({v['Link']})" if v.get("Link") else ""
             posted = f" · {v['Posted']}" if v.get("Posted") else ""
-            col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted}{link}")
+            score = _match_score(f"{v.get('Title', '')} {v.get('Description', '')}")
+            col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted} · "
+                            f"match {score}%{link}")
             if col[1].button("✍️ Solliciteer", key=f"gen_{i}"):
                 try:
                     add_vacancies([v])  # also track it (skipped if already there)
-                    pkg, _ = _application_package(v["Company"], v["Title"], contact, reason, v.get("Description", ""))
-                    st.session_state[f"pkg_{i}"] = pkg
+                    files, _ = _application_package(v["Company"], v["Title"], contact, reason, v.get("Description", ""))
+                    st.session_state[f"files_{i}"] = files
                 except Exception as exc:  # noqa: BLE001
-                    st.session_state[f"pkg_{i}"] = None
-                    col[0].error(f"Kon pakket niet maken: {exc}")
-            if st.session_state.get(f"pkg_{i}"):
-                col[2].download_button("📦 Download", data=st.session_state[f"pkg_{i}"],
-                                       file_name=f"sollicitatie_{_slug(v['Company'])}.zip",
-                                       mime="application/zip", key=f"dl_{i}")
+                    st.session_state[f"files_{i}"] = None
+                    col[0].error(f"Kon documenten niet maken: {exc}")
+            if st.session_state.get(f"files_{i}"):
+                _dl_buttons(st.session_state[f"files_{i}"], f"vdl_{i}", _slug(v["Company"]))
 
         st.divider()
         d1, d2 = st.columns(2)
@@ -384,8 +445,13 @@ def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", (text or "sollicitatie")).strip("_") or "sollicitatie"
 
 
+def _match_score(text: str) -> int:
+    """A simple 'smart' fit score: how well a vacancy text overlaps the profile keywords."""
+    return int(min(100, round(len(_matched_keywords(text)) / 8 * 100)))
+
+
 def _application_package(company, role, contact="", reason="", vacancy_text=""):
-    """Build a tailored CV + motivation letter (PDF + Word) and return (zip_bytes, matched)."""
+    """Build a tailored CV + motivation letter (PDF + Word); return (files_dict, matched)."""
     matched = _matched_keywords(f"{vacancy_text} {role}")
     kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
     role_title = (role or "").strip() or generate_cv.ROLE
@@ -394,47 +460,45 @@ def _application_package(company, role, contact="", reason="", vacancy_text=""):
     rsn = (reason or "").strip() or (
         f"de functie {role_title} en jullie organisatie goed aansluiten bij mijn ervaring in "
         "kostentechniek en de maakindustrie")
-    buf = io.BytesIO()
+    files = {}
     with tempfile.TemporaryDirectory() as td:
         tdp = Path(td)
         generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
         generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
         generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
         generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
-        with zipfile.ZipFile(buf, "w") as z:
-            for f in ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx"):
-                z.write(tdp / f, arcname=f)
-    return buf.getvalue(), matched
+        for name in DOCS:
+            files[name] = (tdp / name).read_bytes()
+    return files, matched
 
 
-def render_tailor() -> None:
-    st.subheader("Sollicitatie op maat — CV + brief per vacature")
-    st.caption("Vul de velden in (en plak desgewenst de vacaturetekst); je krijgt een afgestemde "
-               "CV én motivatiebrief in PDF + Word als één download.")
-    c1, c2 = st.columns(2)
-    company = c1.text_input("Bedrijf")
-    role = c2.text_input("Functie (zoals in de vacature)")
-    contact = c1.text_input("Contactpersoon", value="de heer/mevrouw")
-    reason = c2.text_input("Waarom dit bedrijf", value="jullie focus op complexe high-tech maakindustrie")
-    vac = st.text_area("Vacaturetekst (optioneel — voor keyword-afstemming)", height=170)
+def _dl_buttons(files: dict, prefix: str, slug: str) -> None:
+    """Render each generated document as its own download button (no zip)."""
+    items = list(files.items())
+    cols = st.columns(len(items))
+    for j, (fn, fb) in enumerate(items):
+        ext = fn.rsplit(".", 1)[-1]
+        cols[j].download_button(f"⬇️ {fn}", fb, file_name=f"{slug}_{fn}",
+                                mime=_MIME.get(ext, "application/octet-stream"), key=f"{prefix}_{j}")
 
-    if st.button("✍️ Genereer CV + brief", type="primary"):
-        try:
-            pkg, matched = _application_package(company, role, contact, reason, vac)
-            st.session_state["pkg"] = pkg
-            st.session_state["pkg_matched"] = matched
-            st.session_state["pkg_name"] = _slug(company)
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Kon het pakket niet maken: {exc}. Tip: reboot de app zodat de nieuwste "
-                     "code en pakketten (python-docx) geladen zijn.")
 
-    if st.session_state.get("pkg"):
-        matched = st.session_state.get("pkg_matched") or []
-        if matched:
-            st.success("Keywords uit de vacature meegenomen: " + ", ".join(matched))
-        st.download_button(
-            "📦 Download pakket (CV + brief · PDF + Word)",
-            data=st.session_state["pkg"],
-            file_name=f"sollicitatie_{st.session_state.get('pkg_name', '')}.zip",
-            mime="application/zip",
-        )
+def _ai_assess(vacancy_text: str):
+    """Optional real-AI fit verdict via the Anthropic API (needs ANTHROPIC_API_KEY)."""
+    key = setting("ANTHROPIC_API_KEY")
+    if not key:
+        return None
+    import requests
+    profile = generate_cv.PROFILE + " Vaardigheden: " + generate_cv.SKILLS
+    prompt = (f"Kandidaatprofiel:\n{profile}\n\nVacature:\n{vacancy_text}\n\n"
+              "Beoordeel in het Nederlands of deze vacature bij de kandidaat past. "
+              "Geef een matchscore 0-100 en 2-3 zinnen onderbouwing.")
+    r = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+        json={"model": "claude-haiku-4-5-20251001", "max_tokens": 400,
+              "messages": [{"role": "user", "content": prompt}]},
+        timeout=40)
+    r.raise_for_status()
+    return r.json()["content"][0]["text"]
+
+
