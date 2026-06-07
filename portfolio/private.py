@@ -180,6 +180,76 @@ def add_vacancies(found: list[dict]) -> int:
     return len(new_rows)
 
 
+def render_work() -> None:
+    """One job per screen with big tap actions — review your New queue fast."""
+    st.markdown(
+        """<style>
+        .jobcard{background:#fff;border:1px solid #e6ebf1;border-top:5px solid #2a9d8f;border-radius:16px;
+                 padding:20px 22px;box-shadow:0 3px 14px rgba(22,34,61,.07);margin-bottom:12px}
+        .jobcard .co{font-size:1.25rem;font-weight:800;color:#16223d;line-height:1.15}
+        .jobcard .rl{color:#566377;font-size:1rem;margin-top:2px}
+        .jobcard .mt{display:inline-block;background:#eef5f3;color:#1d7d6e;border-radius:999px;
+                     padding:3px 12px;font-weight:700;font-size:.85rem;margin-top:10px}
+        .jobcard .ds{color:#475569;font-size:.9rem;line-height:1.5;margin-top:12px}
+        div[data-testid="stButton"] button{padding:12px 0;font-size:1rem;font-weight:600}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    df = load_apps()
+    queue = [i for i in df.index if str(df.at[i, "Company"] or "").strip()
+             and _lifecycle(df.at[i, "Status"], df.at[i, "Fit"]) == "New"]
+    queue.sort(key=lambda i: (df.at[i, "Match"] if pd.notna(df.at[i, "Match"]) else -1), reverse=True)
+
+    st.markdown("#### Review new jobs")
+    if not queue:
+        st.success("🎉 Nothing left to review. New jobs arrive via 🔎 Vacatures (auto).")
+        return
+
+    pos = min(st.session_state.get("work_pos", 0), len(queue) - 1)
+    sel = queue[pos]
+    row = df.loc[sel]
+    st.caption(f"{pos + 1} of {len(queue)} new · best match first")
+
+    m = row.get("Match")
+    mt = f"<span class='mt'>match {int(m)}%</span>" if pd.notna(m) else ""
+    loc = f" · {row['Location']}" if str(row.get("Location") or "").strip() else ""
+    link = (f'<br><a href="{row.get("Link")}" target="_blank">open vacancy ↗</a>'
+            if str(row.get("Link") or "").strip() else "")
+    notes = str(row.get("Notes") or "")
+    snippet = (notes[:260] + "…") if len(notes) > 260 else notes
+    st.markdown(
+        f"<div class='jobcard'><div class='co'>{row.get('Company') or '—'}</div>"
+        f"<div class='rl'>{row.get('Role') or ''}{loc}</div>{mt}"
+        f"<div class='ds'>{snippet}{link}</div></div>",
+        unsafe_allow_html=True,
+    )
+
+    b = st.columns(3)
+    if b[0].button("🗑️ Discard", use_container_width=True, key="w_disc"):
+        d = load_apps()
+        d.at[sel, "Status"], d.at[sel, "Fit"] = "Rejected", "Nee"
+        save_apps(d)
+        st.rerun()
+    if b[1].button("➡️ Skip", use_container_width=True, key="w_skip"):
+        st.session_state["work_pos"] = pos + 1
+        st.rerun()
+    if b[2].button("⭐ Select", use_container_width=True, key="w_sel"):
+        d = load_apps()
+        d.at[sel, "Fit"] = "Ja"
+        save_apps(d)
+        st.rerun()
+
+    if st.button("📄 Generate CV + motivation letter", use_container_width=True, key="w_gen"):
+        try:
+            files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
+                                           row.get("Contact", ""), "", notes)
+            st.session_state["w_files"] = files
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Could not generate: {exc}")
+    if st.session_state.get("w_files"):
+        _dl_buttons(st.session_state["w_files"], "wdl", _slug(str(row.get("Company") or "")))
+
+
 def render_tracker() -> None:
     df = load_apps()
 
@@ -230,14 +300,7 @@ def render_tracker() -> None:
         st.info("Nog geen sollicitaties. Ga naar **🔎 Vacatures**, zoek en klik **➕ In tracker**.")
     else:
         def _category(i):
-            s, f = str(df.at[i, "Status"]), str(df.at[i, "Fit"] or "")
-            if s in CLOSED or f == "Nee":
-                return "Discarded"
-            if s in ("Applied", "Screening", "Interview", "Offer"):
-                return "Applied"
-            if f == "Ja":
-                return "Selected"
-            return "New"
+            return _lifecycle(df.at[i, "Status"], df.at[i, "Fit"])
 
         cats = {c: sum(1 for i in opts if _category(i) == c) for c in ("New", "Selected", "Applied", "Discarded")}
         labels = [f"{c} ({cats[c]})" for c in ("New", "Selected", "Applied", "Discarded")] + ["All"]
@@ -525,6 +588,17 @@ def _recommend(text, good, bad) -> int:
     g = sum(1 for k in good if k in t)
     b = sum(1 for k in bad if k in t)
     return max(0, min(100, _match_score(text) + g * 8 - b * 10))
+
+
+def _lifecycle(status, fit) -> str:
+    s, f = str(status or ""), str(fit or "")
+    if s in CLOSED or f == "Nee":
+        return "Discarded"
+    if s in ("Applied", "Screening", "Interview", "Offer"):
+        return "Applied"
+    if f == "Ja":
+        return "Selected"
+    return "New"
 
 
 def _application_package(company, role, contact="", reason="", vacancy_text=""):

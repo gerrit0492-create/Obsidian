@@ -18,7 +18,9 @@ st.title("🔒 Application tracker")
 st.caption("Private — stored locally in data/applications.xlsx (git-ignored), never uploaded.")
 
 if private.unlock(require_password=False):
-    t1, t2 = st.tabs(["📋 Sollicitaties", "🔎 Vacatures (live)"])
+    t0, t1, t2 = st.tabs(["▶️ Work", "📋 Overview", "🔎 Vacatures (live)"])
+    with t0:
+        private.render_work()
     with t1:
         private.render_tracker()
     with t2:
