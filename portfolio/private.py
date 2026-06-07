@@ -41,7 +41,8 @@ FIT_OPTIONS = ["", "Ja", "Misschien", "Nee"]
 CLOSED = {"Rejected", "Closed"}
 PIPELINE = ["Lead", "Applied", "Screening", "Interview", "Offer"]
 
-DOCS = ("CV.pdf", "CV.docx", "Motivatiebrief.pdf", "Motivatiebrief.docx")
+DOCS = ("CV.pdf", "CV.docx", "Motivatiebrief_NL.pdf", "Motivatiebrief_NL.docx",
+        "Motivation_EN.pdf", "Motivation_EN.docx")
 _MIME = {"pdf": "application/pdf",
          "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 
@@ -261,10 +262,10 @@ def render_work() -> None:
         st.session_state.pop("work_undo", None)
         st.rerun()
 
-    if st.button("📄 Generate CV + motivation letter", use_container_width=True, key="w_gen"):
+    if st.button("📄 Generate CV + motivation letters (NL + EN)", use_container_width=True, key="w_gen"):
         try:
             files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
-                                           row.get("Contact", ""), "", notes)
+                                           row.get("Contact", ""), notes)
             st.session_state["w_files"] = files
         except Exception as exc:  # noqa: BLE001
             st.error(f"Could not generate: {exc}")
@@ -422,11 +423,11 @@ def render_tracker() -> None:
                     st.info(st.session_state[f"ai_{sel}"])
 
             st.markdown("**Documenten**")
-            rsn = st.text_input("Waarom dit bedrijf (voor de brief)", key=f"rsn_{sel}")
-            if st.button("📄 Genereer CV + motivatiebrief", key=f"gen_{sel}"):
+            st.caption("CV + motivatiebrieven (NL + EN), automatisch afgestemd op deze vacature.")
+            if st.button("📄 Genereer CV + motivatiebrieven (NL + EN)", key=f"gen_{sel}"):
                 try:
                     files, _ = _application_package(row.get("Company", ""), row.get("Role", ""),
-                                                   row.get("Contact", ""), rsn, str(row.get("Notes") or ""))
+                                                   row.get("Contact", ""), str(row.get("Notes") or ""))
                     st.session_state[f"files_{sel}"] = files
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Genereren mislukt: {exc}")
@@ -655,36 +656,47 @@ def _lifecycle(status, fit) -> str:
     return "New"
 
 
-def _application_package(company, role, contact="", reason="", vacancy_text=""):
-    """Build a tailored CV + motivation letter (PDF + Word); return (files_dict, matched)."""
+def _application_package(company, role, contact="", vacancy_text=""):
+    """Build a tailored CV + NL/EN motivation letters (PDF + Word).
+
+    The letters relate the CV to the vacancy automatically via ``matched`` (the
+    keywords the vacancy and profile share) — no manual 'why this company' text.
+    Returns (files_dict, matched).
+    """
     matched = _matched_keywords(f"{vacancy_text} {role}")
     kwline = (", ".join(matched) + " — " + generate_cv.KEYWORDS) if matched else generate_cv.KEYWORDS
     role_title = (role or "").strip() or generate_cv.ROLE
-    comp = (company or "").strip() or "[Bedrijf]"
-    cont = (contact or "").strip() or "de heer/mevrouw"
-    rsn = (reason or "").strip() or (
-        f"de functie {role_title} en jullie organisatie goed aansluiten bij mijn ervaring in "
-        "kostentechniek en de maakindustrie")
+    comp = (company or "").strip()
+    cont = (contact or "").strip()
     files = {}
     with tempfile.TemporaryDirectory() as td:
         tdp = Path(td)
         generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
         generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
-        generate_letter.build_pdf(tdp / "Motivatiebrief.pdf", company=comp, role=role_title, contact=cont, reason=rsn)
-        generate_letter.build_docx(tdp / "Motivatiebrief.docx", company=comp, role=role_title, contact=cont, reason=rsn)
+        generate_letter.build_pdf(tdp / "Motivatiebrief_NL.pdf", company=comp, role=role_title,
+                                  contact=cont, highlights=matched, lang="nl")
+        generate_letter.build_docx(tdp / "Motivatiebrief_NL.docx", company=comp, role=role_title,
+                                   contact=cont, highlights=matched, lang="nl")
+        generate_letter.build_pdf(tdp / "Motivation_EN.pdf", company=comp, role=role_title,
+                                  contact=cont, highlights=matched, lang="en")
+        generate_letter.build_docx(tdp / "Motivation_EN.docx", company=comp, role=role_title,
+                                   contact=cont, highlights=matched, lang="en")
         for name in DOCS:
             files[name] = (tdp / name).read_bytes()
     return files, matched
 
 
 def _dl_buttons(files: dict, prefix: str, slug: str) -> None:
-    """Render each generated document as its own download button (no zip)."""
+    """Render each generated document as its own download button (no zip), 3 per row."""
     items = list(files.items())
-    cols = st.columns(len(items))
-    for j, (fn, fb) in enumerate(items):
-        ext = fn.rsplit(".", 1)[-1]
-        cols[j].download_button(f"⬇️ {fn}", fb, file_name=f"{slug}_{fn}",
-                                mime=_MIME.get(ext, "application/octet-stream"), key=f"{prefix}_{j}")
+    for start in range(0, len(items), 3):
+        chunk = items[start:start + 3]
+        cols = st.columns(len(chunk))
+        for j, (fn, fb) in enumerate(chunk):
+            ext = fn.rsplit(".", 1)[-1]
+            cols[j].download_button(f"⬇️ {fn}", fb, file_name=f"{slug}_{fn}",
+                                    mime=_MIME.get(ext, "application/octet-stream"),
+                                    key=f"{prefix}_{start + j}")
 
 
 def _ai_assess(vacancy_text: str):
