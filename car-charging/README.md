@@ -26,20 +26,23 @@ After you have Python installed, just **double-click `start.bat`** (Windows) or
 `start.command` (macOS). It installs everything on first run and opens the dashboard
 for you — no terminal needed.
 
-### Start automatically at login (Windows)
-So the dashboard (and the live P1 + charger panels) is ready the moment you boot:
+### Start automatically at login / make a shortcut (Windows)
+Windows **Smart App Control** blocks the unsigned `start.bat`. The reliable way is to
+launch through `cmd` + Python (both trusted), straight from the running dashboard:
 
-1. **Double-click `install-autostart.bat`** (run it once). If Smart App Control blocks
-   the double-click, open a Command Prompt in this folder and run `install-autostart.bat`.
-2. It registers a Task Scheduler task **"Car Charging dashboard"** that runs `start.bat`
-   at every logon — a window opens and a browser tab appears at http://localhost:8501.
-3. To turn it off, run **`uninstall-autostart.bat`**.
+1. Start it once by hand: open `cmd` in this folder and run
+   `python -m streamlit run app.py`.
+2. In the dashboard sidebar, open **▶️ Start / auto-start** and use:
+   - **📌 Create a desktop shortcut** — a clickable icon that launches via cmd + Python
+     (no `start.bat`), so it isn't blocked.
+   - **✅ Turn auto-start on** — registers a logon task (also via cmd + Python) so the
+     dashboard opens every time you log in. **🚫 Turn auto-start off** removes it.
+
+If Smart App Control is **off** on your PC, the `install-autostart.bat` /
+`uninstall-autostart.bat` scripts and double-clicking `start.bat` also work.
 
 Note: this runs only while the laptop is on (it's not a 24/7 server). Live readings
-still need the laptop to be on the same Wi-Fi as the P1 meter and charger.
-
-*Prefer no Task Scheduler?* Press `Win+R`, type `shell:startup`, and drop a shortcut to
-`start.bat` into that folder — same effect.
+still need the laptop on the same Wi-Fi as the P1 meter and charger.
 
 ### Remember settings & update — from the dashboard
 - In the **🏠 Home** tab, the P1 and charger panels have a **💾 Remember on this PC**

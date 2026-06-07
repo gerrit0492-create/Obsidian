@@ -380,7 +380,9 @@ with st.sidebar.expander("▶️ Start / auto-start"):
         else:
             if st.button("✅ Turn auto-start on"):
                 try:
-                    tr = f'"{app_dir / "start.bat"}"'
+                    # Run python via cmd (both are trusted) so Smart App Control,
+                    # which blocks the unsigned start.bat, doesn't get in the way.
+                    tr = f'cmd /c cd /d "{app_dir}" && python -m streamlit run app.py'
                     subprocess.run(["schtasks", "/create", "/f", "/tn", _AUTOSTART_TASK,
                                     "/sc", "onlogon", "/tr", tr],
                                    check=True, capture_output=True, text=True)
@@ -388,10 +390,28 @@ with st.sidebar.expander("▶️ Start / auto-start"):
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Could not enable: {exc}")
 
+        st.markdown("**Make a clickable shortcut** (no start.bat)")
+        st.caption("Windows Smart App Control blocks the unsigned start.bat. This shortcut "
+                   "launches through cmd + Python instead, which Windows trusts.")
+        if st.button("📌 Create a desktop shortcut"):
+            try:
+                desktop = Path(os.path.expanduser("~")) / "Desktop"
+                lnk = desktop / "Car Charging dashboard.lnk"
+                args = f'/c cd /d "{app_dir}" && python -m streamlit run app.py'
+                ps = (
+                    f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
+                    f"$s.TargetPath='cmd.exe';$s.Arguments='{args}';"
+                    f"$s.WorkingDirectory='{app_dir}';$s.IconLocation='cmd.exe';$s.Save()"
+                )
+                subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                               check=True, capture_output=True, text=True)
+                st.success("Created “Car Charging dashboard” on your Desktop — double-click it to start.")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Could not create the shortcut: {exc}")
+
         st.markdown(
-            "**Start by hand**\n"
-            "- Double-click **`start.bat`** in the folder above, or\n"
-            "- open `cmd` there and run `python -m streamlit run app.py`.\n\n"
+            "**Start by hand** (always works, even with Smart App Control)\n"
+            "- Open `cmd` in the folder above and run `python -m streamlit run app.py`.\n\n"
             "Live P1 + charger panels need this laptop on the **same Wi-Fi** as the devices."
         )
 
