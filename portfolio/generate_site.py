@@ -123,18 +123,18 @@ def build() -> None:
         shutil.copyfile(HERE / PROFILE["cv_file"], DOCS / "cv.pdf")
     (DOCS / ".nojekyll").write_text("")  # serve files as-is
 
-    body = render_lang("nl", CONTENT["nl"], has_cv) + render_lang("en", CONTENT["en"], has_cv)
+    body = render_lang("en", CONTENT["en"], has_cv) + render_lang("nl", CONTENT["nl"], has_cv)
     page = f"""<!doctype html>
-<html lang="nl"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(PROFILE['name'])} — {e(CONTENT['nl']['role'])}</title>
+<title>{e(PROFILE['name'])} — {e(CONTENT['en']['role'])}</title>
 <meta name="description" content="{e(CONTENT['en']['tagline'])}">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>{CSS}</style></head>
 <body><div class="wrap">
   <div class="top">
-    <button class="langbtn active" data-set="nl">NL</button>
-    <button class="langbtn" data-set="en">EN</button>
+    <button class="langbtn active" data-set="en">EN</button>
+    <button class="langbtn" data-set="nl">NL</button>
   </div>
   {body}
 </div>
@@ -145,7 +145,7 @@ def build() -> None:
     document.documentElement.lang=l; localStorage.setItem('lang',l);
   }}
   document.querySelectorAll('.langbtn').forEach(b=>b.onclick=()=>setLang(b.dataset.set));
-  setLang(localStorage.getItem('lang')||'nl');
+  setLang(localStorage.getItem('lang')||'en');
 </script>
 </body></html>"""
     (DOCS / "index.html").write_text(page, encoding="utf-8")

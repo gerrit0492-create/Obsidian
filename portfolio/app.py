@@ -126,8 +126,8 @@ def render_portfolio(c: dict) -> None:
 # --- Language switch (affects the public portfolio) ------------------------
 top = st.columns([6, 1])
 with top[1]:
-    lang_code = st.selectbox("Taal / Language", ["NL", "EN"], label_visibility="collapsed")
-c = CONTENT["nl" if lang_code == "NL" else "en"]
+    lang_code = st.selectbox("Language / Taal", ["EN", "NL"], label_visibility="collapsed")
+c = CONTENT["en" if lang_code == "EN" else "nl"]
 
 tab_public, tab_private = st.tabs(["📄 Portfolio", "🔒 Privé"])
 with tab_public:

@@ -48,7 +48,7 @@ CONTENT = {
         "highlights": [
             {"metric": "35+ jr", "title": "Kostentechniek in de maakindustrie", "text": "Calculaties voor ontwikkel-, klant- en niet-standaard projecten, van offerte tot nacalculatie."},
             {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structureel betere kwaliteit, levertijd én kosten via DMAIC, Kaizen, 5S en FMEA."},
-            {"metric": "+", "title": "Data & tooling (extra)", "text": "Pakt waar nodig zelf modellen op (o.a. pre/post-calculatie) om begroot versus werkelijk transparant te maken."},
+            {"metric": "5", "title": "Toonaangevende maakbedrijven", "text": "Praktijkervaring in kosten en productie bij DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
         ],
 
         "projects_title": "Projecten",
@@ -84,7 +84,7 @@ CONTENT = {
 
         "contact_title": "Contact",
         "contact_text": "Interesse? Ik kom graag in gesprek. Mail me of bekijk mijn LinkedIn.",
-        "footer": "Gemaakt met Streamlit",
+        "footer": "© 2026 Gerrit Düthler · Eindhoven",
     },
 
     "en": {
@@ -118,7 +118,7 @@ CONTENT = {
         "highlights": [
             {"metric": "35+ yrs", "title": "Cost engineering in manufacturing", "text": "Calculations for development, customer and non-standard projects, from quote to post-calculation."},
             {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structurally better quality, lead time and cost via DMAIC, Kaizen, 5S and FMEA."},
-            {"metric": "+", "title": "Data & tooling (extra)", "text": "Builds models where useful (e.g. pre/post calculation) to make budget-vs-actual transparent."},
+            {"metric": "5", "title": "Leading manufacturers", "text": "Hands-on cost and manufacturing experience across DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
         ],
 
         "projects_title": "Projects",
@@ -154,6 +154,6 @@ CONTENT = {
 
         "contact_title": "Contact",
         "contact_text": "Interested? I'd be glad to talk. Email me or check my LinkedIn.",
-        "footer": "Built with Streamlit",
+        "footer": "© 2026 Gerrit Düthler · Eindhoven",
     },
 }
