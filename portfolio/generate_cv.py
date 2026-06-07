@@ -43,9 +43,8 @@ CONTENT = {
         ),
         "competencies": (
             "Cost estimating · Should-cost · Post-calculation · Lean Six Sigma (Green Belt) · "
-            "DMAIC, Kaizen, 5S, FMEA · Work preparation & routing · Manufacturing strategy · "
-            "SAP · Power BI · Excel/VBA · CNC programming · Process improvement · "
-            "Cross-functional collaboration"
+            "Continuous improvement · Work preparation & routing · Manufacturing strategy · "
+            "SAP · Power BI · Excel/VBA · CNC programming · Cross-functional collaboration"
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
@@ -92,8 +91,8 @@ CONTENT = {
         ),
         "competencies": (
             "Kostencalculatie · Should-cost · Nacalculatie · Lean Six Sigma (Green Belt) · "
-            "DMAIC, Kaizen, 5S, FMEA · Werkvoorbereiding & routing · Maakstrategie · SAP · "
-            "Power BI · Excel/VBA · CNC-programmeren · Procesverbetering · Samenwerken"
+            "Continu verbeteren · Werkvoorbereiding & routing · Maakstrategie · SAP · "
+            "Power BI · Excel/VBA · CNC-programmeren · Samenwerken"
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
