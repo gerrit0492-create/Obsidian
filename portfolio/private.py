@@ -493,8 +493,17 @@ def render_vacancies() -> None:
         app_key = kb.text_input("Adzuna App Key", value=app_key, type="password")
         st.session_state["adz_id"], st.session_state["adz_key"] = app_id, app_key
 
-    st.caption("Bron: Adzuna (NL) — volledige dekking." if (app_id and app_key) else
-               "Nog geen key → lichte keyless-bron. Vul hierboven je Adzuna-key in voor volledige NL-dekking.")
+    jooble_key = st.session_state.get("jooble_key") or setting("JOOBLE_API_KEY")
+    with st.expander("🔑 Jooble-key — extra NL-bron", expanded=False):
+        st.caption("Gratis key via jooble.org/api/about. Plak hieronder; blijft in deze sessie. "
+                   "Of zet JOOBLE_API_KEY in secrets.")
+        jooble_key = st.text_input("Jooble API key", value=jooble_key, type="password")
+        st.session_state["jooble_key"] = jooble_key
+
+    srcs = ([n for n, on in (("Adzuna", app_id and app_key), ("Jooble", jooble_key)) if on])
+    has_key = bool(srcs)
+    st.caption(f"Bron(nen): {', '.join(srcs)} — volledige NL-dekking." if has_key else
+               "Nog geen key → lichte keyless-bron. Vul een Adzuna- of Jooble-key in voor volledige NL-dekking.")
     auto = st.toggle("⚡ Auto: ophalen + nieuwe direct in tracker", value=True, key="auto_vac",
                      help="Haalt bij openen automatisch vacatures op en zet de nieuwe (geen afgewezen) in de tracker.")
     f1, f2, f3 = st.columns([3, 1, 1])
@@ -505,10 +514,11 @@ def render_vacancies() -> None:
     def _do_search():
         kws = [k.strip() for k in kw_raw.split(",") if k.strip()]
         return vacancies.search(keywords=kws, where=where.strip() or "Eindhoven",
-                                distance=distance, app_id=app_id, app_key=app_key)
+                                distance=distance, app_id=app_id, app_key=app_key,
+                                jooble_key=jooble_key)
 
     # Auto: on first visit this session, fetch and add new ones to the tracker.
-    if auto and (app_id and app_key) and not st.session_state.get("auto_done"):
+    if auto and has_key and not st.session_state.get("auto_done"):
         with st.spinner("Vacatures automatisch ophalen…"):
             st.session_state["vacancies"] = _do_search()
         added = add_vacancies(st.session_state["vacancies"] or [])

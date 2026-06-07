@@ -12,6 +12,8 @@ the HTTP. Run only where you have internet (i.e. locally).
 
 from __future__ import annotations
 
+import re
+
 TIMEOUT = 20
 
 # A broad set of titles that fit Gerrit's profile.
@@ -69,6 +71,23 @@ def _norm_arbeitnow(data, keywords) -> list[dict]:
     return out
 
 
+def _norm_jooble(jobs) -> list[dict]:
+    out = []
+    for j in jobs or []:
+        snippet = re.sub(r"<[^>]+>", "", j.get("snippet") or "").strip()
+        out.append({
+            "Title": (j.get("title") or "").strip(),
+            "Company": (j.get("company") or "").strip(),
+            "Location": (j.get("location") or "").strip(),
+            "Link": j.get("link", ""),
+            "Posted": (j.get("updated") or "")[:10],
+            "Salary": (j.get("salary") or "").strip(),
+            "Description": snippet[:1500],
+            "Source": "Jooble",
+        })
+    return out
+
+
 def _dedupe(rows) -> list[dict]:
     seen, out = set(), []
     for r in rows:
@@ -96,6 +115,18 @@ def search_adzuna(app_id, app_key, what, where="Eindhoven", distance=40, max_res
     return _norm_adzuna(resp.json().get("results"))
 
 
+def search_jooble(api_key, what, where="Eindhoven", max_results=20):
+    import requests
+
+    resp = requests.post(
+        f"https://jooble.org/api/{api_key}",
+        json={"keywords": what, "location": where},
+        timeout=TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _norm_jooble(resp.json().get("jobs"))[:max_results]
+
+
 def search_arbeitnow(keywords, pages=3):
     import requests
 
@@ -110,7 +141,8 @@ def search_arbeitnow(keywords, pages=3):
     return out
 
 
-def search(keywords=None, where="Eindhoven", distance=40, app_id="", app_key="", max_per=20):
+def search(keywords=None, where="Eindhoven", distance=40, app_id="", app_key="",
+           jooble_key="", max_per=20):
     """Broad search across the configured sources; returns a deduped list of dicts."""
     keywords = keywords or DEFAULT_KEYWORDS
     rows: list[dict] = []
@@ -120,7 +152,13 @@ def search(keywords=None, where="Eindhoven", distance=40, app_id="", app_key="",
                 rows += search_adzuna(app_id, app_key, kw, where, distance, max_per)
             except Exception:  # noqa: BLE001 — one bad query shouldn't sink the rest
                 pass
-    if not rows:  # no key, or Adzuna returned nothing → keyless fallback
+    if jooble_key:
+        for kw in keywords:
+            try:
+                rows += search_jooble(jooble_key, kw, where, max_per)
+            except Exception:  # noqa: BLE001
+                pass
+    if not rows:  # no keys, or sources returned nothing → keyless fallback
         try:
             rows += search_arbeitnow(keywords)
         except Exception:  # noqa: BLE001
