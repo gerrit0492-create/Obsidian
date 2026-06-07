@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -323,16 +324,58 @@ with st.sidebar.expander("⚙️ App"):
             st.error(f"Update failed: {exc}")
 
 # --- How to start / auto-start ---------------------------------------------
+_AUTOSTART_TASK = "Car Charging dashboard"
+
+
+def _autostart_state():
+    """None = not a Windows machine; True/False = task present or not."""
+    try:
+        r = subprocess.run(["schtasks", "/query", "/tn", _AUTOSTART_TASK],
+                           capture_output=True, text=True)
+        return r.returncode == 0
+    except Exception:  # noqa: BLE001 — schtasks only exists on Windows
+        return None
+
+
 with st.sidebar.expander("▶️ Start / auto-start"):
+    app_dir = Path(__file__).parent.resolve()
+    st.caption("This dashboard's folder:")
+    st.code(str(app_dir), language=None)
+    if st.button("📂 Open this folder"):
+        try:
+            os.startfile(app_dir)  # Windows: opens the folder in Explorer
+            st.success("Opened in Explorer.")
+        except Exception:  # noqa: BLE001 — only works on the local machine
+            st.info(f"Open it yourself at:\n{app_dir}")
+
+    st.markdown("**Auto-start at every login** (one click)")
+    state = _autostart_state()
+    if state is None:
+        st.caption("Available when you run the dashboard locally on Windows.")
+    elif state:
+        st.success("✅ Auto-start is ON — the dashboard opens when you log in.")
+        if st.button("🚫 Turn auto-start off"):
+            try:
+                subprocess.run(["schtasks", "/delete", "/f", "/tn", _AUTOSTART_TASK],
+                               check=True, capture_output=True, text=True)
+                st.rerun()
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Could not turn it off: {exc}")
+    else:
+        if st.button("✅ Turn auto-start on"):
+            try:
+                tr = f'"{app_dir / "start.bat"}"'
+                subprocess.run(["schtasks", "/create", "/f", "/tn", _AUTOSTART_TASK,
+                                "/sc", "onlogon", "/tr", tr],
+                               check=True, capture_output=True, text=True)
+                st.rerun()
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Could not enable: {exc}")
+
     st.markdown(
         "**Start by hand**\n"
-        "- Double-click **`start.bat`** in the `car-charging` folder, or\n"
-        "- open `cmd` in that folder and run `python -m streamlit run app.py`.\n"
-        "- The dashboard opens at http://localhost:8501. Close the window to stop it.\n\n"
-        "**Start automatically at login** (Windows)\n"
-        "- Run **`install-autostart.bat`** once — it launches the dashboard every "
-        "time you log in.\n"
-        "- Undo it any time with **`uninstall-autostart.bat`**.\n\n"
+        "- Double-click **`start.bat`** in the folder above, or\n"
+        "- open `cmd` there and run `python -m streamlit run app.py`.\n\n"
         "Live P1 + charger panels need this laptop on the **same Wi-Fi** as the devices."
     )
 
