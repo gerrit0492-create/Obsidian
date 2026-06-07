@@ -17,127 +17,67 @@ PROFILE = {
 }
 
 CONTENT = {
-    "nl": {
-        "role": "Cost Engineer · Calculator · Werkvoorbereider",
-        "available": "Beschikbaar voor een nieuwe rol",
-        "tagline": "Ik vertaal techniek naar betrouwbare kostprijzen en houd kosten beheersbaar — van offerte tot nacalculatie.",
-        "cta_contact": "Neem contact op",
-        "cta_cv": "Download CV",
-        "nav": ["Over mij", "Kwaliteiten", "Resultaten", "Projecten", "Ervaring", "Contact"],
-
-        "about_title": "Over mij",
-        "about": (
-            "Cost engineer met 35+ jaar in de maakindustrie — DAF, VDL ETG, Andritz, Wilting "
-            "en Wärtsilä. Ik ken het product én de werkvloer en vertaal dat naar onderbouwde "
-            "kostprijzen, in nauwe samenwerking met engineering, inkoop, verkoop en business "
-            "control. Lean Six Sigma Green Belt. Waar nodig pak ik zelf data en tooling "
-            "(Power BI, SAP) op om calculaties te verscherpen. Ik zoek een rol als cost "
-            "engineer, calculator of werkvoorbereider waarin ik calculatie en kostenbeheersing "
-            "aantoonbaar verbeter."
-        ),
-
-        "skills_title": "Kernkwaliteiten",
-        "skills": [
-            "Kostencalculatie", "Should-cost", "Nacalculatie", "Lean Six Sigma (Green Belt)",
-            "DMAIC · Kaizen · 5S · FMEA", "Werkvoorbereiding & routing", "Maakstrategie",
-            "SAP", "Power BI", "Excel & VBA", "Python", "CNC-programmeren",
-            "Procesverbetering", "Coachen & leidinggeven", "NL · EN · DE",
-        ],
-
-        "highlights_title": "Resultaten",
-        "highlights": [
-            {"metric": "35+ jr", "title": "Kostentechniek in de maakindustrie", "text": "Calculaties voor ontwikkel-, klant- en niet-standaard projecten, van offerte tot nacalculatie."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structureel betere kwaliteit, levertijd én kosten via DMAIC, Kaizen, 5S en FMEA."},
-            {"metric": "5", "title": "Toonaangevende maakbedrijven", "text": "Praktijkervaring in kosten en productie bij DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
-        ],
-
-        "projects_title": "Projecten",
-        "projects": [
-            {
-                "title": "Pre/post-calculatiemodel (Wärtsilä)",
-                "text": "Pre/post-calculatiemodel in Power BI, opgezet met business control om begroot vs. werkelijk te bewaken en afwijkingen vroeg te signaleren.",
-                "tags": ["Power BI", "Kosten", "SAP"],
-                "link": "",
-            },
-            {
-                "title": "Cost-Forge — calculatietool",
-                "text": "Eigen calculatietool: BOM-import, routings, marktdata, toeslagen, offerte-export (PDF/Excel) en management-dashboards.",
-                "tags": ["Python", "Calculatie", "Dashboards"],
-                "link": "",
-            },
-            {
-                "title": "Laad-kostendashboard",
-                "text": "Dashboard over energie-/laaddata: kosten per auto, maandtrends, dal/piek-tarief en live meteruitlezing met Excel/PDF-export.",
-                "tags": ["Python", "Data", "Excel"],
-                "link": "",
-            },
-        ],
-
-        "experience_title": "Ervaring",
-        "experience": [
-            {"period": "2021 – 2026", "org": "Wärtsilä", "role": "Cost Engineer"},
-            {"period": "2019 – 2021", "org": "Wilting", "role": "Manufacturing Engineer"},
-            {"period": "2017 – 2019", "org": "VDL ETG", "role": "Factory Engineer"},
-            {"period": "2011 – 2017", "org": "Andritz Feed & Biofuel", "role": "Supervisor productie"},
-            {"period": "1987 – 2011", "org": "DAF Trucks", "role": "Production/Technical Engineer & Teamleider"},
-        ],
-
-        "contact_title": "Contact",
-        "contact_text": "Interesse? Ik kom graag in gesprek. Mail me of bekijk mijn LinkedIn.",
-        "footer": "© 2026 Gerrit Düthler · Eindhoven",
-    },
-
     "en": {
         "role": "Cost Engineer · Estimator · Manufacturing Engineer",
         "available": "Available for a new role",
-        "tagline": "I turn engineering into reliable cost prices and keep costs in control — from quote to post-calculation.",
+        "headline": "I make the cost number trustworthy — so quotes win and margins hold.",
+        "tagline": (
+            "Cost engineer in high-tech manufacturing. I turn engineering into defensible cost "
+            "prices, speed up quoting, and protect margin — working hand in hand with "
+            "engineering, purchasing, sales and business control."
+        ),
         "cta_contact": "Get in touch",
         "cta_cv": "Download CV",
         "nav": ["About", "Strengths", "Impact", "Projects", "Experience", "Contact"],
 
         "about_title": "About me",
         "about": (
-            "Cost engineer with 35+ years in manufacturing — DAF, VDL ETG, Andritz, Wilting "
-            "and Wärtsilä. I know the product and the shop floor and translate both into "
-            "well-founded cost prices, working closely with engineering, purchasing, sales and "
-            "business control. Lean Six Sigma Green Belt. Where useful I build my own data and "
-            "tooling (Power BI, SAP) to sharpen the numbers. I'm looking for a cost engineer, "
-            "estimator or manufacturing-engineer role where I measurably improve estimating and "
-            "cost control."
+            "I'm a cost engineer who makes the number something the business can trust. I've spent "
+            "my career on the shop floor and in costing — at DAF Trucks, VDL ETG, Andritz, Wilting "
+            "and Wärtsilä — so I know where cost really sits and how to take it out without cutting "
+            "corners. I translate technical choices into clear cost impact, keep estimating fast "
+            "and transparent, and get engineering, purchasing, sales and business control onto the "
+            "same number. Lean Six Sigma Green Belt: hands-on, data-driven and pragmatic. Where it "
+            "helps, I build the tools (Power BI, SAP, Excel/VBA) that make calculations sharper. "
+            "I'm looking for a cost engineer or estimator role where reliable cost and healthy "
+            "margin truly matter."
         ),
 
         "skills_title": "Core strengths",
         "skills": [
-            "Cost estimating", "Should-cost", "Post-calculation", "Lean Six Sigma (Green Belt)",
-            "DMAIC · Kaizen · 5S · FMEA", "Work preparation & routing", "Make strategy",
-            "SAP", "Power BI", "Excel & VBA", "Python", "CNC programming",
-            "Process improvement", "Coaching & leadership", "NL · EN · DE",
+            "Cost estimating", "Should-cost", "Post-calculation", "Margin & quote control",
+            "Lean Six Sigma (Green Belt)", "DMAIC · Kaizen · 5S · FMEA",
+            "Work preparation & routing", "Make strategy", "SAP", "Power BI", "Excel & VBA",
+            "Python", "CNC programming", "Cross-functional collaboration", "NL · EN · DE",
         ],
 
         "highlights_title": "Impact",
         "highlights": [
-            {"metric": "35+ yrs", "title": "Cost engineering in manufacturing", "text": "Calculations for development, customer and non-standard projects, from quote to post-calculation."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma", "text": "Structurally better quality, lead time and cost via DMAIC, Kaizen, 5S and FMEA."},
-            {"metric": "5", "title": "Leading manufacturers", "text": "Hands-on cost and manufacturing experience across DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
+            {"metric": "Cost you can defend", "title": "Quote to post-calculation",
+             "text": "Defensible cost prices across development, customer and non-standard projects — so quotes hold and margins stick."},
+            {"metric": "Green Belt", "title": "Lean Six Sigma",
+             "text": "Structurally better quality, lead time and cost through DMAIC, Kaizen, 5S and FMEA."},
+            {"metric": "5", "title": "Leading manufacturers",
+             "text": "Hands-on cost and manufacturing experience across DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
         ],
 
-        "projects_title": "Projects",
+        "projects_title": "Selected work",
         "projects": [
             {
-                "title": "Pre/post calculation model (Wärtsilä)",
-                "text": "A pre/post calculation model in Power BI, set up with business control to track budgeted vs. actual and surface deviations early.",
-                "tags": ["Power BI", "Cost", "SAP"],
+                "title": "Pre/post calculation model — Wärtsilä",
+                "text": "Built with business control in Power BI to track budgeted vs. actual and surface deviations early — turning month-end surprises into signals you can act on.",
+                "tags": ["Power BI", "Cost control", "SAP"],
                 "link": "",
             },
             {
                 "title": "Cost-Forge — estimating tool",
-                "text": "My own estimating tool: BOM import, routings, market data, surcharges, quote export (PDF/Excel) and management dashboards.",
+                "text": "A self-built estimating tool: BOM import, routings, market data, surcharges, quote export (PDF/Excel) and management dashboards. Quoting that's faster and consistent.",
                 "tags": ["Python", "Estimating", "Dashboards"],
                 "link": "",
             },
             {
                 "title": "Energy cost dashboard",
-                "text": "Dashboard over energy/charging data: cost per car, monthly trends, day/night tariff and live meter reads with Excel/PDF export.",
+                "text": "Turns raw energy/charging data into cost per car, monthly trends and day/night tariff insight, with live meter reads and Excel/PDF export.",
                 "tags": ["Python", "Data", "Excel"],
                 "link": "",
             },
@@ -152,8 +92,94 @@ CONTENT = {
             {"period": "1987 – 2011", "org": "DAF Trucks", "role": "Production/Technical Engineer & Team Lead"},
         ],
 
-        "contact_title": "Contact",
-        "contact_text": "Interested? I'd be glad to talk. Email me or check my LinkedIn.",
+        "contact_title": "Let's talk",
+        "contact_text": (
+            "Looking for someone who makes cost dependable and quoting faster? I'd be glad to talk "
+            "— drop me an email or connect on LinkedIn, and I'll get back to you quickly."
+        ),
+        "footer": "© 2026 Gerrit Düthler · Eindhoven",
+    },
+
+    "nl": {
+        "role": "Cost Engineer · Calculator · Werkvoorbereider",
+        "available": "Beschikbaar voor een nieuwe rol",
+        "headline": "Ik maak de kostprijs betrouwbaar — zodat offertes scoren en marges kloppen.",
+        "tagline": (
+            "Cost engineer in de high-tech maakindustrie. Ik vertaal techniek naar onderbouwde "
+            "kostprijzen, versnel het offertetraject en bewaak de marge — schouder aan schouder "
+            "met engineering, inkoop, verkoop en business control."
+        ),
+        "cta_contact": "Neem contact op",
+        "cta_cv": "Download CV",
+        "nav": ["Over mij", "Kwaliteiten", "Resultaten", "Projecten", "Ervaring", "Contact"],
+
+        "about_title": "Over mij",
+        "about": (
+            "Ik ben een cost engineer die van de kostprijs een cijfer maakt waar de organisatie op "
+            "kan bouwen. Mijn loopbaan speelt zich af op de werkvloer én in de calculatie — bij DAF "
+            "Trucks, VDL ETG, Andritz, Wilting en Wärtsilä — dus ik weet waar de kosten echt zitten "
+            "en hoe je ze eruit haalt zonder bochten af te snijden. Ik vertaal technische keuzes "
+            "naar helder kosteneffect, houd calculeren snel en transparant, en krijg engineering, "
+            "inkoop, verkoop en business control op één lijn. Lean Six Sigma Green Belt: hands-on, "
+            "datagedreven en pragmatisch. Waar het helpt bouw ik zelf de tools (Power BI, SAP, "
+            "Excel/VBA) die calculaties scherper maken. Ik zoek een rol als cost engineer of "
+            "calculator waarin betrouwbare kosten en een gezonde marge er echt toe doen."
+        ),
+
+        "skills_title": "Kernkwaliteiten",
+        "skills": [
+            "Kostencalculatie", "Should-cost", "Nacalculatie", "Marge- & offertebewaking",
+            "Lean Six Sigma (Green Belt)", "DMAIC · Kaizen · 5S · FMEA",
+            "Werkvoorbereiding & routing", "Maakstrategie", "SAP", "Power BI", "Excel & VBA",
+            "Python", "CNC-programmeren", "Samenwerken over afdelingen", "NL · EN · DE",
+        ],
+
+        "highlights_title": "Resultaten",
+        "highlights": [
+            {"metric": "Onderbouwde kostprijs", "title": "Van offerte tot nacalculatie",
+             "text": "Betrouwbare kostprijzen voor ontwikkel-, klant- en niet-standaard projecten — zodat offertes kloppen en marges blijven staan."},
+            {"metric": "Green Belt", "title": "Lean Six Sigma",
+             "text": "Structureel betere kwaliteit, levertijd en kosten via DMAIC, Kaizen, 5S en FMEA."},
+            {"metric": "5", "title": "Toonaangevende maakbedrijven",
+             "text": "Praktijkervaring in kosten en productie bij DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
+        ],
+
+        "projects_title": "Geselecteerd werk",
+        "projects": [
+            {
+                "title": "Pre/post-calculatiemodel — Wärtsilä",
+                "text": "Met business control opgezet in Power BI om begroot vs. werkelijk te bewaken en afwijkingen vroeg te signaleren — verrassingen aan het eind van de maand werden signalen om op te sturen.",
+                "tags": ["Power BI", "Kostenbeheersing", "SAP"],
+                "link": "",
+            },
+            {
+                "title": "Cost-Forge — calculatietool",
+                "text": "Zelf gebouwde calculatietool: BOM-import, routings, marktdata, toeslagen, offerte-export (PDF/Excel) en management-dashboards. Calculeren dat sneller en consistenter is.",
+                "tags": ["Python", "Calculatie", "Dashboards"],
+                "link": "",
+            },
+            {
+                "title": "Laad-kostendashboard",
+                "text": "Maakt van ruwe energie-/laaddata kosten per auto, maandtrends en inzicht in dal/piek-tarief, met live meteruitlezing en Excel/PDF-export.",
+                "tags": ["Python", "Data", "Excel"],
+                "link": "",
+            },
+        ],
+
+        "experience_title": "Ervaring",
+        "experience": [
+            {"period": "2021 – 2026", "org": "Wärtsilä", "role": "Cost Engineer"},
+            {"period": "2019 – 2021", "org": "Wilting", "role": "Manufacturing Engineer"},
+            {"period": "2017 – 2019", "org": "VDL ETG", "role": "Factory Engineer"},
+            {"period": "2011 – 2017", "org": "Andritz Feed & Biofuel", "role": "Supervisor productie"},
+            {"period": "1987 – 2011", "org": "DAF Trucks", "role": "Production/Technical Engineer & Teamleider"},
+        ],
+
+        "contact_title": "Laten we praten",
+        "contact_text": (
+            "Op zoek naar iemand die kosten betrouwbaar en offertes sneller maakt? Ik ga graag in "
+            "gesprek — mail me of connect op LinkedIn, ik reageer snel."
+        ),
         "footer": "© 2026 Gerrit Düthler · Eindhoven",
     },
 }

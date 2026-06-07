@@ -27,11 +27,12 @@ body{margin:0;font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;col
 .langbtn{border:1px solid #cdd5df;background:#fff;color:#16223d;border-radius:8px;padding:5px 12px;
   font-weight:600;cursor:pointer;font-size:.85rem}
 .langbtn.active{background:#16223d;color:#fff;border-color:#16223d}
-.hero{background:#16223d;color:#fff;padding:38px 40px;border-radius:16px;position:relative;overflow:hidden}
+.hero{background:radial-gradient(120% 140% at 100% 0%,#21345c 0%,#16223d 55%);color:#fff;padding:40px 42px;border-radius:18px;position:relative;overflow:hidden;box-shadow:0 18px 44px rgba(22,34,61,.22)}
 .hero:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#2a9d8f}
 .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:.78rem;font-weight:700;color:#7fd1c4;margin:0 0 .55rem}
-.hero h1{margin:0;font-size:2.35rem;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-.tag{margin:.8rem 0 0;font-size:1.05rem;line-height:1.55;color:#cdd6e6;max-width:60ch}
+.hero h1{margin:0;font-size:2.5rem;font-weight:800;letter-spacing:-.02em;line-height:1.04}
+.headline{margin:.7rem 0 0;font-size:1.25rem;font-weight:700;line-height:1.35;color:#fff;max-width:34ch}
+.tag{margin:.7rem 0 0;font-size:1.02rem;line-height:1.55;color:#bcc7da;max-width:62ch}
 .meta{margin-top:1.1rem;font-size:.9rem;color:#9fadc4}
 .meta a{color:#cdd6e6}
 .badge{display:inline-block;background:rgba(42,157,143,.16);color:#7fd1c4;border:1px solid rgba(127,209,196,.4);
@@ -48,8 +49,9 @@ a.btn.ghost{background:#fff;color:#16223d;border:1px solid #cdd5df}
   margin:5px 7px 0 0;font-size:.9rem;font-weight:500}
 .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{background:#fff;border:1px solid #e8ecf1;border-radius:14px;padding:20px 22px;box-shadow:0 2px 12px rgba(22,34,61,.05)}
-.metric{font-size:2rem;font-weight:800;color:#2a9d8f;line-height:1;letter-spacing:-.02em}
+.card{background:#fff;border:1px solid #e8ecf1;border-radius:14px;padding:20px 22px;box-shadow:0 2px 12px rgba(22,34,61,.05);transition:transform .15s ease,box-shadow .15s ease}
+.card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(22,34,61,.12)}
+.metric{font-size:1.5rem;font-weight:800;color:#2a9d8f;line-height:1.1;letter-spacing:-.01em}
 .card h4{margin:.55rem 0 .3rem;font-size:1.02rem}
 .card p{margin:0;color:#566377;font-size:.94rem;line-height:1.55}
 .tagx{display:inline-block;background:#eef2f6;color:#3c4a5e;border-radius:6px;padding:3px 9px;margin:9px 6px 0 0;
@@ -101,6 +103,7 @@ def render_lang(code: str, c: dict, has_cv: bool) -> str:
       <div class="hero">{badge}
         <div class="eyebrow">{e(c["role"])}</div>
         <h1>{e(PROFILE["name"])}</h1>
+        {f'<div class="headline">{e(c["headline"])}</div>' if c.get("headline") else ''}
         <div class="tag">{e(c["tagline"])}</div>
         <div class="meta">{' · '.join(meta)}</div>
       </div>

@@ -24,11 +24,12 @@ st.markdown(
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
       html, body, [class*="css"], .stMarkdown { font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif; }
       .block-container { max-width: 900px; padding-top: 1.4rem; padding-bottom: 3rem; }
-      .hero { background:#16223d; color:#fff; padding:38px 40px; border-radius:16px; position:relative; overflow:hidden; }
+      .hero { background:radial-gradient(120% 140% at 100% 0%, #21345c 0%, #16223d 55%); color:#fff; padding:40px 42px; border-radius:18px; position:relative; overflow:hidden; box-shadow:0 18px 44px rgba(22,34,61,.22); }
       .hero:before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:#2a9d8f; }
       .hero .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:.78rem; font-weight:700; color:#7fd1c4; margin:0 0 .55rem; }
-      .hero h1 { margin:0; font-size:2.35rem; font-weight:800; letter-spacing:-.02em; line-height:1.05; }
-      .hero .tag { margin:.8rem 0 0; font-size:1.05rem; line-height:1.55; color:#cdd6e6; max-width:60ch; }
+      .hero h1 { margin:0; font-size:2.5rem; font-weight:800; letter-spacing:-.02em; line-height:1.04; }
+      .hero .headline { margin:.7rem 0 0; font-size:1.25rem; font-weight:700; line-height:1.35; color:#fff; max-width:34ch; }
+      .hero .tag { margin:.7rem 0 0; font-size:1.02rem; line-height:1.55; color:#bcc7da; max-width:62ch; }
       .hero .meta { margin-top:1.1rem; font-size:.9rem; color:#9fadc4; }
       .hero .meta a { color:#cdd6e6; text-decoration:none; border-bottom:1px solid rgba(205,214,230,.35); }
       .badge { display:inline-block; background:rgba(42,157,143,.16); color:#7fd1c4; border:1px solid rgba(127,209,196,.4);
@@ -39,8 +40,9 @@ st.markdown(
       .chip { display:inline-block; background:#f1f5f6; color:#16223d; border:1px solid #e3e9ea;
               border-radius:8px; padding:6px 12px; margin:5px 7px 0 0; font-size:.9rem; font-weight:500; }
       .card { background:#fff; border:1px solid #e8ecf1; border-radius:14px; padding:20px 22px; height:100%;
-              box-shadow:0 2px 12px rgba(22,34,61,.05); }
-      .metric { font-size:2rem; font-weight:800; color:#2a9d8f; line-height:1; letter-spacing:-.02em; }
+              box-shadow:0 2px 12px rgba(22,34,61,.05); transition:transform .15s ease, box-shadow .15s ease; }
+      .card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(22,34,61,.12); }
+      .metric { font-size:1.5rem; font-weight:800; color:#2a9d8f; line-height:1.1; letter-spacing:-.01em; }
       .card h4 { margin:.55rem 0 .3rem; color:#16223d; font-size:1.02rem; }
       .card p { margin:0; color:#566377; font-size:.94rem; line-height:1.55; }
       .tagx { display:inline-block; background:#eef2f6; color:#3c4a5e; border-radius:6px; padding:3px 9px; margin:9px 6px 0 0; font-size:.77rem; font-weight:500; }
@@ -75,6 +77,7 @@ def render_portfolio(c: dict) -> None:
         <div class="hero">{badge}
           <div class="eyebrow">{c["role"]}</div>
           <h1>{PROFILE["name"]}</h1>
+          {f'<div class="headline">{c["headline"]}</div>' if c.get("headline") else ''}
           <div class="tag">{c["tagline"]}</div>
           <div class="meta">{' · '.join(meta_bits)}</div>
         </div>
