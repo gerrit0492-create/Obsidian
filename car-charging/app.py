@@ -322,6 +322,20 @@ with st.sidebar.expander("⚙️ App"):
         except Exception as exc:  # noqa: BLE001
             st.error(f"Update failed: {exc}")
 
+# --- How to start / auto-start ---------------------------------------------
+with st.sidebar.expander("▶️ Start / auto-start"):
+    st.markdown(
+        "**Start by hand**\n"
+        "- Double-click **`start.bat`** in the `car-charging` folder, or\n"
+        "- open `cmd` in that folder and run `python -m streamlit run app.py`.\n"
+        "- The dashboard opens at http://localhost:8501. Close the window to stop it.\n\n"
+        "**Start automatically at login** (Windows)\n"
+        "- Run **`install-autostart.bat`** once — it launches the dashboard every "
+        "time you log in.\n"
+        "- Undo it any time with **`uninstall-autostart.bat`**.\n\n"
+        "Live P1 + charger panels need this laptop on the **same Wi-Fi** as the devices."
+    )
+
 # --- Data source -----------------------------------------------------------
 st.sidebar.header("Data")
 uploaded = st.sidebar.file_uploader("Upload meterdata CSV", type=["csv"])
