@@ -268,6 +268,20 @@ def render_tracker() -> None:
             link = f" · [vacature]({row['Link']})" if str(row.get("Link") or "").strip() else ""
             st.markdown(f"**{row.get('Company') or '—'}** — {row.get('Role') or ''} · "
                         f"{row.get('Location') or ''}{link}")
+            discarded = str(row.get("Status")) in CLOSED or str(row.get("Fit")) == "Nee"
+            qa = st.columns(2)
+            if discarded:
+                if qa[0].button("↩️ Restore to New", key=f"restore_{sel}"):
+                    d = load_apps()
+                    d.at[sel, "Status"], d.at[sel, "Fit"] = "Lead", ""
+                    save_apps(d)
+                    st.rerun()
+            else:
+                if qa[0].button("🗑️ Discard", key=f"discard_{sel}"):
+                    d = load_apps()
+                    d.at[sel, "Status"], d.at[sel, "Fit"] = "Rejected", "Nee"
+                    save_apps(d)
+                    st.rerun()
             mc = st.columns(3)
             mv = row.get("Match")
             mc[0].metric("Match", f"{int(mv)}%" if pd.notna(mv) else "—")
