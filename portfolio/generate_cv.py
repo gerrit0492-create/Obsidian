@@ -36,7 +36,7 @@ CONTENT = {
                      "experience": "Professional experience", "education": "Education",
                      "certs": "Certifications", "languages": "Languages"},
         "summary": (
-            "A cost engineer who makes the number trustworthy. With 35+ years across the shop "
+            "A cost engineer who makes the number trustworthy. Experienced across the shop "
             "floor and in costing at DAF Trucks, VDL ETG, Andritz and Wärtsilä, I know where cost "
             "really sits — and how to take it out. I turn engineering into defensible cost prices, "
             "win alignment across engineering, purchasing, sales and business control, and keep "
@@ -87,7 +87,7 @@ CONTENT = {
                      "experience": "Werkervaring", "education": "Opleiding",
                      "certs": "Certificeringen", "languages": "Talen"},
         "summary": (
-            "Een cost engineer die de cijfers betrouwbaar maakt. Met 35+ jaar op de werkvloer én "
+            "Een cost engineer die de cijfers betrouwbaar maakt. Ervaren op de werkvloer én "
             "in de calculatie bij DAF Trucks, VDL ETG, Andritz en Wärtsilä weet ik waar de kosten "
             "echt zitten — en hoe je ze eruit haalt. Ik vertaal techniek naar onderbouwde "
             "kostprijzen, krijg engineering, inkoop, verkoop en business control op één lijn, en "
