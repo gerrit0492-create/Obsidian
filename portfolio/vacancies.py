@@ -88,6 +88,38 @@ def _norm_jooble(jobs) -> list[dict]:
     return out
 
 
+def _jsearch_salary(j) -> str:
+    cur = j.get("job_salary_currency") or ""
+    sym = {"EUR": "€", "USD": "$", "GBP": "£"}.get(cur, (cur + " " if cur else ""))
+
+    def k(v):
+        try:
+            return f"{sym}{round(float(v) / 1000)}k"
+        except (TypeError, ValueError):
+            return ""
+    a, b = k(j.get("job_min_salary")), k(j.get("job_max_salary"))
+    if a and b and a != b:
+        return f"{a}–{b}"
+    return a or b
+
+
+def _norm_jsearch(data) -> list[dict]:
+    out = []
+    for j in data or []:
+        loc = ", ".join(x for x in (j.get("job_city"), j.get("job_country")) if x)
+        out.append({
+            "Title": (j.get("job_title") or "").strip(),
+            "Company": (j.get("employer_name") or "").strip(),
+            "Location": loc.strip(),
+            "Link": j.get("job_apply_link") or j.get("job_google_link") or "",
+            "Posted": (j.get("job_posted_at_datetime_utc") or "")[:10],
+            "Salary": _jsearch_salary(j),
+            "Description": (j.get("job_description") or "").strip()[:1500],
+            "Source": "JSearch",
+        })
+    return out
+
+
 def _dedupe(rows) -> list[dict]:
     seen, out = set(), []
     for r in rows:
@@ -127,6 +159,19 @@ def search_jooble(api_key, what, where="Eindhoven", max_results=20):
     return _norm_jooble(resp.json().get("jobs"))[:max_results]
 
 
+def search_jsearch(api_key, what, where="Netherlands", max_results=20):
+    import requests
+
+    resp = requests.get(
+        "https://jsearch.p.rapidapi.com/search",
+        headers={"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com"},
+        params={"query": f"{what} in {where}", "page": "1", "num_pages": "1"},
+        timeout=TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _norm_jsearch(resp.json().get("data"))[:max_results]
+
+
 def search_arbeitnow(keywords, pages=3):
     import requests
 
@@ -142,7 +187,7 @@ def search_arbeitnow(keywords, pages=3):
 
 
 def search(keywords=None, where="Eindhoven", distance=40, app_id="", app_key="",
-           jooble_key="", max_per=20):
+           jooble_key="", jsearch_key="", max_per=20):
     """Broad search across the configured sources; returns a deduped list of dicts."""
     keywords = keywords or DEFAULT_KEYWORDS
     rows: list[dict] = []
@@ -156,6 +201,12 @@ def search(keywords=None, where="Eindhoven", distance=40, app_id="", app_key="",
         for kw in keywords:
             try:
                 rows += search_jooble(jooble_key, kw, where, max_per)
+            except Exception:  # noqa: BLE001
+                pass
+    if jsearch_key:
+        for kw in keywords:
+            try:
+                rows += search_jsearch(jsearch_key, kw, where or "Netherlands", max_per)
             except Exception:  # noqa: BLE001
                 pass
     if not rows:  # no keys, or sources returned nothing → keyless fallback

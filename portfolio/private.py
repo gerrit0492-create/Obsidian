@@ -500,7 +500,15 @@ def render_vacancies() -> None:
         jooble_key = st.text_input("Jooble API key", value=jooble_key, type="password")
         st.session_state["jooble_key"] = jooble_key
 
-    srcs = ([n for n, on in (("Adzuna", app_id and app_key), ("Jooble", jooble_key)) if on])
+    jsearch_key = st.session_state.get("jsearch_key") or setting("JSEARCH_API_KEY")
+    with st.expander("🔑 JSearch-key — Google for Jobs / LinkedIn / Indeed", expanded=False):
+        st.caption("Gratis tier via rapidapi.com → JSearch (RapidAPI-key). Plak hieronder; blijft "
+                   "in deze sessie. Of zet JSEARCH_API_KEY in secrets.")
+        jsearch_key = st.text_input("JSearch (RapidAPI) key", value=jsearch_key, type="password")
+        st.session_state["jsearch_key"] = jsearch_key
+
+    srcs = ([n for n, on in (("Adzuna", app_id and app_key), ("Jooble", jooble_key),
+                             ("JSearch", jsearch_key)) if on])
     has_key = bool(srcs)
     st.caption(f"Bron(nen): {', '.join(srcs)} — volledige NL-dekking." if has_key else
                "Nog geen key → lichte keyless-bron. Vul een Adzuna- of Jooble-key in voor volledige NL-dekking.")
@@ -515,7 +523,7 @@ def render_vacancies() -> None:
         kws = [k.strip() for k in kw_raw.split(",") if k.strip()]
         return vacancies.search(keywords=kws, where=where.strip() or "Eindhoven",
                                 distance=distance, app_id=app_id, app_key=app_key,
-                                jooble_key=jooble_key)
+                                jooble_key=jooble_key, jsearch_key=jsearch_key)
 
     # Auto: on first visit this session, fetch and add new ones to the tracker.
     if auto and has_key and not st.session_state.get("auto_done"):
