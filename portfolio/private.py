@@ -234,6 +234,16 @@ def render_tracker() -> None:
         if not shown:
             st.caption("Geen sollicitaties in deze status.")
         else:
+            view = df.loc[shown, ["Company", "Role", "Status", "Match", "Fit", "Next action", "Next date"]]
+            st.dataframe(
+                view, use_container_width=True, hide_index=True,
+                column_config={
+                    "Next action": st.column_config.TextColumn("Volgende actie"),
+                    "Next date": st.column_config.DateColumn("Volgende datum", format="YYYY-MM-DD"),
+                    "Match": st.column_config.NumberColumn("Match", format="%d%%"),
+                },
+            )
+            st.caption(f"{len(shown)} sollicitatie(s) — kies er een hieronder om te openen en bewerken.")
             sel = st.selectbox(
                 "Kies sollicitatie", shown, key="sel",
                 format_func=lambda i: f"{df.at[i, 'Company']} — {df.at[i, 'Role'] or ''} "
