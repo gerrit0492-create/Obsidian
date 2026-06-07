@@ -5,6 +5,7 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 `tools/` (note-lint CLI).
 
 ## Conventions
+- Communicate with the user in English
 - For changes spanning several files, make all edits in one commit
 - Match the style of the surrounding code — don't introduce new patterns
 - Don't refactor or rename things that weren't part of the requested change
