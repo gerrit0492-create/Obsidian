@@ -24,4 +24,7 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 ## Git constraints
 - Develop on a feature branch; open a PR to merge into `main`
 - Only push to `gerrit0492-create/obsidian`
+- **Never push to the `claude/funny-goldberg-*` branch** — the user did not choose
+  it. Push to the branch the user is actually working on, and always back up
+  (tag) and verify MCP first.
 - Never force-push or `reset --hard` without explicit user instruction
