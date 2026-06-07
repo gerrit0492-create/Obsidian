@@ -26,6 +26,21 @@ After you have Python installed, just **double-click `start.bat`** (Windows) or
 `start.command` (macOS). It installs everything on first run and opens the dashboard
 for you — no terminal needed.
 
+### Start automatically at login (Windows)
+So the dashboard (and the live P1 + charger panels) is ready the moment you boot:
+
+1. **Double-click `install-autostart.bat`** (run it once). If Smart App Control blocks
+   the double-click, open a Command Prompt in this folder and run `install-autostart.bat`.
+2. It registers a Task Scheduler task **"Car Charging dashboard"** that runs `start.bat`
+   at every logon — a window opens and a browser tab appears at http://localhost:8501.
+3. To turn it off, run **`uninstall-autostart.bat`**.
+
+Note: this runs only while the laptop is on (it's not a 24/7 server). Live readings
+still need the laptop to be on the same Wi-Fi as the P1 meter and charger.
+
+*Prefer no Task Scheduler?* Press `Win+R`, type `shell:startup`, and drop a shortcut to
+`start.bat` into that folder — same effect.
+
 ### Remember settings & update — from the dashboard
 - In the **🏠 Home** tab, the P1 and charger panels have a **💾 Remember on this PC**
   button: it saves the address/token to the local (git-ignored) `secrets.toml`, so you
