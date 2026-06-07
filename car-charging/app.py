@@ -339,45 +339,61 @@ def _autostart_state():
 
 with st.sidebar.expander("▶️ Start / auto-start"):
     app_dir = Path(__file__).parent.resolve()
-    st.caption("This dashboard's folder:")
-    st.code(str(app_dir), language=None)
-    if st.button("📂 Open this folder"):
-        try:
-            os.startfile(app_dir)  # Windows: opens the folder in Explorer
-            st.success("Opened in Explorer.")
-        except Exception:  # noqa: BLE001 — only works on the local machine
-            st.info(f"Open it yourself at:\n{app_dir}")
+    on_cloud = str(app_dir).startswith("/mount")  # Streamlit Cloud serves from /mount/src
 
-    st.markdown("**Auto-start at every login** (one click)")
-    state = _autostart_state()
-    if state is None:
-        st.caption("Available when you run the dashboard locally on Windows.")
-    elif state:
-        st.success("✅ Auto-start is ON — the dashboard opens when you log in.")
-        if st.button("🚫 Turn auto-start off"):
-            try:
-                subprocess.run(["schtasks", "/delete", "/f", "/tn", _AUTOSTART_TASK],
-                               check=True, capture_output=True, text=True)
-                st.rerun()
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Could not turn it off: {exc}")
+    if on_cloud:
+        st.markdown(
+            "You're viewing the **online version**. The live **charger** and **P1** panels "
+            "only work when the dashboard runs on a laptop on the **same Wi-Fi** as those "
+            "devices — so there's no folder on your PC yet.\n\n"
+            "**To run it on your own laptop:**\n"
+            "1. [⬇️ Download the code (ZIP)]"
+            "(https://github.com/gerrit0492-create/obsidian/archive/refs/heads/main.zip)\n"
+            "2. Unzip it, then open the **`car-charging`** folder (inside `obsidian-main`).\n"
+            "3. Double-click **`start.bat`** in that folder.\n\n"
+            "Once you run it locally, this panel shows the folder on your PC and a "
+            "one-click auto-start button."
+        )
     else:
-        if st.button("✅ Turn auto-start on"):
+        st.caption("This dashboard's folder on your PC:")
+        st.code(str(app_dir), language=None)
+        if st.button("📂 Open this folder"):
             try:
-                tr = f'"{app_dir / "start.bat"}"'
-                subprocess.run(["schtasks", "/create", "/f", "/tn", _AUTOSTART_TASK,
-                                "/sc", "onlogon", "/tr", tr],
-                               check=True, capture_output=True, text=True)
-                st.rerun()
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Could not enable: {exc}")
+                os.startfile(app_dir)  # Windows: opens the folder in Explorer
+                st.success("Opened in Explorer.")
+            except Exception:  # noqa: BLE001 — only works on the local machine
+                st.info(f"Open it yourself at:\n{app_dir}")
 
-    st.markdown(
-        "**Start by hand**\n"
-        "- Double-click **`start.bat`** in the folder above, or\n"
-        "- open `cmd` there and run `python -m streamlit run app.py`.\n\n"
-        "Live P1 + charger panels need this laptop on the **same Wi-Fi** as the devices."
-    )
+        st.markdown("**Auto-start at every login** (one click)")
+        state = _autostart_state()
+        if state is None:
+            st.caption("Available when you run the dashboard locally on Windows.")
+        elif state:
+            st.success("✅ Auto-start is ON — the dashboard opens when you log in.")
+            if st.button("🚫 Turn auto-start off"):
+                try:
+                    subprocess.run(["schtasks", "/delete", "/f", "/tn", _AUTOSTART_TASK],
+                                   check=True, capture_output=True, text=True)
+                    st.rerun()
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Could not turn it off: {exc}")
+        else:
+            if st.button("✅ Turn auto-start on"):
+                try:
+                    tr = f'"{app_dir / "start.bat"}"'
+                    subprocess.run(["schtasks", "/create", "/f", "/tn", _AUTOSTART_TASK,
+                                    "/sc", "onlogon", "/tr", tr],
+                                   check=True, capture_output=True, text=True)
+                    st.rerun()
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Could not enable: {exc}")
+
+        st.markdown(
+            "**Start by hand**\n"
+            "- Double-click **`start.bat`** in the folder above, or\n"
+            "- open `cmd` there and run `python -m streamlit run app.py`.\n\n"
+            "Live P1 + charger panels need this laptop on the **same Wi-Fi** as the devices."
+        )
 
 # --- Data source -----------------------------------------------------------
 st.sidebar.header("Data")
