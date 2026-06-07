@@ -229,8 +229,23 @@ def render_tracker() -> None:
     if not opts:
         st.info("Nog geen sollicitaties. Ga naar **🔎 Vacatures**, zoek en klik **➕ In tracker**.")
     else:
-        flt = st.selectbox("Filter op status", ["Alle"] + STATUSES, key="flt")
-        shown = [i for i in opts if flt == "Alle" or str(df.at[i, "Status"]) == flt]
+        def _category(i):
+            s, f = str(df.at[i, "Status"]), str(df.at[i, "Fit"] or "")
+            if s in CLOSED or f == "Nee":
+                return "Discarded"
+            if s in ("Applied", "Screening", "Interview", "Offer"):
+                return "Applied"
+            if f == "Ja":
+                return "Selected"
+            return "New"
+
+        cats = {c: sum(1 for i in opts if _category(i) == c) for c in ("New", "Selected", "Applied", "Discarded")}
+        labels = [f"{c} ({cats[c]})" for c in ("New", "Selected", "Applied", "Discarded")] + ["All"]
+        choice = st.radio("Selectie", labels, horizontal=True, key="crit", label_visibility="collapsed")
+        crit = choice.split(" (")[0]
+
+        shown = [i for i in opts if crit == "All" or _category(i) == crit]
+        shown.sort(key=lambda i: (df.at[i, "Match"] if pd.notna(df.at[i, "Match"]) else -1), reverse=True)
         if not shown:
             st.caption("Geen sollicitaties in deze status.")
         else:
@@ -374,17 +389,32 @@ def render_vacancies() -> None:
 
     st.caption("Bron: Adzuna (NL) — volledige dekking." if (app_id and app_key) else
                "Nog geen key → lichte keyless-bron. Vul hierboven je Adzuna-key in voor volledige NL-dekking.")
+    auto = st.toggle("⚡ Auto: ophalen + nieuwe direct in tracker", value=True, key="auto_vac",
+                     help="Haalt bij openen automatisch vacatures op en zet de nieuwe (geen afgewezen) in de tracker.")
     f1, f2, f3 = st.columns([3, 1, 1])
     kw_raw = f1.text_input("Zoektermen (komma-gescheiden)", value=", ".join(vacancies.DEFAULT_KEYWORDS))
     where = f2.text_input("Regio", value="Eindhoven")
     distance = f3.slider("Straal (km)", 5, 100, 40, step=5)
 
-    if st.button("🔄 Update vacatures", type="primary"):
+    def _do_search():
         kws = [k.strip() for k in kw_raw.split(",") if k.strip()]
+        return vacancies.search(keywords=kws, where=where.strip() or "Eindhoven",
+                                distance=distance, app_id=app_id, app_key=app_key)
+
+    # Auto: on first visit this session, fetch and add new ones to the tracker.
+    if auto and (app_id and app_key) and not st.session_state.get("auto_done"):
+        with st.spinner("Vacatures automatisch ophalen…"):
+            st.session_state["vacancies"] = _do_search()
+        added = add_vacancies(st.session_state["vacancies"] or [])
+        st.session_state["auto_done"] = True
+        if added:
+            st.success(f"⚡ {added} nieuwe vacature(s) automatisch in de tracker gezet.")
+
+    if st.button("🔄 Update vacatures", type="primary"):
         with st.spinner("Zoeken…"):
-            st.session_state["vacancies"] = vacancies.search(
-                keywords=kws, where=where.strip() or "Eindhoven", distance=distance,
-                app_id=app_id, app_key=app_key)
+            st.session_state["vacancies"] = _do_search()
+        if auto:
+            add_vacancies(st.session_state["vacancies"] or [])
 
     results = st.session_state.get("vacancies")
     if results is None:
