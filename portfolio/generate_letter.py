@@ -32,9 +32,41 @@ DEFAULTS = {
 }
 
 
+# Proper casing for acronyms/brand terms (applied in both languages).
+_CASE = {
+    "power bi": "Power BI", "sap": "SAP", "vba": "VBA", "cnc": "CNC", "fmea": "FMEA",
+    "dmaic": "DMAIC", "5s": "5S", "six sigma": "Six Sigma", "green belt": "Green Belt",
+    "lean": "Lean", "excel": "Excel", "python": "Python", "kaizen": "Kaizen",
+}
+# Dutch keyword → English term, so the English letter doesn't carry Dutch words.
+_EN = {
+    "calculatie": "cost estimating", "calculator": "cost estimating",
+    "kostprijs": "cost pricing", "kostencalculatie": "cost estimating",
+    "nacalculatie": "post-calculation", "offertecalculatie": "quotation costing",
+    "werkvoorbereider": "work preparation", "werkvoorbereiding": "work preparation",
+    "industrialisatie": "industrialisation", "maakstrategie": "make strategy",
+    "procesverbetering": "process improvement", "inkoop": "purchasing",
+    "cost engineer": "cost engineering", "cost estimator": "cost estimating",
+    "manufacturing engineer": "manufacturing engineering",
+}
+
+
+def _term(keyword: str, lang: str) -> str:
+    kw = (keyword or "").strip().lower()
+    if lang == "en" and kw in _EN:
+        return _EN[kw]
+    return _CASE.get(kw, keyword)
+
+
 def _highlight_phrase(highlights, lang: str) -> str:
-    """Turn the shared CV/vacancy keywords into a readable phrase."""
-    items = [h for h in (highlights or []) if h][:5]
+    """Turn the shared CV/vacancy keywords into a clean, language-correct phrase."""
+    items, seen = [], set()
+    for h in highlights or []:
+        t = _term(h, lang)
+        if t and t.lower() not in seen:
+            seen.add(t.lower())
+            items.append(t)
+    items = items[:5]
     if not items:
         return ("kostencalculatie, should-cost en procesverbetering" if lang == "nl"
                 else "cost estimating, should-cost and process improvement")
