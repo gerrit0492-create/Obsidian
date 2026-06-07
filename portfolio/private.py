@@ -382,28 +382,49 @@ def render_vacancies() -> None:
     elif not results:
         st.warning("Geen vacatures gevonden. Probeer bredere termen of een grotere straal.")
     else:
-        st.success(f"{len(results)} vacatures gevonden. Klik op **➕ In tracker** om er een te volgen; "
-                   "in **📋 Sollicitaties** beheer je daarna status, opvolging en CV/brief.")
+        cur = load_apps()
 
-        for i, v in enumerate(results[:25]):
+        def _key(co, ro):
+            return (str(co or "").strip().lower(), str(ro or "").strip().lower())
+
+        rejected = {_key(r["Company"], r["Role"]) for _, r in cur.iterrows()
+                    if str(r.get("Status")) == "Rejected" or str(r.get("Fit")) == "Nee"}
+        existing = {_key(r["Company"], r["Role"]) for _, r in cur.iterrows()}
+        good, bad = _learned_sets(cur)
+
+        ranked = []
+        for v in results:
+            k = _key(v.get("Company"), v.get("Title"))
+            if k in rejected:                       # discard what you already rejected
+                continue
+            rec = _recommend(f"{v.get('Title', '')} {v.get('Description', '')}", good, bad)
+            ranked.append((rec, k in existing, v))
+        ranked.sort(key=lambda x: -x[0])
+
+        learned = " · het dashboard leert van je keuzes (Ja/Nee)." if (good or bad) else ""
+        st.success(f"{len(ranked)} vacatures (afgewezen verborgen){learned}")
+        if st.button("⚡ Nieuwe automatisch toevoegen (slim)", type="primary"):
+            new_vs = [v for _, inx, v in ranked if not inx]
+            st.success(f"{add_vacancies(new_vs)} nieuwe toegevoegd · bekende/afgewezen overgeslagen.")
+            st.rerun()
+
+        for i, (rec, inx, v) in enumerate(ranked[:30]):
             col = st.columns([6, 2])
             link = f" · [vacature]({v['Link']})" if v.get("Link") else ""
             posted = f" · {v['Posted']}" if v.get("Posted") else ""
-            score = _match_score(f"{v.get('Title', '')} {v.get('Description', '')}")
-            col[0].markdown(f"**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted} · "
-                            f"match {score}%{link}")
-            if col[1].button("➕ In tracker", key=f"add_{i}"):
+            star = "⭐ " if rec >= 60 else ""
+            col[0].markdown(f"{star}**{v['Title']}** — {v['Company']}  \n{v['Location']}{posted} · "
+                            f"score {rec}%{link}")
+            if inx or st.session_state.get(f"added_{i}"):
+                col[1].caption("in tracker ✓")
+            elif col[1].button("➕ In tracker", key=f"add_{i}"):
                 add_vacancies([v])
                 st.session_state[f"added_{i}"] = True
-            if st.session_state.get(f"added_{i}"):
-                col[1].caption("toegevoegd ✓")
+                st.rerun()
 
         st.divider()
-        d1, d2 = st.columns(2)
-        d1.download_button("📱 Overzicht (HTML)", data=_overview_bytes(load_apps(), results),
+        st.download_button("📱 Overzicht (HTML)", data=_overview_bytes(cur, results),
                            file_name="job_overview.html", mime="text/html")
-        if d2.button("➕ Alles toevoegen aan tracker"):
-            st.success(f"{add_vacancies(results)} nieuwe vacature(s) toegevoegd aan de tracker.")
 
 
 # Keywords we scan a vacancy text for, to tailor the CV's keyword line.
@@ -429,6 +450,27 @@ def _slug(text: str) -> str:
 def _match_score(text: str) -> int:
     """A simple 'smart' fit score: how well a vacancy text overlaps the profile keywords."""
     return int(min(100, round(len(_matched_keywords(text)) / 8 * 100)))
+
+
+def _learned_sets(df):
+    """Learn which keywords you tend to accept vs reject, from your tracker history."""
+    good, bad = set(), set()
+    for _, r in df.iterrows():
+        kws = set(_matched_keywords(f"{r.get('Role', '')} {r.get('Notes', '')}"))
+        status, fit = str(r.get("Status") or ""), str(r.get("Fit") or "")
+        if status == "Rejected" or fit == "Nee":
+            bad |= kws
+        elif fit == "Ja" or status in ("Applied", "Screening", "Interview", "Offer"):
+            good |= kws
+    return good, bad
+
+
+def _recommend(text, good, bad) -> int:
+    """Recommendation score that adapts to your accept/reject history."""
+    t = (text or "").lower()
+    g = sum(1 for k in good if k in t)
+    b = sum(1 for k in bad if k in t)
+    return max(0, min(100, _match_score(text) + g * 8 - b * 10))
 
 
 def _application_package(company, role, contact="", reason="", vacancy_text=""):
