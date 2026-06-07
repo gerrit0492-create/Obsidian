@@ -76,55 +76,53 @@ def _highlight_phrase(highlights, lang: str) -> str:
     return ", ".join(items[:-1]) + joiner + items[-1]
 
 
-def paragraphs(company: str, role: str, contact: str, highlights=None, lang: str = "nl") -> list[str]:
-    """The full letter body, built automatically — no fill-in text fields."""
-    today = date.today().strftime("%d-%m-%Y")
-    hl = _highlight_phrase(highlights, lang)
+def _default_core(company: str, role: str, hl: str, lang: str) -> list[str]:
+    """The fallback body when no AI text is supplied — aligned to the role, no jargon list."""
     if lang == "en":
         return [
-            f"Eindhoven, {today}",
-            f"{company}",
-            f"Attn: {contact}",
-            f"Subject: application for {role}",
-            f"Dear {contact},",
-            (f"With more than 35 years in manufacturing — from DAF Trucks and VDL ETG to "
-             f"Andritz and Wärtsilä — I am applying with enthusiasm for the role of {role} at "
-             f"{company}. As a cost engineer I turn engineering into reliable cost prices and "
-             f"keep cost under control."),
-            (f"Your vacancy asks for exactly my strengths: {hl}. What I bring to {company} is "
-             f"defensible calculations, faster quotes and margins you can defend — working "
-             f"closely with engineering, purchasing, sales and business control."),
-            ("As a Lean Six Sigma Green Belt I improve processes structurally (DMAIC, Kaizen, "
-             "5S, FMEA) and make estimating faster and more transparent with data — Power BI, "
-             "SAP and Excel/VBA."),
-            (f"I would gladly explain in a personal conversation how I can add measurable value "
-             f"to {company} as well. You can reach me at gerrit@duthler.info."),
-            "Kind regards,",
-            SENDER,
-            SENDER_CONTACT,
+            (f"With a career in high-tech manufacturing — DAF Trucks, VDL ETG, Andritz and "
+             f"Wärtsilä — I am applying with enthusiasm for the role of {role} at {company}. As "
+             f"a cost engineer I turn engineering into reliable cost prices and keep cost under "
+             f"control."),
+            (f"Your vacancy centres on {hl}, and that is exactly my track record. I make cost "
+             f"prices defensible from quote to post-calculation, keep estimating fast and "
+             f"transparent, and protect margin — bringing engineering, purchasing, sales and "
+             f"business control onto the same number."),
+            (f"I'd be glad to explain in a personal conversation how I can do the same for "
+             f"{company}. You can reach me at gerrit@duthler.info."),
         ]
     return [
-        f"Eindhoven, {today}",
-        f"{company}",
-        f"T.a.v. {contact}",
-        f"Betreft: sollicitatie {role}",
-        f"Geachte {contact},",
-        (f"Met ruim 35 jaar ervaring in de maakindustrie — van DAF Trucks en VDL ETG tot "
-         f"Andritz en Wärtsilä — solliciteer ik met enthousiasme naar de functie van {role} "
-         f"bij {company}. Als cost engineer vertaal ik techniek naar betrouwbare kostprijzen "
-         f"en houd ik kosten beheersbaar."),
-        (f"In uw vacature herken ik direct mijn kracht: {hl}. Wat ik bij {company} kom brengen: "
-         f"onderbouwde calculaties, snellere offertes en marges die kloppen — in nauwe "
-         f"samenwerking met engineering, inkoop, verkoop en business control."),
-        ("Als Lean Six Sigma Green Belt verbeter ik processen structureel (DMAIC, Kaizen, 5S, "
-         "FMEA) en maak ik calculeren sneller en transparanter met data — Power BI, SAP en "
-         "Excel/VBA."),
-        (f"Graag licht ik in een persoonlijk gesprek toe hoe ik ook voor {company} aantoonbaar "
-         "waarde toevoeg. U kunt mij bereiken via gerrit@duthler.info."),
-        "Met vriendelijke groet,",
-        SENDER,
-        SENDER_CONTACT,
+        (f"Met een loopbaan in de high-tech maakindustrie — DAF Trucks, VDL ETG, Andritz en "
+         f"Wärtsilä — solliciteer ik met enthousiasme naar de functie van {role} bij {company}. "
+         f"Als cost engineer vertaal ik techniek naar betrouwbare kostprijzen en houd ik kosten "
+         f"beheersbaar."),
+        (f"Uw vacature draait om {hl}, en dat is precies mijn trackrecord. Ik maak kostprijzen "
+         f"onderbouwd van offerte tot nacalculatie, houd calculeren snel en transparant, en "
+         f"bewaak de marge — met engineering, inkoop, verkoop en business control op één lijn."),
+        (f"Graag licht ik in een persoonlijk gesprek toe hoe ik dat ook voor {company} doe. "
+         f"U kunt mij bereiken via gerrit@duthler.info."),
     ]
+
+
+def paragraphs(company: str, role: str, contact: str, highlights=None, lang: str = "nl",
+               body=None) -> list[str]:
+    """Full letter = letterhead + salutation + core message + sign-off.
+
+    ``body`` (a list of paragraph strings) lets a smarter, vacancy-aligned text be slotted
+    in; when omitted, a clean default that matches the role is used.
+    """
+    today = date.today().strftime("%d-%m-%Y")
+    hl = _highlight_phrase(highlights, lang)
+    core = [p for p in (body or []) if str(p).strip()] or _default_core(company, role, hl, lang)
+    if lang == "en":
+        head = [f"Eindhoven, {today}", f"{company}", f"Attn: {contact}",
+                f"Subject: application for {role}", f"Dear {contact},"]
+        foot = ["Kind regards,", SENDER, SENDER_CONTACT]
+    else:
+        head = [f"Eindhoven, {today}", f"{company}", f"T.a.v. {contact}",
+                f"Betreft: sollicitatie {role}", f"Geachte {contact},"]
+        foot = ["Met vriendelijke groet,", SENDER, SENDER_CONTACT]
+    return head + core + foot
 
 
 def _resolve(company, role, contact, lang):
@@ -132,15 +130,15 @@ def _resolve(company, role, contact, lang):
     return (company or d["company"], role or d["role"], contact or d["contact"])
 
 
-def build_pdf(path: Path, company="", role="", contact="", highlights=None, lang="nl") -> None:
+def build_pdf(path: Path, company="", role="", contact="", highlights=None, lang="nl", body=None) -> None:
     company, role, contact = _resolve(company, role, contact, lang)
     styles = getSampleStyleSheet()
-    body = ParagraphStyle("body", parent=styles["Normal"], fontSize=10.5, leading=15,
-                          textColor=INK, alignment=TA_LEFT, spaceAfter=8)
-    paras = paragraphs(company, role, contact, highlights, lang)
+    body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=10.5, leading=15,
+                                textColor=INK, alignment=TA_LEFT, spaceAfter=8)
+    paras = paragraphs(company, role, contact, highlights, lang, body)
     flow = []
     for i, p in enumerate(paras):
-        flow.append(Paragraph(p, body))
+        flow.append(Paragraph(p, body_style))
         if i in (0, 2, 3):           # extra space after date block, address, subject
             flow.append(Spacer(1, 6))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -149,7 +147,7 @@ def build_pdf(path: Path, company="", role="", contact="", highlights=None, lang
                       title=f"Motivatiebrief {SENDER}", author=SENDER).build(flow)
 
 
-def build_docx(path: Path, company="", role="", contact="", highlights=None, lang="nl") -> None:
+def build_docx(path: Path, company="", role="", contact="", highlights=None, lang="nl", body=None) -> None:
     from docx import Document
     from docx.shared import Pt
 
@@ -157,7 +155,7 @@ def build_docx(path: Path, company="", role="", contact="", highlights=None, lan
     doc = Document()
     f = doc.styles["Normal"].font
     f.name, f.size = "Calibri", Pt(11)
-    for p in paragraphs(company, role, contact, highlights, lang):
+    for p in paragraphs(company, role, contact, highlights, lang, body):
         doc.add_paragraph(p)
     path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(path))

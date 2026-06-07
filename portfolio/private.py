@@ -668,19 +668,22 @@ def _application_package(company, role, contact="", vacancy_text=""):
     role_title = (role or "").strip() or generate_cv.ROLE
     comp = (company or "").strip()
     cont = (contact or "").strip()
+    # Smart, vacancy-aligned body when an API key is set; else the clean template.
+    body_nl = _ai_letter(comp, role_title, vacancy_text, "nl")
+    body_en = _ai_letter(comp, role_title, vacancy_text, "en")
     files = {}
     with tempfile.TemporaryDirectory() as td:
         tdp = Path(td)
         generate_cv.build_pdf(tdp / "CV.pdf", role_title=role_title, keywords=kwline)
         generate_cv.build_docx(tdp / "CV.docx", role_title=role_title, keywords=kwline)
         generate_letter.build_pdf(tdp / "Motivatiebrief_NL.pdf", company=comp, role=role_title,
-                                  contact=cont, highlights=matched, lang="nl")
+                                  contact=cont, highlights=matched, lang="nl", body=body_nl)
         generate_letter.build_docx(tdp / "Motivatiebrief_NL.docx", company=comp, role=role_title,
-                                   contact=cont, highlights=matched, lang="nl")
+                                   contact=cont, highlights=matched, lang="nl", body=body_nl)
         generate_letter.build_pdf(tdp / "Motivation_EN.pdf", company=comp, role=role_title,
-                                  contact=cont, highlights=matched, lang="en")
+                                  contact=cont, highlights=matched, lang="en", body=body_en)
         generate_letter.build_docx(tdp / "Motivation_EN.docx", company=comp, role=role_title,
-                                   contact=cont, highlights=matched, lang="en")
+                                   contact=cont, highlights=matched, lang="en", body=body_en)
         for name in DOCS:
             files[name] = (tdp / name).read_bytes()
     return files, matched
@@ -717,5 +720,47 @@ def _ai_assess(vacancy_text: str):
         timeout=40)
     r.raise_for_status()
     return r.json()["content"][0]["text"]
+
+
+def _ai_letter(company, role, vacancy_text, lang="nl"):
+    """A vacancy-aligned motivation-letter body via the Anthropic API.
+
+    Reads what the vacancy asks and matches it to what Gerrit provides. Returns a list
+    of paragraph strings (no greeting/signature), or None if there's no API key, no
+    vacancy text, or the call fails — in which case the clean template is used instead.
+    """
+    key = setting("ANTHROPIC_API_KEY")
+    vacancy_text = str(vacancy_text or "").strip()
+    if not key or not vacancy_text:
+        return None
+    import requests
+    profile = generate_cv.PROFILE + " Competencies: " + generate_cv.SKILLS
+    lang_name = "Dutch" if lang == "nl" else "English"
+    prompt = (
+        f"You write the BODY of a job motivation letter for {generate_letter.SENDER}, a cost engineer.\n"
+        f"Company: {company or '[the company]'}\nRole: {role or 'Cost Engineer'}\n\n"
+        f"WHAT THE COMPANY ASKS (vacancy text):\n{vacancy_text}\n\n"
+        f"WHAT THE CANDIDATE OFFERS (profile):\n{profile}\n\n"
+        f"Write 2-3 short paragraphs in {lang_name} that (1) show you understood what THIS "
+        f"vacancy asks for, (2) match it concretely to what the candidate provides — cost "
+        f"estimating, should-cost, post-calculation, margin and quote control, cross-functional "
+        f"work, and data tooling where relevant, and (3) are specific and confident but not "
+        f"boastful, in a Dutch business tone. Rules: NO buzzword lists (never dump 'Kaizen, "
+        f"DMAIC, 5S, FMEA'), no clichés, no date, no greeting, no sign-off or signature. "
+        f"Return ONLY the paragraphs, separated by a blank line."
+    )
+    try:
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 700,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=45)
+        r.raise_for_status()
+        text = r.json()["content"][0]["text"].strip()
+        paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+        return paras or None
+    except Exception:  # noqa: BLE001 — any failure falls back to the template
+        return None
 
 
