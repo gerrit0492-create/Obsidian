@@ -13,6 +13,7 @@ import re
 import tempfile
 from datetime import date
 from pathlib import Path
+from urllib.parse import quote_plus
 
 import pandas as pd
 import streamlit as st
@@ -166,8 +167,10 @@ def add_vacancies(found: list[dict]) -> int:
         existing.add(key)
         desc = v.get("Description", "")
         note = f"Gevonden via {v['Source']}" + (f" · {v['Posted']}" if v.get("Posted") else "")
+        if v.get("Salary"):
+            note += f" · {v['Salary']}"
         if desc:
-            note += "\n" + desc[:600]
+            note += "\n" + desc
         new_rows.append({
             "Company": v["Company"], "Role": v["Title"], "Location": v["Location"],
             "Source": "Vacature", "Link": v["Link"], "Priority": "Medium",
@@ -223,6 +226,12 @@ def render_work() -> None:
         f"<div class='ds'>{snippet}{link}</div></div>",
         unsafe_allow_html=True,
     )
+    rh = _research_html(str(row.get("Company") or ""), str(row.get("Role") or ""), str(row.get("Link") or ""))
+    if rh:
+        st.markdown(rh, unsafe_allow_html=True)
+    if len(notes) > 260:
+        with st.expander("📄 Volledige vacaturetekst"):
+            st.write(notes)
 
     b = st.columns(3)
     if b[0].button("🗑️ Discard", use_container_width=True, key="w_disc"):
@@ -341,9 +350,15 @@ def render_tracker() -> None:
                                       f"[{df.at[i, 'Status'] or 'Lead'}]".strip())
             row = df.loc[sel]
 
-            link = f" · [vacature]({row['Link']})" if str(row.get("Link") or "").strip() else ""
             st.markdown(f"**{row.get('Company') or '—'}** — {row.get('Role') or ''} · "
-                        f"{row.get('Location') or ''}{link}")
+                        f"{row.get('Location') or ''}")
+            rh = _research_html(str(row.get("Company") or ""), str(row.get("Role") or ""), str(row.get("Link") or ""))
+            if rh:
+                st.markdown(rh, unsafe_allow_html=True)
+            dnotes = str(row.get("Notes") or "")
+            if dnotes.strip():
+                with st.expander("📄 Volledige vacaturetekst"):
+                    st.write(dnotes)
             discarded = str(row.get("Status")) in CLOSED or str(row.get("Fit")) == "Nee"
             qa = st.columns(2)
             if discarded:
@@ -575,6 +590,32 @@ def _matched_keywords(vacancy_text: str) -> list[str]:
 
 def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", (text or "sollicitatie")).strip("_") or "sollicitatie"
+
+
+def _research_html(company: str, role: str, link: str) -> str:
+    """A row of tap targets: open the vacancy + one-click research links.
+
+    Adzuna only returns a short blurb, so the real detail is on the posting and
+    via a quick web/LinkedIn search — surface those instead of a tiny link.
+    """
+    company, role = (company or "").strip(), (role or "").strip()
+    cr = quote_plus(f'"{company}" {role} vacature'.strip())
+    chips = []
+    if str(link or "").strip():
+        chips.append((f"🔗 {('Open vacature')}", link))
+    if company:
+        chips.append(("🔎 Google", f"https://www.google.com/search?q={cr}"))
+        chips.append(("💼 LinkedIn", f"https://www.linkedin.com/jobs/search/?keywords={quote_plus(f'{company} {role}'.strip())}"))
+        chips.append(("🏢 Werken bij", f"https://www.google.com/search?q={quote_plus(f'werken bij {company}')}"))
+    if not chips:
+        return ""
+    style = ("display:inline-block;margin:6px 8px 0 0;padding:8px 14px;border-radius:9px;"
+             "background:#16223d;color:#fff !important;text-decoration:none;font-weight:600;font-size:.9rem")
+    ghost = style.replace("#16223d", "#eef2f6").replace("#fff", "#16223d")
+    out = []
+    for i, (label, href) in enumerate(chips):
+        out.append(f'<a href="{href}" target="_blank" style="{style if i == 0 else ghost}">{label}</a>')
+    return "<div style='margin:4px 0 6px'>" + "".join(out) + "</div>"
 
 
 def _match_score(text: str) -> int:

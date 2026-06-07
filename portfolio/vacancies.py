@@ -21,6 +21,19 @@ DEFAULT_KEYWORDS = [
 ]
 
 
+def _fmt_salary(lo, hi) -> str:
+    """Adzuna salary_min/max (yearly EUR) → a compact '€45k–€60k' string."""
+    def k(v):
+        try:
+            return f"€{round(float(v) / 1000)}k"
+        except (TypeError, ValueError):
+            return ""
+    a, b = k(lo), k(hi)
+    if a and b and a != b:
+        return f"{a}–{b}"
+    return a or b
+
+
 def _norm_adzuna(results) -> list[dict]:
     out = []
     for r in results or []:
@@ -30,6 +43,7 @@ def _norm_adzuna(results) -> list[dict]:
             "Location": ((r.get("location") or {}).get("display_name") or "").strip(),
             "Link": r.get("redirect_url", ""),
             "Posted": (r.get("created") or "")[:10],
+            "Salary": _fmt_salary(r.get("salary_min"), r.get("salary_max")),
             "Description": (r.get("description") or "")[:1500],
             "Source": "Adzuna",
         })
