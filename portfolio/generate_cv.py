@@ -31,15 +31,17 @@ CONTACT = "gerrit@duthler.info  ·  Eindhoven, Netherlands  ·  linkedin.com/in/
 CONTENT = {
     "en": {
         "role": "Cost Engineer · Estimator · Manufacturing Engineer",
+        "headline": "Reliable cost prices · faster quotes · margins you can defend",
         "headings": {"summary": "Profile", "competencies": "Core competencies",
                      "experience": "Professional experience", "education": "Education",
                      "certs": "Certifications", "languages": "Languages"},
         "summary": (
-            "Cost engineer with 35+ years in manufacturing — DAF Trucks, VDL ETG, Andritz and "
-            "Wärtsilä. I translate engineering into reliable cost prices and keep costs under "
-            "control, working closely with engineering, purchasing, sales and business control. "
-            "Lean Six Sigma Green Belt; where useful I build my own data tooling (Power BI, SAP) "
-            "to sharpen the numbers."
+            "A cost engineer who makes the number trustworthy. With 35+ years across the shop "
+            "floor and in costing at DAF Trucks, VDL ETG, Andritz and Wärtsilä, I know where cost "
+            "really sits — and how to take it out. I turn engineering into defensible cost prices, "
+            "win alignment across engineering, purchasing, sales and business control, and keep "
+            "estimating fast and transparent. Lean Six Sigma Green Belt — hands-on, data-driven "
+            "and pragmatic."
         ),
         "competencies": (
             "Cost estimating · Should-cost · Post-calculation · Lean Six Sigma (Green Belt) · "
@@ -48,11 +50,12 @@ CONTENT = {
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
-                "Owned the cost data in the quotation software; ran cost analyses and "
-                "calculations for development, customer and non-standard projects.",
-                "Trusted cost partner for engineering, sales, project management, purchasing "
-                "and product management.",
-                "Helped shape cost strategy and led cross-functional cost-reduction initiatives.",
+                "The single source of truth for cost: owned cost data and calculations across "
+                "development, customer and non-standard projects.",
+                "Trusted cost partner to engineering, sales, project management, purchasing and "
+                "product management — turning technical choices into clear cost impact.",
+                "Shaped cost strategy and drove cross-functional cost-reduction; made budget-vs-"
+                "actual transparent so deviations surfaced early.",
             ]),
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
                 "Purchasing of indirect goods and tooling; set up the workshop and tool management.",
@@ -79,15 +82,17 @@ CONTENT = {
     },
     "nl": {
         "role": "Cost Engineer · Calculator · Werkvoorbereider",
+        "headline": "Betrouwbare kostprijzen · snellere offertes · marges die kloppen",
         "headings": {"summary": "Profiel", "competencies": "Kerncompetenties",
                      "experience": "Werkervaring", "education": "Opleiding",
                      "certs": "Certificeringen", "languages": "Talen"},
         "summary": (
-            "Cost engineer met 35+ jaar in de maakindustrie — DAF Trucks, VDL ETG, Andritz en "
-            "Wärtsilä. Ik vertaal techniek naar betrouwbare kostprijzen en houd kosten "
-            "beheersbaar, in nauwe samenwerking met engineering, inkoop, verkoop en business "
-            "control. Lean Six Sigma Green Belt; waar nodig pak ik zelf data en tooling "
-            "(Power BI, SAP) op om calculaties te verscherpen."
+            "Een cost engineer die de cijfers betrouwbaar maakt. Met 35+ jaar op de werkvloer én "
+            "in de calculatie bij DAF Trucks, VDL ETG, Andritz en Wärtsilä weet ik waar de kosten "
+            "echt zitten — en hoe je ze eruit haalt. Ik vertaal techniek naar onderbouwde "
+            "kostprijzen, krijg engineering, inkoop, verkoop en business control op één lijn, en "
+            "houd calculeren snel en transparant. Lean Six Sigma Green Belt — hands-on, "
+            "datagedreven en pragmatisch."
         ),
         "competencies": (
             "Kostencalculatie · Should-cost · Nacalculatie · Lean Six Sigma (Green Belt) · "
@@ -96,11 +101,13 @@ CONTENT = {
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
-                "Beheerde de kostendata in de offerte-software; kostenanalyses en calculaties "
+                "De single source of truth voor kosten: eigenaar van kostendata en calculaties "
                 "voor ontwikkel-, klant- en niet-standaard projecten.",
                 "Vaste kostenpartner voor engineering, verkoop, project management, inkoop en "
-                "product management.",
-                "Mede bepalen van kostenstrategie en leiden van kostenreductie-initiatieven.",
+                "product management — technische keuzes vertaald naar helder kosteneffect.",
+                "Mede vormgegeven aan de kostenstrategie en cross-functionele kostenreductie "
+                "geleid; budget-versus-werkelijk transparant gemaakt zodat afwijkingen vroeg "
+                "zichtbaar werden.",
             ]),
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
                 "Inkoop van indirecte goederen en gereedschappen; inrichting werkplaats en "
@@ -146,7 +153,9 @@ def build_pdf(path: Path, role_title: str | None = None, keywords: str | None = 
                           textColor=INK, alignment=TA_LEFT)
     name = ParagraphStyle("name", parent=body, fontSize=21, leading=23, fontName="Helvetica-Bold", spaceAfter=2)
     role = ParagraphStyle("role", parent=body, fontSize=10.5, leading=14, textColor=ACCENT,
-                          fontName="Helvetica-Bold", spaceAfter=3)
+                          fontName="Helvetica-Bold", spaceAfter=2)
+    headline = ParagraphStyle("headline", parent=body, fontSize=9.5, leading=12.5, textColor=INK,
+                              fontName="Helvetica-Oblique", spaceAfter=3)
     contact = ParagraphStyle("contact", parent=body, fontSize=8.6, textColor=GREY, spaceAfter=2)
     h2 = ParagraphStyle("h2", parent=body, fontSize=10.5, leading=13, textColor=INK,
                         fontName="Helvetica-Bold", spaceBefore=11, spaceAfter=2)
@@ -160,8 +169,11 @@ def build_pdf(path: Path, role_title: str | None = None, keywords: str | None = 
         return ListFlowable([ListItem(Paragraph(t, body), leftIndent=10, value="•") for t in items],
                             bulletType="bullet", start="•", leftIndent=9, spaceBefore=1)
 
-    flow = [Paragraph(NAME, name), Paragraph(role_title, role), Paragraph(CONTACT, contact),
-            HRFlowable(width="100%", thickness=1.1, color=INK, spaceBefore=4, spaceAfter=2)]
+    flow = [Paragraph(NAME, name), Paragraph(role_title, role)]
+    if c.get("headline"):
+        flow.append(Paragraph(c["headline"], headline))
+    flow += [Paragraph(CONTACT, contact),
+             HRFlowable(width="100%", thickness=1.1, color=INK, spaceBefore=4, spaceAfter=2)]
     flow += heading(h["summary"]) + [Paragraph(c["summary"], body)]
     flow += heading(h["competencies"]) + [Paragraph(keywords, body)]
     flow += heading(h["experience"])
@@ -203,6 +215,10 @@ def build_docx(path: Path, role_title: str | None = None, keywords: str | None =
     rr = doc.add_paragraph().add_run(role_title)
     rr.bold = True
     rr.font.color.rgb = RGBColor(0x2A, 0x9D, 0x8F)
+    if c.get("headline"):
+        hp = doc.add_paragraph().add_run(c["headline"])
+        hp.italic = True
+        hp.font.size = Pt(10)
     doc.add_paragraph(CONTACT)
 
     heading(h["summary"]); doc.add_paragraph(c["summary"])

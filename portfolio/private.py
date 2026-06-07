@@ -226,6 +226,8 @@ def render_work() -> None:
 
     b = st.columns(3)
     if b[0].button("🗑️ Discard", use_container_width=True, key="w_disc"):
+        st.session_state["work_undo"] = {"i": sel, "Status": str(row.get("Status") or ""),
+                                         "Fit": str(row.get("Fit") or ""), "co": str(row.get("Company") or "")}
         d = load_apps()
         d.at[sel, "Status"], d.at[sel, "Fit"] = "Rejected", "Nee"
         save_apps(d)
@@ -234,9 +236,20 @@ def render_work() -> None:
         st.session_state["work_pos"] = pos + 1
         st.rerun()
     if b[2].button("⭐ Select", use_container_width=True, key="w_sel"):
+        st.session_state["work_undo"] = {"i": sel, "Status": str(row.get("Status") or ""),
+                                         "Fit": str(row.get("Fit") or ""), "co": str(row.get("Company") or "")}
         d = load_apps()
         d.at[sel, "Fit"] = "Ja"
         save_apps(d)
+        st.rerun()
+
+    u = st.session_state.get("work_undo")
+    if u and st.button(f"↩️ Undo last ({u['co']})", use_container_width=True, key="w_undo"):
+        d = load_apps()
+        if u["i"] in d.index:
+            d.at[u["i"], "Status"], d.at[u["i"], "Fit"] = (u["Status"] or "Lead"), u["Fit"]
+            save_apps(d)
+        st.session_state.pop("work_undo", None)
         st.rerun()
 
     if st.button("📄 Generate CV + motivation letter", use_container_width=True, key="w_gen"):
