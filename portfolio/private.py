@@ -413,7 +413,7 @@ def render_tracker() -> None:
             if log.strip():
                 st.text_area("Logboek (nieuwste boven)", value=log, height=120, disabled=True, key=f"logv_{sel}")
 
-            if setting("ANTHROPIC_API_KEY"):
+            if _llm_available():
                 if st.button("🤖 AI-beoordeling van de match"):
                     try:
                         st.session_state[f"ai_{sel}"] = _ai_assess(f"{row.get('Role', '')}\n{row.get('Notes', '')}")
@@ -720,38 +720,73 @@ def _dl_buttons(files: dict, prefix: str, slug: str) -> None:
                                     key=f"{prefix}_{start + j}")
 
 
-def _ai_assess(vacancy_text: str):
-    """Optional real-AI fit verdict via the Anthropic API (needs ANTHROPIC_API_KEY)."""
-    key = setting("ANTHROPIC_API_KEY")
-    if not key:
-        return None
+def _llm_complete(prompt: str, max_tokens: int = 600):
+    """Call whichever LLM key is configured — Anthropic (paid) or a free tier (Gemini/Groq).
+
+    Free keys need no credit card: Google Gemini via aistudio.google.com, Groq via
+    console.groq.com. Returns the text, or None if no provider is set or the call fails.
+    """
     import requests
+    ak = setting("ANTHROPIC_API_KEY")
+    gk = setting("GEMINI_API_KEY") or setting("GOOGLE_API_KEY")
+    qk = setting("GROQ_API_KEY")
+    try:
+        if ak:
+            r = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": "claude-haiku-4-5-20251001", "max_tokens": max_tokens,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=45)
+            r.raise_for_status()
+            return r.json()["content"][0]["text"].strip()
+        if gk:
+            r = requests.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/"
+                f"gemini-2.0-flash:generateContent?key={gk}",
+                json={"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"maxOutputTokens": max_tokens}},
+                timeout=45)
+            r.raise_for_status()
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if qk:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {qk}", "content-type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile", "max_tokens": max_tokens,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=45)
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"].strip()
+    except Exception:  # noqa: BLE001 — any failure falls back to the template
+        return None
+    return None
+
+
+def _llm_available() -> bool:
+    return bool(setting("ANTHROPIC_API_KEY") or setting("GEMINI_API_KEY")
+                or setting("GOOGLE_API_KEY") or setting("GROQ_API_KEY"))
+
+
+def _ai_assess(vacancy_text: str):
+    """Optional real-AI fit verdict via any configured LLM (Anthropic / Gemini / Groq)."""
     profile = generate_cv.PROFILE + " Vaardigheden: " + generate_cv.SKILLS
     prompt = (f"Kandidaatprofiel:\n{profile}\n\nVacature:\n{vacancy_text}\n\n"
               "Beoordeel in het Nederlands of deze vacature bij de kandidaat past. "
               "Geef een matchscore 0-100 en 2-3 zinnen onderbouwing.")
-    r = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-        json={"model": "claude-haiku-4-5-20251001", "max_tokens": 400,
-              "messages": [{"role": "user", "content": prompt}]},
-        timeout=40)
-    r.raise_for_status()
-    return r.json()["content"][0]["text"]
+    return _llm_complete(prompt, 400)
 
 
 def _ai_letter(company, role, vacancy_text, lang="nl"):
-    """A vacancy-aligned motivation-letter body via the Anthropic API.
+    """A vacancy-aligned motivation-letter body via any configured LLM (free or paid).
 
     Reads what the vacancy asks and matches it to what Gerrit provides. Returns a list
-    of paragraph strings (no greeting/signature), or None if there's no API key, no
+    of paragraph strings (no greeting/signature), or None if there's no LLM key, no
     vacancy text, or the call fails — in which case the clean template is used instead.
     """
-    key = setting("ANTHROPIC_API_KEY")
     vacancy_text = str(vacancy_text or "").strip()
-    if not key or not vacancy_text:
+    if not vacancy_text:
         return None
-    import requests
     profile = generate_cv.PROFILE + " Competencies: " + generate_cv.SKILLS
     lang_name = "Dutch" if lang == "nl" else "English"
     prompt = (
@@ -767,18 +802,10 @@ def _ai_letter(company, role, vacancy_text, lang="nl"):
         f"DMAIC, 5S, FMEA'), no clichés, no date, no greeting, no sign-off or signature. "
         f"Return ONLY the paragraphs, separated by a blank line."
     )
-    try:
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 700,
-                  "messages": [{"role": "user", "content": prompt}]},
-            timeout=45)
-        r.raise_for_status()
-        text = r.json()["content"][0]["text"].strip()
-        paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-        return paras or None
-    except Exception:  # noqa: BLE001 — any failure falls back to the template
+    text = _llm_complete(prompt, 700)
+    if not text:
         return None
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    return paras or None
 
 
