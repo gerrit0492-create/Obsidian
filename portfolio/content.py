@@ -47,8 +47,9 @@ CONTENT = {
         "skills": [
             "Cost estimating", "Should-cost", "Post-calculation", "Margin & quote control",
             "Lean Six Sigma (Green Belt)", "Continuous improvement",
-            "Work preparation & routing", "Make strategy", "SAP", "Power BI", "Excel & VBA",
-            "Python", "CNC programming", "Cross-functional collaboration", "NL · EN · DE",
+            "Work preparation & routing", "Make strategy", "SAP",
+            "Data & dashboards (Power BI)", "Excel & VBA", "Automation & tools (Python)",
+            "CNC programming", "Cross-functional collaboration", "NL · EN · DE",
         ],
 
         "highlights_title": "Impact",
@@ -130,8 +131,9 @@ CONTENT = {
         "skills": [
             "Kostencalculatie", "Should-cost", "Nacalculatie", "Marge- & offertebewaking",
             "Lean Six Sigma (Green Belt)", "Continu verbeteren",
-            "Werkvoorbereiding & routing", "Maakstrategie", "SAP", "Power BI", "Excel & VBA",
-            "Python", "CNC-programmeren", "Samenwerken over afdelingen", "NL · EN · DE",
+            "Werkvoorbereiding & routing", "Maakstrategie", "SAP",
+            "Data & dashboards (Power BI)", "Excel & VBA", "Automatisering & tools (Python)",
+            "CNC-programmeren", "Samenwerken over afdelingen", "NL · EN · DE",
         ],
 
         "highlights_title": "Resultaten",
