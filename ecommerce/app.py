@@ -280,13 +280,36 @@ with tab_route:
     st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
 
 
-# --- 7. Meer niches --------------------------------------------------------
+# --- 7. Meer niches (diep uitgewerkt) --------------------------------------
 with tab_niches:
-    st.subheader("Meer high-value niches die bij jouw profiel passen")
-    st.caption("Gerangschikt op fit met cost engineer + energie + data/tooling.")
-    for n in m.NICHES:
-        with st.container(border=True):
-            st.markdown(f"**{n['naam']}**  ·  fit {n['fit']}  ·  marge: {n['marge']}  ·  drempel: {n['drempel']}")
-            st.caption(n["waarom"])
+    st.subheader("Meer high-value niches — diep uitgewerkt")
+    st.caption("Gerangschikt op fit (cost engineer + energie + data/tooling). "
+               "Klap een niche open voor de volledige playbook.")
     st.info("🧠 Sterkste fit: **cost engineering/calculatie als ZZP-dienst** — nul kapitaal, "
             "hoogste uurtarief, en het versterkt je baanzoektocht. Daarna energie-/besparingsadvies.")
+    for n in m.NICHES:
+        with st.expander(f"{n['naam']}  —  fit {n['fit']} · marge {n['marge']} · drempel {n['drempel']}"):
+            st.caption(n["waarom"])
+            st.markdown(f"**Wat & voor wie** — {n['wat']}")
+            st.markdown(f"_Klant:_ {n['klant']}")
+            st.markdown("**Verdienmodel & tarieven**")
+            for x in n["verdienmodel"]:
+                st.markdown(f"- {x}")
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                st.markdown("**Hoe te starten**")
+                for x in n["start"]:
+                    st.markdown(f"- {x}")
+                st.markdown("**Eisen / certificering / regels**")
+                for x in n["eisen"]:
+                    st.markdown(f"- {x}")
+            with cc2:
+                st.markdown("**Klanten werven**")
+                for x in n["klanten_werven"]:
+                    st.markdown(f"- {x}")
+                st.markdown("**Risico's**")
+                for x in n["risicos"]:
+                    st.markdown(f"- {x}")
+            st.success(f"📈 Indicatie: {n['cijfers']}")
+            if n.get("bronnen"):
+                st.markdown("Bronnen: " + "  ·  ".join(f"[{a}]({b})" for a, b in n["bronnen"]))

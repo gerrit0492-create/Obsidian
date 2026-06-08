@@ -170,29 +170,209 @@ INSTALLATEUR_ROUTE = {
     ],
 }
 
-# Meer high-value niches die bij Gerrits profiel passen (cost engineer, energie, data/tooling).
+# Meer high-value niches die bij Gerrits profiel passen — diep uitgewerkt.
 NICHES = [
-    {"naam": "🧮 Cost engineering / calculatie als ZZP-dienst", "fit": "10/10",
-     "marge": "Zeer hoog (€75–125/uur)", "drempel": "Laag (nul kapitaal)",
-     "waarom": "Je diepste expertise: verkoop should-cost/calculatie aan MKB-maakbedrijven. "
-               "Nul voorraad, hoogste uurtarief, en het versterkt direct je baanzoektocht."},
-    {"naam": "💡 Onafhankelijk energie-/besparingsadvies", "fit": "9/10",
-     "marge": "Hoog (dienst)", "drempel": "Laag",
-     "waarom": "Warmtepomp, isolatie, zon, batterij, dynamisch contract + ISDE-subsidie. "
-               "Groeit door de energietransitie; jouw data-edge maakt het geloofwaardig."},
-    {"naam": "📊 Energiemanagement & maatwerk-dashboards voor MKB", "fit": "8/10",
-     "marge": "Hoog + terugkerend", "drempel": "Laag",
-     "waarom": "Slim laden van batterij/EV op dynamische tarieven + Power BI-dashboards. "
-               "Jouw tooling-edge en voorspelbare maandomzet."},
-    {"naam": "🔌 EV-laadpaal installatie + advies", "fit": "8/10",
-     "marge": "Goed (arbeid)", "drempel": "Midden (NEN/certificering)",
-     "waarom": "Explosieve groei; ligt naast batterij en volgt dezelfde installateur-route."},
-    {"naam": "🛠️ Onderhoud/monitoring-abonnementen", "fit": "8/10",
-     "marge": "Terugkerend", "drempel": "Laag",
-     "waarom": "Service op zonne-/batterijsystemen — voorspelbare maandomzet bovenop installaties."},
-    {"naam": "🔥 Warmtepomp-advies (niet per se installatie)", "fit": "7/10",
-     "marge": "Hoog ticket", "drempel": "Midden (kennis)",
-     "waarom": "Hoge investering bij de klant → advies is waardevol; subsidies maken het complex."},
+    {
+        "naam": "🧮 Cost engineering / calculatie als ZZP-dienst", "fit": "10/10",
+        "marge": "Zeer hoog (€65–95/uur)", "drempel": "Laag (nul kapitaal)",
+        "waarom": "Je diepste expertise; nul voorraad, hoogste uurtarief, en het versterkt direct je baanzoektocht.",
+        "wat": "Verkoop je vak: should-cost, calculatie, nacalculatie, kostprijsmodellen en kostenreductie als losse opdracht, project of interim.",
+        "klant": "MKB-maakbedrijven (verspaning, plaatwerk, assemblage, machinebouw) zonder eigen cost engineer; inkoop-/engineeringafdelingen die offertes willen onderbouwen.",
+        "verdienmodel": [
+            "Uurtarief ZZP: €65–95/uur (senior cost engineer).",
+            "Per project: should-cost-analyse of kostprijsmodel tegen vaste prijs.",
+            "Interim/detachering: dag- of weektarief.",
+            "Terugkerend: periodieke nacalculatie / kostprijs-updates.",
+        ],
+        "start": [
+            "KvK eenmanszaak + beroepsaansprakelijkheidsverzekering.",
+            "Maak één sterk portfolio-stuk: een should-cost/kostprijsmodel (je Cost-Forge tool toont dit al).",
+            "Benader 10 lokale maakbedrijven met een concreet aanbod ('ik haal €X uit je kostprijs').",
+            "Start naast je baanzoektocht — interim-opdrachten gaan vaak over in een vaste baan.",
+        ],
+        "eisen": [
+            "Geen certificering verplicht — je ervaring (DAF/VDL/Wärtsilä) is je bewijs.",
+            "Beroepsaansprakelijkheidsverzekering aan te raden.",
+            "Goede NDA/voorwaarden (je werkt met gevoelige kostendata).",
+        ],
+        "klanten_werven": [
+            "LinkedIn: deel concrete cases ('zo vond ik een gemiste korting').",
+            "Maakindustrie-netwerken: Brainport, Koninklijke Metaalunie, lokale bedrijventerreinen.",
+            "Interim-bureaus voor cost engineering / technische ZZP-platforms.",
+            "Direct bellen/mailen met inkoop- en engineeringmanagers van MKB-maakbedrijven.",
+        ],
+        "cijfers": "20 declarabele uur/week × €80 × ~45 weken ≈ €72.000 omzet/jaar, nul voorraad.",
+        "risicos": [
+            "Acquisitie kost tijd; reken op een opstartperiode.",
+            "Vertrouwelijkheid van klant-kostendata goed regelen.",
+            "Inkomen schommelt zonder vaste opdracht.",
+        ],
+        "bronnen": [("Mijnzzp — tarieven werkvoorbereider", "https://www.mijnzzp.nl/Beroep/121-Werkvoorbereider-bouw/Salaris-en-tarief"),
+                    ("Koninklijke Metaalunie", "https://www.metaalunie.nl/")],
+    },
+    {
+        "naam": "💡 Onafhankelijk energie-/besparingsadvies", "fit": "9/10",
+        "marge": "Hoog (dienst)", "drempel": "Laag → midden (label)",
+        "waarom": "Energietransitie + subsidies; jouw data-edge maakt het advies geloofwaardig.",
+        "wat": "Onafhankelijk advies aan huiseigenaren/VvE's: isolatie, warmtepomp, zon, batterij, dynamisch contract — eventueel met officieel energielabel (EPA).",
+        "klant": "Huiseigenaren die willen verduurzamen maar door de bomen het bos niet zien; VvE's; makelaars (energielabel bij verkoop).",
+        "verdienmodel": [
+            "Adviesgesprek + rapport: €150–400 per woning.",
+            "Energielabel (EP-W): €150–300 per woning.",
+            "Begeleiding ISDE-subsidie en offertevergelijking: meerwerk.",
+            "Terugkerend via makelaar-/VvE-contracten.",
+        ],
+        "start": [
+            "Begin met onafhankelijk besparingsadvies (geen certificering nodig).",
+            "Officiële energielabels afgeven? Behaal EP-W (NTA 8800): opleiding 4–6 dagen + examen + jaarlijkse bijscholing.",
+            "Maak een ROI-/besparingscalculator als leadmagnet (jouw kracht).",
+        ],
+        "eisen": [
+            "Besparingsadvies: geen verplichte certificering.",
+            "Officieel energielabel afgeven: EP-W/EP-U certificering (NTA 8800) + jaarlijkse bijscholing.",
+            "Onafhankelijkheid: verkoop geen producten als je 'onafhankelijk' claimt.",
+        ],
+        "klanten_werven": [
+            "Lokale SEO ('energieadvies [regio]') + Google Mijn Bedrijf.",
+            "Samenwerken met makelaars (label bij verkoop) en VvE-beheerders.",
+            "Gemeente-energieloketten en lokale duurzaamheidsacties.",
+            "Content: 'wat levert maatregel X echt op?' met cijfers.",
+        ],
+        "cijfers": "10 woningen/week × €200 gem. ≈ €2.000/week; labels schalen goed bij.",
+        "risicos": [
+            "Voor labels: certificering + jaarlijkse kosten/bijscholing.",
+            "Onafhankelijkheid bewaken (geen verkoopprikkel).",
+            "Seizoensgevoelig (piek rond subsidies/energieprijzen).",
+        ],
+        "bronnen": [("RVO — EPA-info", "https://www.rvo.nl/onderwerpen/wetten-en-regels-gebouwen/informatie-epa"),
+                    ("Indeed — EPA-opleiding", "https://nl.indeed.com/carrieregids/baan-vinden/epa-adviseur-opleiding")],
+    },
+    {
+        "naam": "📊 Energiemanagement & maatwerk-dashboards voor MKB", "fit": "8/10",
+        "marge": "Hoog + terugkerend", "drempel": "Laag",
+        "waarom": "Jouw tooling-edge (Power BI/Streamlit) + voorspelbare maandomzet.",
+        "wat": "Bouw en verkoop energie-/kostendashboards en slimme sturing (batterij/EV/dynamisch tarief) voor MKB: advies + tooling + abonnement.",
+        "klant": "MKB met zonnepanelen/batterij/wagenpark; bedrijven met hoge energiekosten die inzicht en sturing willen.",
+        "verdienmodel": [
+            "Eenmalig: dashboard/analyse op maat €1.500–5.000.",
+            "Abonnement: monitoring + rapportage €50–200/maand.",
+            "Advies: optimalisatie dynamisch laden/ontladen per uur.",
+        ],
+        "start": [
+            "Hergebruik je eigen dashboards (Power BI / Streamlit, P1/energie).",
+            "Maak één demo met geanonimiseerde data die een echte besparing toont.",
+            "Benader 5 lokale MKB's met zonnepanelen/batterij.",
+        ],
+        "eisen": [
+            "Geen certificering; wel AVG-proof omgaan met data.",
+            "Heldere SLA/abonnementsvoorwaarden.",
+        ],
+        "klanten_werven": [
+            "Cross-sell bij je installatie-/energieadvies-klanten.",
+            "LinkedIn-cases met meetbare besparing.",
+            "Partner met installateurs/energieadviseurs.",
+        ],
+        "cijfers": "5 abonnementen × €150/mnd = €9.000/jaar terugkerend + projectomzet.",
+        "risicos": [
+            "Maatwerk schaalt minder; standaardiseer je dashboard.",
+            "Datakoppelingen (P1, omvormer, laadpaal) verschillen per klant.",
+        ],
+        "bronnen": [],
+    },
+    {
+        "naam": "🔌 EV-laadpaal installatie + advies", "fit": "8/10",
+        "marge": "Goed (arbeid)", "drempel": "Midden (NEN/erkenning)",
+        "waarom": "Explosieve groei; ligt naast de batterij en volgt dezelfde installateur-route.",
+        "wat": "Advies, levering en installatie van laadpalen voor thuis/MKB, vaak gecombineerd met batterij/zon en smart charging.",
+        "klant": "EV-rijders thuis, MKB met wagenpark/personeel, VvE's.",
+        "verdienmodel": [
+            "Laadpaal + installatie: €800–1.500 (deels arbeid).",
+            "Configuratie load balancing / smart charging.",
+            "Onderhoud/monitoring-abonnement.",
+        ],
+        "start": [
+            "Combineer met de batterij-installateur-route (zelfde NEN-eisen).",
+            "Word erkend installatiepartner van een laadpaal-merk.",
+            "Begin met thuislaadpalen (eenvoudiger), dan MKB/load balancing.",
+        ],
+        "eisen": [
+            "NEN 1010/3140; vaste aansluiting door een bekwaam persoon.",
+            "Merk-erkenning vaak vereist voor garantie/firmware.",
+            "Soms aanmelding zwaardere aansluiting bij de netbeheerder.",
+        ],
+        "klanten_werven": [
+            "Lokale SEO 'laadpaal installateur [regio]'.",
+            "Partner met autodealers, zonnepanelen- en batterijbedrijven.",
+            "MKB met wagenpark direct benaderen.",
+        ],
+        "cijfers": "8 installaties/maand × ~€400 marge ≈ €3.200/maand.",
+        "risicos": [
+            "Certificering/merk-erkenning nodig.",
+            "Prijsdruk; differentieer met smart charging + service.",
+        ],
+        "bronnen": [],
+    },
+    {
+        "naam": "🛠️ Onderhoud/monitoring-abonnementen", "fit": "8/10",
+        "marge": "Terugkerend", "drempel": "Laag",
+        "waarom": "Voorspelbare maandomzet bovenop installaties — stapelt op je klantenbasis.",
+        "wat": "Terugkerende service op zonne-/batterij-/laadsystemen: monitoring, jaarlijkse check, storingsdienst.",
+        "klant": "Je eigen geïnstalleerde klanten + klanten van installateurs zonder servicetak.",
+        "verdienmodel": [
+            "Abonnement €75–150/jaar per klant.",
+            "Storingsbezoek op uurtarief.",
+            "Monitoring-dashboard inbegrepen (jouw tooling).",
+        ],
+        "start": [
+            "Bied het aan bij elke installatie-/adviesklant (attach).",
+            "Neem servicecontracten over van installateurs zonder servicetak.",
+        ],
+        "eisen": [
+            "NEN 3140 voor werken aan installaties.",
+            "Heldere SLA + responstijden.",
+        ],
+        "klanten_werven": [
+            "Attach bij elke installatie/advies.",
+            "Aanbieden aan zonnepanelen-bedrijven als white-label service.",
+        ],
+        "cijfers": "100 abonnementen × €100/jaar = €10.000/jaar voorspelbaar.",
+        "risicos": [
+            "Schaalt met de klantenbasis; begint klein.",
+            "Responsverplichtingen (SLA).",
+        ],
+        "bronnen": [],
+    },
+    {
+        "naam": "🔥 Warmtepomp-advies (niet per se installatie)", "fit": "7/10",
+        "marge": "Hoog ticket", "drempel": "Midden (kennis)",
+        "waarom": "Hoge investering bij de klant → advies is waardevol; subsidies maken het complex.",
+        "wat": "Onafhankelijk advies of een warmtepomp past, welk type/vermogen, ROI en ISDE-subsidie — zonder zelf te installeren.",
+        "klant": "Huiseigenaren die twijfelen over een warmtepomp; VvE's.",
+        "verdienmodel": [
+            "Advies/haalbaarheidsrapport €250–500 per woning.",
+            "Begeleiding offertes + ISDE-subsidie.",
+            "Doorverwijzing naar installateurs (partner-fee).",
+        ],
+        "start": [
+            "Begin met advies (geen installatie-certificering nodig).",
+            "Bouw kennis op over types, vermogen, isolatie-eisen en ISDE.",
+            "Combineer met energieadvies/EPA.",
+        ],
+        "eisen": [
+            "Advies: geen verplichte certificering; installatie wel (F-gassen e.d.).",
+            "Onafhankelijkheid bewaken.",
+        ],
+        "klanten_werven": [
+            "Energieloketten, gemeente-acties, makelaars.",
+            "Content over ROI/subsidie; lokale SEO.",
+        ],
+        "cijfers": "Hoog ticket: 4 adviezen/week × €350 ≈ €1.400/week.",
+        "risicos": [
+            "Vereist gedegen kennis (verkeerd advies = ontevreden klant).",
+            "Subsidieregels veranderen.",
+        ],
+        "bronnen": [("RVO — ISDE", "https://www.rvo.nl/subsidies-financiering/isde")],
+    },
 ]
 
 
