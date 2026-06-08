@@ -123,6 +123,78 @@ REGELS_BRONNEN = [
     ("Zonneplan — regels stekkerbatterij", "https://www.zonneplan.nl/thuisbatterij/thuisbatterij-met-stekker/wet-en-regelgeving"),
 ]
 
+# Gefaseerde installateur-/advies-route — van laag budget naar gecertificeerd.
+INSTALLATEUR_ROUTE = {
+    "fases": [
+        {"fase": "Fase 1 — Adviseur + plug-in (geen certificering nodig)", "punten": [
+            "Elektricien is geen beschermd beroep — voor plug-and-play stekkerbatterijen mag je adviseren en opzetten zónder erkenning.",
+            "Bied: energie-/besparingsadvies, productkeuze, levering (reseller) en setup + aanmelding bij Energieleveren.nl.",
+            "Regel: KvK-inschrijving + bedrijfsaansprakelijkheidsverzekering (AVB).",
+            "Marge: advies/dienst hoog (~90%), batterij dun → verkoop die direct, niet via Bol.",
+        ]},
+        {"fase": "Fase 2 — Gecertificeerd voor vaste installaties", "punten": [
+            "Voor vaste batterijen/laadpalen op een groep gelden NEN 1010 (aanleg) en NEN 3140 (veilig werken).",
+            "Behaal NEN 3140 (VP/VOP) en werk richting InstallQ-erkenning (via Sterkin/KvINL).",
+            "Of partner met een gecertificeerde elektricien — jij doet advies + verkoop, hij de aansluiting.",
+            "Hogere marge per klus (€500–1.500 arbeid), hogere drempel + verzekering.",
+        ]},
+        {"fase": "Fase 3 — Opschalen & terugkerende omzet", "punten": [
+            "Reseller-deal met een merk (Marstek/Zendure/HomeWizard) voor betere inkoop.",
+            "Onderhouds-/monitoring-abonnementen = voorspelbare terugkerende omzet.",
+            "Samenwerken met zonnepanelen-installateurs (zij panelen, jij batterij/advies/laadpaal).",
+            "Eigen monteur(s) of installatie uitbesteden; jij op advies + sales.",
+        ]},
+    ],
+    "tarieven": [
+        ("Energie-/besparingsadvies", "€75–150 / sessie"),
+        ("Plug-in setup + aanmelding netbeheerder", "€100–200 / klus"),
+        ("Vaste batterij/laadpaal installatie", "€500–1.500 / klus (arbeid)"),
+        ("Onderhoud + monitoring", "€75–150 / jaar per klant"),
+    ],
+    "leads": [
+        "Lokale SEO + Google Mijn Bedrijf ('thuisbatterij installateur [jouw regio]').",
+        "Werkspot / Marktplaats / lokale Facebook-groepen voor de eerste klussen.",
+        "Gratis ROI-/besparingscalculator als leadmagnet (jouw kracht — bouw je zelf).",
+        "Partner met zonnepanelen-bedrijven en energieadviseurs.",
+        "Gemeten '€X/jaar bespaard'-content; mond-tot-mond in de wijk.",
+    ],
+    "verzekering": [
+        "Bedrijfsaansprakelijkheidsverzekering (AVB) + beroepsaansprakelijkheid voor advies.",
+        "Werk aantoonbaar volgens NEN 1010/3140; lever alleen gecertificeerde batterijen.",
+        "Leg adviezen en aansluitingen vast (foto's, opleverrapport).",
+    ],
+    "bronnen": [
+        ("InstallQ — erkenning", "https://www.installq.nl/"),
+        ("NEN 1010 / 3140 — Landport", "https://www.landportenergy.nl/energieopslag-en-regelgeving-nen-1010-en-nen-3140/"),
+        ("Schulte — certificeringen installateur", "https://schulte-energie-techniek.nl/Kennisbank/thuisbatterijen/welke-certificeringen-moet-een-installateur-hebben/"),
+    ],
+}
+
+# Meer high-value niches die bij Gerrits profiel passen (cost engineer, energie, data/tooling).
+NICHES = [
+    {"naam": "🧮 Cost engineering / calculatie als ZZP-dienst", "fit": "10/10",
+     "marge": "Zeer hoog (€75–125/uur)", "drempel": "Laag (nul kapitaal)",
+     "waarom": "Je diepste expertise: verkoop should-cost/calculatie aan MKB-maakbedrijven. "
+               "Nul voorraad, hoogste uurtarief, en het versterkt direct je baanzoektocht."},
+    {"naam": "💡 Onafhankelijk energie-/besparingsadvies", "fit": "9/10",
+     "marge": "Hoog (dienst)", "drempel": "Laag",
+     "waarom": "Warmtepomp, isolatie, zon, batterij, dynamisch contract + ISDE-subsidie. "
+               "Groeit door de energietransitie; jouw data-edge maakt het geloofwaardig."},
+    {"naam": "📊 Energiemanagement & maatwerk-dashboards voor MKB", "fit": "8/10",
+     "marge": "Hoog + terugkerend", "drempel": "Laag",
+     "waarom": "Slim laden van batterij/EV op dynamische tarieven + Power BI-dashboards. "
+               "Jouw tooling-edge en voorspelbare maandomzet."},
+    {"naam": "🔌 EV-laadpaal installatie + advies", "fit": "8/10",
+     "marge": "Goed (arbeid)", "drempel": "Midden (NEN/certificering)",
+     "waarom": "Explosieve groei; ligt naast batterij en volgt dezelfde installateur-route."},
+    {"naam": "🛠️ Onderhoud/monitoring-abonnementen", "fit": "8/10",
+     "marge": "Terugkerend", "drempel": "Laag",
+     "waarom": "Service op zonne-/batterijsystemen — voorspelbare maandomzet bovenop installaties."},
+    {"naam": "🔥 Warmtepomp-advies (niet per se installatie)", "fit": "7/10",
+     "marge": "Hoog ticket", "drempel": "Midden (kennis)",
+     "waarom": "Hoge investering bij de klant → advies is waardevol; subsidies maken het complex."},
+]
+
 
 def stuk_economie(prijs_incl, inkoop_geland, commissie_pct=BOL["commissie_pct"],
                   vaste_fee=BOL["vaste_fee"], betaal_pct=BOL["betaal_pct"],

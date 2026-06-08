@@ -42,9 +42,9 @@ fees = {
 }
 st.sidebar.caption("Bol-commissie varieert echt ~8–17% per categorie. Pas aan naar jouw situatie.")
 
-tab_calc, tab_port, tab_case, tab_markt, tab_regels = st.tabs(
+tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
-     "🌍 Markt & strategie", "📋 Regels & belasting"])
+     "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route", "💡 Meer niches"])
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -251,3 +251,42 @@ with tab_regels:
             "maakt — houd de retour-aanname realistisch.")
     st.markdown("#### Bronnen")
     st.markdown("  ·  ".join(f"[{naam}]({url})" for naam, url in m.REGELS_BRONNEN))
+
+
+# --- 6. Installateur-route -------------------------------------------------
+with tab_route:
+    st.subheader("Installateur-/advies-route — van laag budget naar gecertificeerd")
+    st.caption("Plug-in advies/setup mag zónder erkenning; vaste installaties vragen "
+               "NEN 1010/3140 + InstallQ. Gefaseerd opbouwen houdt het budget laag.")
+    r = m.INSTALLATEUR_ROUTE
+    for f in r["fases"]:
+        st.markdown(f"#### {f['fase']}")
+        for p in f["punten"]:
+            st.markdown(f"- {p}")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("#### 💶 Indicatieve tarieven")
+        st.table(pd.DataFrame(r["tarieven"], columns=["Dienst", "Tarief"]))
+    with c2:
+        st.markdown("#### 🎯 Klanten werven")
+        for x in r["leads"]:
+            st.markdown(f"- {x}")
+        st.markdown("#### 🛡️ Verzekering & risico")
+        for x in r["verzekering"]:
+            st.markdown(f"- {x}")
+
+    st.markdown("#### Bronnen")
+    st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
+
+
+# --- 7. Meer niches --------------------------------------------------------
+with tab_niches:
+    st.subheader("Meer high-value niches die bij jouw profiel passen")
+    st.caption("Gerangschikt op fit met cost engineer + energie + data/tooling.")
+    for n in m.NICHES:
+        with st.container(border=True):
+            st.markdown(f"**{n['naam']}**  ·  fit {n['fit']}  ·  marge: {n['marge']}  ·  drempel: {n['drempel']}")
+            st.caption(n["waarom"])
+    st.info("🧠 Sterkste fit: **cost engineering/calculatie als ZZP-dienst** — nul kapitaal, "
+            "hoogste uurtarief, en het versterkt je baanzoektocht. Daarna energie-/besparingsadvies.")
