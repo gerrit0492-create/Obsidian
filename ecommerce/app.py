@@ -17,7 +17,7 @@ import streamlit as st
 import model as m
 
 st.set_page_config(page_title="E-commerce planner", page_icon="🛒", layout="wide")
-st.title("🛒 E-commerce planner — home-energy / domotica")
+st.title("🛒 E-commerce planner — stekkerbatterij + installatie")
 st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
            "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
@@ -51,10 +51,11 @@ tab_calc, tab_port, tab_case, tab_markt, tab_regels = st.tabs(
 with tab_calc:
     st.subheader("Stuk-economie")
     c1, c2 = st.columns(2)
-    prijs = c1.number_input("Verkoopprijs (incl. btw) €", 1.0, 1000.0, 89.0, 1.0)
-    inkoop = c2.number_input("Geland inkoopbedrag/stuk (excl. btw) €", 0.1, 800.0, 30.0, 0.5,
-                             help="Inkoop + vracht + eventueel invoerrecht, per stuk.")
-    e = m.stuk_economie(prijs, inkoop, **fees)
+    prijs = c1.number_input("Verkoopprijs (incl. btw) €", 1.0, 5000.0, 1199.0, 1.0)
+    inkoop = c2.number_input("Geland inkoopbedrag/stuk (excl. btw) €", 0.0, 4000.0, 850.0, 5.0,
+                             help="Inkoop + vracht + eventueel invoerrecht — of materiaal/reiskosten bij een dienst.")
+    dienst = st.toggle("Dit is een dienst (installatie/advies) — geen marktplaats-fees", value=False)
+    e = m.stuk_economie(prijs, inkoop, dienst=dienst, **fees)
 
     k = st.columns(4)
     k[0].metric("Winst / stuk", eur(e["winst"]))
@@ -106,6 +107,7 @@ with tab_port:
         column_config={
             "Inkoop": st.column_config.NumberColumn("Inkoop (geland €)", format="%.2f"),
             "Prijs": st.column_config.NumberColumn("Prijs (incl. btw €)", format="%.2f"),
+            "Dienst": st.column_config.CheckboxColumn("Dienst?", help="Installatie/advies: geen marktplaats-fees"),
         })
     producten = [r for r in edited.to_dict("records") if r.get("Product")]
     st.session_state["producten"] = producten
@@ -130,6 +132,9 @@ with tab_port:
         bar.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10),
                           xaxis_title="Winst / stuk (€)", yaxis={"autorange": "reversed"})
         st.plotly_chart(bar, use_container_width=True)
+        st.info("💡 De **batterij verliest geld op een marktplaats** (Bol-commissie + prijsvergelijking). "
+                "Verkoop die **direct of bij installatie** (zet de commissie in de zijbalk op 0). "
+                "De echte winst zit in **accessoires + installatie/advies** — laag instapbudget, hoge marge.")
         st.download_button("⬇️ Download portfolio (Excel)",
                            m.df_to_excel_bytes({"Portfolio": tabel}),
                            file_name="ecommerce_portfolio.xlsx",
@@ -141,19 +146,20 @@ with tab_case:
     st.subheader("12-maands businesscase")
     producten = st.session_state.get("producten", m.STANDAARD_PRODUCTEN)
     namen = [p["Product"] for p in producten] or ["—"]
-    default_idx = next((i for i, p in enumerate(producten) if "kit" in p["Product"].lower()), 0)
-    keuze = st.selectbox("Hoofdproduct (stuurt de prognose)", namen, index=default_idx)
+    default_idx = next((i for i, p in enumerate(producten) if p.get("Dienst")), 0)
+    keuze = st.selectbox("Hoofdproduct/-dienst (stuurt de prognose)", namen, index=default_idx)
     gekozen = next((p for p in producten if p["Product"] == keuze),
-                   producten[0] if producten else {"Prijs": 89.0, "Inkoop": 30.0})
-    e = m.stuk_economie(gekozen["Prijs"], gekozen["Inkoop"], **fees)
+                   producten[0] if producten else {"Prijs": 295.0, "Inkoop": 25.0, "Dienst": True})
+    e = m.stuk_economie(gekozen["Prijs"], gekozen["Inkoop"],
+                        dienst=bool(gekozen.get("Dienst", False)), **fees)
 
     a = st.columns(4)
-    stuks1 = a[0].number_input("Stuks in maand 1", 1, 5000, 40, 5)
+    stuks1 = a[0].number_input("Stuks/klussen in maand 1", 1, 5000, 15, 1)
     groei = a[1].slider("Maandelijkse groei %", 0.0, 30.0, 10.0, 1.0) / 100
     vast = a[2].number_input("Vaste kosten / maand €", 0.0, 5000.0, 150.0, 25.0,
-                             help="Bol-abonnement, tools, opslag, enz.")
-    start = a[3].number_input("Startinvestering €", 0.0, 50000.0, 1500.0, 100.0,
-                              help="Eerste voorraadbatch + foto's + opzet.")
+                             help="Webshop/Bol, tools, verzekering, enz.")
+    start = a[3].number_input("Startinvestering €", 0.0, 50000.0, 750.0, 50.0,
+                              help="Laag starten: accessoirevoorraad + gereedschap + opzet.")
 
     prog, be = m.prognose(stuks1, groei, 12, vast, start, e["winst"], e["omzet_excl"])
     s = st.columns(4)
@@ -197,7 +203,7 @@ with tab_case:
 
 # --- 4. Markt & strategie --------------------------------------------------
 with tab_markt:
-    st.subheader("Markt & strategie — home-energy / domotica (NL)")
+    st.subheader("Markt & strategie — stekkerbatterij + installatie (NL)")
     cols = st.columns(3)
     for i, (label, val, sub) in enumerate(m.MARKT["stats"]):
         cols[i % 3].metric(label, val, sub or None)
