@@ -59,7 +59,8 @@ CONTENT = {
             ]),
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
                 "Purchasing of indirect goods and tooling; set up the workshop and tool management.",
-                "Improvement projects on safety, quality, delivery reliability and cost (Lean RCA).",
+                "Led improvement projects that raised safety, quality and delivery reliability "
+                "while taking cost out.",
             ]),
             ("2017 – 2019", "VDL ETG", "Factory Engineer", [
                 "Defined make strategy and routing for complex products; produced product documentation.",
@@ -68,11 +69,13 @@ CONTENT = {
             ("2011 – 2017", "Andritz Feed & Biofuel", "Production Supervisor", [
                 "KPI-driven leadership of the hardening shop and three production departments, "
                 "including coaching and HR.",
-                "Process improvements through DMAIC; the link between shop floor and management.",
+                "Drove structural process improvements that lifted quality, throughput and cost, "
+                "and bridged the shop floor and management.",
             ]),
             ("1987 – 2011", "DAF Trucks", "Production / Technical Engineer & Team Lead", [
                 "Process and product improvements, machine acceptance and new production-line implementation.",
-                "FMEA, 5S, DMAIC, Kaizen and CNC programming; led and trained production staff.",
+                "Cut defects and improved line flow through hands-on continuous improvement and "
+                "CNC programming; led and trained production staff.",
             ]),
         ],
         "education": ("KMBO Mechanical Engineering, Eindhoven (1985)  ·  "
@@ -112,7 +115,8 @@ CONTENT = {
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
                 "Inkoop van indirecte goederen en gereedschappen; inrichting werkplaats en "
                 "gereedschapsbeheer.",
-                "Verbeterprojecten op veiligheid, kwaliteit, leverbetrouwbaarheid en kosten (Lean RCA).",
+                "Verbeterprojecten geleid die veiligheid, kwaliteit en leverbetrouwbaarheid "
+                "verhoogden en kosten verlaagden.",
             ]),
             ("2017 – 2019", "VDL ETG", "Factory Engineer", [
                 "Maakstrategie en routing voor complexe producten; productdocumentatie.",
@@ -121,11 +125,13 @@ CONTENT = {
             ("2011 – 2017", "Andritz Feed & Biofuel", "Supervisor productie", [
                 "KPI-gedreven aansturing van de harderij en drie productieafdelingen, "
                 "inclusief coaching en HR.",
-                "Procesverbeteringen via DMAIC; schakel tussen werkvloer en management.",
+                "Structurele procesverbeteringen doorgevoerd die kwaliteit, doorlooptijd en "
+                "kosten verbeterden; schakel tussen werkvloer en management.",
             ]),
             ("1987 – 2011", "DAF Trucks", "Production / Technical Engineer & Teamleider", [
                 "Proces- en productverbeteringen, machine-afnames en implementatie nieuwe productielijnen.",
-                "FMEA, 5S, DMAIC, Kaizen en CNC-programmeren; aansturen en instrueren van medewerkers.",
+                "Defecten teruggebracht en lijnflow verbeterd met hands-on continu verbeteren en "
+                "CNC-programmeren; aansturen en instrueren van medewerkers.",
             ]),
         ],
         "education": ("KMBO Metaaltechniek, Eindhoven (1985)  ·  "
