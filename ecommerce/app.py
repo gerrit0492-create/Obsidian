@@ -26,6 +26,12 @@ def eur(x: float) -> str:
     return f"€{x:,.2f}"
 
 
+@st.cache_data
+def _startgids_bytes():
+    import startgids
+    return startgids.build_pdf_bytes(), startgids.build_excel_bytes()
+
+
 # --- Gedeelde platform-aannames (zijbalk) ----------------------------------
 st.sidebar.header("⚙️ Platform-aannames")
 st.sidebar.caption("Standaard: verkopen via Bol.nl (B2C, prijzen incl. 21% btw).")
@@ -41,6 +47,18 @@ fees = {
         help="Verplichte recyclingbijdrage voor elektronica/batterijen in NL."),
 }
 st.sidebar.caption("Bol-commissie varieert echt ~8–17% per categorie. Pas aan naar jouw situatie.")
+
+st.sidebar.divider()
+st.sidebar.markdown("#### 📘 Startgids (alles samengevat)")
+try:
+    _pdf, _xl = _startgids_bytes()
+    st.sidebar.download_button("📄 Startgids (PDF)", _pdf, file_name="Startgids_ecommerce.pdf",
+                               mime="application/pdf", use_container_width=True)
+    st.sidebar.download_button("📊 Startgids (Excel)", _xl, file_name="Startgids_ecommerce.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
+except Exception as exc:  # noqa: BLE001
+    st.sidebar.caption(f"Startgids niet beschikbaar: {exc}")
 
 tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
