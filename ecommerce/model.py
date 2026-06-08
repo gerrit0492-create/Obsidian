@@ -121,6 +121,14 @@ REGELS = {
         "Optioneel keurmerk **Thuiswinkel Waarborg** wekt vertrouwen.",
         "**Import (buiten EU):** EORI-nummer, 21% invoer-btw (terugvorderbaar) + eventueel invoerrechten — reken mee in je inkoopprijs.",
     ],
+    "🧰 Diensten & ZZP (advies/installatie)": [
+        "**ZZP/DBA:** werk met een modelovereenkomst (Belastingdienst) om schijnzelfstandigheid te voorkomen — let op de strengere DBA-handhaving sinds 2025.",
+        "**Verzekering:** beroepsaansprakelijkheid (advies) + bedrijfsaansprakelijkheid (AVB) voor installatiewerk.",
+        "**Installatie:** werk volgens **NEN 1010/3140**; streef naar InstallQ-erkenning of partner met een erkende elektricien.",
+        "**Energielabel/advies:** een officieel energielabel vereist **EP-W/EP-U (NTA 8800)** + jaarlijkse bijscholing.",
+        "**Warmtepomp/koeltechniek:** voor werk aan koudemiddelen geldt een **F-gassen-certificaat**.",
+        "**Diensten:** herroepingsrecht werkt anders dan bij producten — leg schriftelijk vast als de klant wil dat je vóór de bedenktijd start.",
+    ],
 }
 
 REGELS_BRONNEN = [
