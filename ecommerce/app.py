@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import model as m
+import ai
 
 st.set_page_config(page_title="E-commerce planner", page_icon="🛒", layout="wide")
 st.title("🛒 E-commerce planner — stekkerbatterij + installatie")
@@ -60,9 +61,10 @@ try:
 except Exception as exc:  # noqa: BLE001
     st.sidebar.caption(f"Startgids niet beschikbaar: {exc}")
 
-tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches = st.tabs(
+tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_founder = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
-     "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route", "💡 Meer niches"])
+     "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route",
+     "💡 Meer niches", "🚀 Founder-check"])
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -331,3 +333,40 @@ with tab_niches:
             st.success(f"📈 Indicatie: {n['cijfers']}")
             if n.get("bronnen"):
                 st.markdown("Bronnen: " + "  ·  ".join(f"[{a}]({b})" for a, b in n["bronnen"]))
+
+
+# --- 8. Founder-check ------------------------------------------------------
+with tab_founder:
+    st.subheader("🚀 Founder-check — pressure-test elk idee")
+    st.caption("Typ je idee in en draai de zes founder-rollen erop. Werkt met je gratis "
+               "Groq-key (Secrets); zonder key krijg je de prompts om te kopiëren.")
+    idea = st.text_area("Jouw idee / niche", placeholder="Bijv. 3D-print STL-designs voor gereedschapshouders…")
+    ctx = st.text_input("Context — doelgroep, budget, fase (optioneel)")
+    opties = [f"{p['nr']}. {p['titel']}" for p in m.FOUNDER_PROMPTS]
+    keuze = st.multiselect("Welke analyses draaien?", opties, default=opties[:3])
+
+    def _bouw_prompt(p):
+        return (f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nVolg deze stappen:\n{p['steps']}\n\n"
+                f"IDEE: {idea}\nCONTEXT: {ctx or 'niet opgegeven — benoem je aanname'}\n\n"
+                "Antwoord in het Nederlands, concreet en eerlijk; geen wollige taal. "
+                "Vraag niets terug — geef direct je analyse.")
+
+    if ai.available():
+        if st.button("Analyseer", type="primary"):
+            if not idea.strip():
+                st.warning("Vul eerst je idee in.")
+            else:
+                for p in m.FOUNDER_PROMPTS:
+                    if f"{p['nr']}. {p['titel']}" not in keuze:
+                        continue
+                    with st.spinner(f"{p['nr']}. {p['titel']}…"):
+                        out = ai.complete(_bouw_prompt(p))
+                    st.markdown(f"#### {p['nr']}. {p['titel']}")
+                    st.markdown(out or "_(geen antwoord — probeer opnieuw)_")
+                    st.divider()
+    else:
+        st.info("Geen LLM-key gevonden. Zet **GROQ_API_KEY** (gratis, geen creditcard) in Secrets "
+                "om dit automatisch te draaien. Of kopieer hieronder de prompts naar je eigen AI.")
+        for p in m.FOUNDER_PROMPTS:
+            with st.expander(f"{p['nr']}. {p['titel']}"):
+                st.code(f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nStappen:\n{p['steps']}")

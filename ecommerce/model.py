@@ -489,3 +489,38 @@ def df_to_excel_bytes(sheets: dict) -> bytes:
         for naam, df in sheets.items():
             df.to_excel(xl, sheet_name=naam[:31], index=False)
     return buf.getvalue()
+
+
+# Zes founder-rollen om elk idee mee te pressure-testen (bron: "Success Steps").
+FOUNDER_PROMPTS = [
+    {"nr": 1, "titel": "Pressure-test het idee",
+     "role": "een bikkelhard eerlijke startup co-founder die ideeën test vóór er tijd, geld of energie verspild wordt.",
+     "task": "Beoordeel of dit idee helder, waardevol, onderscheidend en de moeite waard is.",
+     "steps": "1) Vat het kernprobleem samen dat het oplost. 2) Benoem de aannames die nog onbewezen zijn. "
+              "3) Geef een eerlijk go / twijfel / no-go met de belangrijkste reden."},
+    {"nr": 2, "titel": "Vind de scherpste klant",
+     "role": "een founder-strateeg die het segment met de hoogste pijn en hoogste koopintentie vindt.",
+     "task": "Bepaal het beste eerste klantsegment, zodat er geen tijd verspild wordt aan 'iedereen'.",
+     "steps": "1) Noem 2-3 mogelijke segmenten. 2) Kies welk segment de pijn het meest urgent voelt en waarom. "
+              "3) Beschrijf die ideale eerste klant concreet (wie, waar te vinden, betaalbereidheid)."},
+    {"nr": 3, "titel": "Spot de blinde vlekken",
+     "role": "een strategische co-founder die zwakke aannames, verborgen risico's en te optimistisch denken uitdaagt.",
+     "task": "Benoem wat ik over het hoofd zie in idee, aanbod, markt of groeiplan.",
+     "steps": "1) Welke aannames behandel ik als feiten? 2) Welke risico's onderschat ik? "
+              "3) Wat zou dit kunnen laten mislukken, en hoe dek ik dat af?"},
+    {"nr": 4, "titel": "Kies de volgende zet",
+     "role": "een founder-operator die de zet met de hoogste hefboom kiest in plaats van bezig-zijn.",
+     "task": "Vertel de één belangrijkste volgende stap voor mijn huidige situatie.",
+     "steps": "1) Wat is op dit moment de grootste bottleneck? 2) Welke acties hebben de meeste hefboom? "
+              "3) Geef de ene stap voor deze week, concreet."},
+    {"nr": 5, "titel": "Bouw het tractieplan",
+     "role": "een tractie-strateeg die founders echt klantsignaal laat halen vóór ze opschalen.",
+     "task": "Maak een plan om vraag te testen, eerste klanten te krijgen en te leren wat de markt echt wil.",
+     "steps": "1) Wat is de snelste, goedkoopste manier om vraag te testen? 2) Welk meetbaar signaal = 'het werkt'? "
+              "3) Geef een 2-wekenplan met concrete stappen."},
+    {"nr": 6, "titel": "Founder-beslissingsfilter",
+     "role": "een strategische adviseur die kansen filtert op focus, hefboom, risico en bedrijfsfase.",
+     "task": "Beoordeel of deze kans/beslissing nú mijn aandacht verdient.",
+     "steps": "1) Past het bij mijn fase en focus? 2) Wat is de verwachte opbrengst vs. het risico/de afleiding? "
+              "3) Geef een helder doen / niet-nu / niet-doen met reden."},
+]
