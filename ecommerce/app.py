@@ -61,10 +61,10 @@ try:
 except Exception as exc:  # noqa: BLE001
     st.sidebar.caption(f"Startgids niet beschikbaar: {exc}")
 
-tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_founder = st.tabs(
+tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_scan, tab_founder = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
      "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route",
-     "💡 Meer niches", "🚀 Founder-check"])
+     "💡 Meer niches", "🔎 Niche-scan", "🚀 Founder-check"])
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -370,3 +370,64 @@ with tab_founder:
         for p in m.FOUNDER_PROMPTS:
             with st.expander(f"{p['nr']}. {p['titel']}"):
                 st.code(f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nStappen:\n{p['steps']}")
+
+
+# --- 9. Niche-scan ---------------------------------------------------------
+with tab_scan:
+    st.subheader("🔎 Niche-scan — kies flexibel, zie of het iets is")
+    st.caption("Typ een niche, scoor 'm op 6 criteria → score + verdict. Voeg toe om te vergelijken.")
+    naam = st.text_input("Niche", key="scan_naam",
+                         placeholder="Bijv. 3D-print STL functioneel, printables bruiloft, POD volleybal…")
+
+    if ai.available():
+        if st.button("🤖 AI-tweede mening", key="scan_ai"):
+            if naam.strip():
+                prompt = (f"Beoordeel kort en eerlijk de e-commerce niche '{naam}' voor een Nederlandse "
+                          "starter met laag budget. Geef per criterium een cijfer 1-5: vraag&groei, "
+                          "marge/ROI, concurrentie (1=veel..5=weinig), investering/risico (1=hoog..5=laag), "
+                          "fit voor een technische cost-engineer, en moat/herhaalaankoop. Sluit af met "
+                          "één zin advies. Antwoord bondig in het Nederlands.")
+                with st.spinner("AI denkt na…"):
+                    out = ai.complete(prompt, 500)
+                st.info(out or "Geen antwoord — vul de scores zelf in.")
+            else:
+                st.warning("Vul eerst een niche in.")
+
+    cols = st.columns(2)
+    scores = {}
+    for i, (key, label, help_, _omg, _w) in enumerate(m.SCAN_CRITERIA):
+        scores[key] = cols[i % 2].slider(label, 1, 5, 3, help=help_, key=f"scan_{key}")
+    pct, verdict = m.score_niche(scores)
+
+    top = st.columns([1, 2])
+    top[0].metric("Score", f"{pct}/100", verdict)
+    eff = m.scan_effectief(scores)
+    radar = go.Figure(go.Scatterpolar(
+        r=list(eff.values()) + [list(eff.values())[0]],
+        theta=list(eff.keys()) + [list(eff.keys())[0]],
+        fill="toself", line_color="#2a9d8f"))
+    radar.update_layout(height=320, margin=dict(l=30, r=30, t=20, b=20),
+                        polar=dict(radialaxis=dict(range=[0, 5], visible=True)), showlegend=False)
+    top[1].plotly_chart(radar, use_container_width=True)
+    st.caption("Radar toont de effectieve score (hoger = beter; concurrentie/investering zijn al omgedraaid).")
+
+    if st.button("➕ Voeg toe aan vergelijking", key="scan_add", type="primary"):
+        if naam.strip():
+            row = {"Niche": naam, "Score": pct, "Verdict": verdict, **eff}
+            st.session_state.setdefault("scans", []).append(row)
+        else:
+            st.warning("Geef de niche eerst een naam.")
+
+    scans = st.session_state.get("scans", [])
+    if scans:
+        df = pd.DataFrame(scans).sort_values("Score", ascending=False).reset_index(drop=True)
+        st.markdown("#### Vergelijking (beste bovenaan)")
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        cc = st.columns(2)
+        cc[0].download_button("⬇️ Vergelijking (Excel)", m.df_to_excel_bytes({"Niche-scan": df}),
+                              file_name="niche_scan.xlsx",
+                              mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                              use_container_width=True)
+        if cc[1].button("🗑️ Leeg de vergelijking", key="scan_clear", use_container_width=True):
+            st.session_state["scans"] = []
+            st.rerun()

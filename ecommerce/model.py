@@ -524,3 +524,42 @@ FOUNDER_PROMPTS = [
      "steps": "1) Past het bij mijn fase en focus? 2) Wat is de verwachte opbrengst vs. het risico/de afleiding? "
               "3) Geef een helder doen / niet-nu / niet-doen met reden."},
 ]
+
+
+# Niche-scan: scoor elke niche flexibel op 6 criteria → score 0-100 + verdict.
+# (key, label, help, omgekeerd?, gewicht) — 'omgekeerd' = lager is beter.
+SCAN_CRITERIA = [
+    ("vraag", "Vraag & groei", "Is er (stijgende) vraag naar deze niche?", False, 25),
+    ("marge", "Marge / ROI", "Hoge marge en weinig kapitaal nodig?", False, 25),
+    ("concurrentie", "Concurrentie", "Hoeveel concurrentie? (lager = beter)", True, 15),
+    ("investering", "Investering / risico", "Hoge investering of voorraadrisico? (lager = beter)", True, 15),
+    ("fit", "Jouw fit / edge", "Past het bij jouw kennis, interesse of voorsprong?", False, 10),
+    ("moat", "Moat / herhaling", "Moeilijk te kopiëren of herhaalaankoop?", False, 10),
+]
+
+
+def score_niche(scores: dict) -> tuple[float, str]:
+    """Gewogen score 0-100 + verdict uit losse 1-5 scores per criterium."""
+    total = maxw = 0.0
+    for key, _label, _help, omgekeerd, gewicht in SCAN_CRITERIA:
+        s = max(1, min(5, int(scores.get(key, 3))))
+        eff = (6 - s) if omgekeerd else s
+        total += gewicht * (eff / 5)
+        maxw += gewicht
+    pct = round(100 * total / maxw)
+    if pct >= 70:
+        verdict = "🟢 De moeite waard"
+    elif pct >= 50:
+        verdict = "🟡 Klein testen"
+    else:
+        verdict = "🔴 Overslaan"
+    return pct, verdict
+
+
+def scan_effectief(scores: dict) -> dict:
+    """Effectieve score per criterium (omgekeerde meegerekend) — voor de radar."""
+    out = {}
+    for key, label, _help, omgekeerd, _gewicht in SCAN_CRITERIA:
+        s = max(1, min(5, int(scores.get(key, 3))))
+        out[label] = (6 - s) if omgekeerd else s
+    return out
