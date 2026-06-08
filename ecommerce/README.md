@@ -1,39 +1,43 @@
 # E-commerce planner — home-energy / domotica (NL)
 
-A planning dashboard for launching a smart-home / energy-saving webshop in the
-Netherlands. Built for a cost engineer: explicit unit economics, a product
-portfolio comparison, a 12-month business case, and the market/strategy — with
-Excel export throughout.
+Een planningsdashboard voor het starten van een smart-home / energiebespaar-webshop
+in Nederland. Gemaakt voor een cost engineer: expliciete stuk-economie, een
+productportfolio-vergelijking, een 12-maands businesscase, de markt/strategie én de
+**Nederlandse regels & belasting** — met Excel-export door alles heen.
 
-> All numbers are **researched estimates to validate**, not promises. Edit
-> everything to your own reality (sourcing quotes, real Bol fees, your CAC).
+> Alle getallen zijn **onderbouwde schattingen om te valideren**, geen beloftes.
+> Pas alles aan naar je eigen situatie (inkoopofferte, echte Bol-fees, jouw CAC).
+> De Regels-sectie is algemene info — **geen juridisch of fiscaal advies**.
 
-## What's inside
-- **🧮 Margin calculator** — per-unit economics for one product: revenue ex VAT,
-  marketplace commission, fixed fee, payment, shipping, returns and ad cost →
-  profit/unit, margin %, markup, with a cost-waterfall and a plain-language verdict.
-- **📦 Product portfolio** — an editable table of products (pre-loaded with a
-  home-energy/domotica starter set) ranked by profit/unit, with an Excel export.
-- **📈 Business case** — pick a lead product, set volume/growth/fixed costs/startup
-  budget → a 12-month cash projection, break-even month, and a full Excel export.
-- **🌍 Market & strategy** — NL/EU smart-home market size & growth, the segments to
-  avoid (incumbents), your beachhead, your moat, the risks, and sources.
+## Wat zit erin
+- **🧮 Marge-calculator** — stuk-economie per product: omzet excl. btw, commissie,
+  vaste fee, betaalkosten, verzending, retouren, advertentie én verwijderingsbijdrage
+  → winst/stuk, marge %, opslag, met een kostenwaterval en een verdict in gewone taal.
+- **📦 Productportfolio** — een aanpasbare tabel (voorzien van een home-energy/domotica
+  startset) gerangschikt op winst/stuk, met Excel-export.
+- **📈 Businesscase** — kies een hoofdproduct, zet aantallen/groei/vaste kosten/start­budget
+  → een 12-maands cashprognose, break-even-maand en een volledige Excel-export.
+- **🌍 Markt & strategie** — NL/EU marktomvang & groei, segmenten om te vermijden
+  (gevestigde spelers), je beachhead, je moat, de risico's en bronnen.
+- **📋 Regels & belasting** — KvK, btw & KOR, consumentenrecht (14 dagen bedenktijd,
+  wettelijke garantie), CE/RED, WEEE/batterijbijdrage, AVG, import — met bronnen.
 
-## The headline insight (already visible in the defaults)
-A single €19.95 smart plug nets **~€0.27** — marketplace fees + ad cost eat it.
-The **€89 starter kit nets ~€22 (≈30% margin)**. Sell **bundles/kits**, not cheap
-commodity devices.
+## Het kerninzicht (al zichtbaar in de standaardwaarden)
+Eén losse stekker van €19,95 levert **~€0,17** op — fees + advertentiekosten eten hem op.
+De **starterskit van €89 levert ~€22 (≈30% marge)**. Verkoop **bundels/kits**, geen
+goedkope losse apparaten.
 
-## Run
+## Starten
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
-Opens at http://localhost:8501. `model.py` holds the pure math (no Streamlit) and
-is unit-testable on its own.
+Opent op http://localhost:8501. `model.py` bevat de zuivere reken-logica (zonder
+Streamlit) en is los testbaar.
 
-## Adjust to reality before trusting it
-- Get a real **sourcing quote** (Alibaba) for landed cost incl. inbound freight.
-- Check the **Bol commission** for your category (it varies ~8–17%).
-- Use **certified (CE/RED)** white-label devices — don't build your own mains radios.
-- Treat ad cost (CAC) as the swing factor; it's what makes or breaks low-price items.
+## Maak het kloppend vóór je erop vertrouwt
+- Vraag een echte **inkoopofferte** (Alibaba) voor het gelande inkoopbedrag incl. vracht.
+- Check de **Bol-commissie** voor jouw categorie (varieert ~8–17%).
+- Gebruik **gecertificeerde (CE/RED)** white-label apparaten — bouw geen eigen radio's.
+- Behandel advertentiekosten (CAC) als de doorslaggevende factor bij goedkope artikelen.
+- Houd rekening met de **Nederlandse regels** in het tabblad Regels & belasting.
