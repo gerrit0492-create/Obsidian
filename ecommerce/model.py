@@ -103,6 +103,13 @@ REGELS = {
         "**Gecertificeerde cellen:** verkoop merken met **CE + IEC 62619 + UN38.3**; geen onbekende import (brand-/aansprakelijkheidsrisico).",
         "**EU-batterijverordening 2023/1542:** batterijpaspoort (QR) vanaf 2027 + WEEE/inzamelplicht.",
     ],
+    "🇨🇳 Inkoop uit China — veilig & gecertificeerd": [
+        "Eis altijd **CE volgens IEC 62619** (energieopslag) / **IEC 62133** (cellen) + **UN38.3** (transport).",
+        "Let op: **CE = veiligheid, niet kwaliteit** — een CE-sticker zegt niets over levensduur of cel-kwaliteit.",
+        "Vraag de **Declaration of Conformity + testrapporten** op en verifieer bij een notified body (bv. DEKRA Arnhem) — zelf-verklaarde of valse CE komt voor.",
+        "Koop bij **gevestigde merken/cellen** (CATL, EVE, BYD, Pylontech, Dyness, Growatt, Deye) — geen onbekende no-name import.",
+        "Als **importeur ben jij de 'producent'** in de EU: jij draagt de aansprakelijkheid, WEEE/batterij-registratie en het batterijpaspoort.",
+    ],
     "🛒 Consumentenrecht (verplicht)": [
         "**14 dagen bedenktijd** (herroepingsrecht) bij online verkoop — let op: voor diensten/installatie gelden aparte regels.",
         "**Wettelijke garantie (conformiteit):** product/dienst moet doen wat de klant mag verwachten.",
@@ -121,6 +128,8 @@ REGELS_BRONNEN = [
     ("Belastingdienst — KOR", "https://www.belastingdienst.nl/wps/wcm/connect/nl/btw/content/hulpmiddel-kleineondernemersregeling"),
     ("Energieleveren.nl — aanmelden batterij", "https://www.energieleveren.nl/"),
     ("Zonneplan — regels stekkerbatterij", "https://www.zonneplan.nl/thuisbatterij/thuisbatterij-met-stekker/wet-en-regelgeving"),
+    ("Intertek — IEC 62133 batterijveiligheid", "https://www.intertek.com/batteries/iec-62133/"),
+    ("Thuisbatterij NL — Chinese batterijen", "https://thuisbatterijnederland.nl/chinese-thuisbatterijen/"),
 ]
 
 # Gefaseerde installateur-/advies-route — van laag budget naar gecertificeerd.
