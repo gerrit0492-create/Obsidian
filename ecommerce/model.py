@@ -46,7 +46,7 @@ MARKT = {
         ("Europa smart homes (2024)", "€25,3 mld", ""),
         ("Europa smart homes (2033)", "€44,0 mld", "6,3% groei/jr"),
         ("Groei Zigbee-apparaten", "~9,2%/jr", "tot 2035"),
-        ("NL huishoudens met hond", "1,8 mln", "context: dier-niche"),
+        ("NL thuisbatterij-installaties (2025)", "~88.000", "≈4× t.o.v. 2024"),
     ],
     "segmenten": {
         "Beveiliging & toegang (camera's, sloten, sensoren)": 31.65,
