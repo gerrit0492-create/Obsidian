@@ -568,7 +568,9 @@ with tab_founder:
         return (f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nVolg deze stappen:\n{p['steps']}\n\n"
                 f"IDEE: {idea}\nCONTEXT: {ctx or 'niet opgegeven — benoem je aanname'}\n\n"
                 "Antwoord in het Nederlands, concreet en eerlijk; geen wollige taal. "
-                "Vraag niets terug — geef direct je analyse.")
+                "Vraag niets terug en geef een VOLLEDIG, beslissend antwoord — maak redelijke "
+                "aannames en eindig met een duidelijke conclusie. Zeg NIET dat verdere analyse "
+                "nodig is en laat je antwoord niet halverwege stoppen.")
 
     if ai.available():
         if st.button("Analyseer", type="primary"):
@@ -579,7 +581,7 @@ with tab_founder:
                     if f"{p['nr']}. {p['titel']}" not in keuze:
                         continue
                     with st.spinner(f"{p['nr']}. {p['titel']}…"):
-                        out = ai.complete(_bouw_prompt(p))
+                        out = ai.complete(_bouw_prompt(p), 1400)
                     st.markdown(f"#### {p['nr']}. {p['titel']}")
                     st.markdown(out or "_(geen antwoord — probeer opnieuw)_")
                     st.divider()
@@ -605,9 +607,10 @@ with tab_scan:
                           "starter met laag budget. Geef per criterium een cijfer 1-5: vraag&groei, "
                           "marge/ROI, concurrentie (1=veel..5=weinig), investering/risico (1=hoog..5=laag), "
                           "fit voor een technische cost-engineer, en moat/herhaalaankoop. Sluit af met "
-                          "één zin advies. Antwoord bondig in het Nederlands.")
+                          "één zin advies. Antwoord volledig en beslissend in het Nederlands; "
+                          "zeg niet dat verdere analyse nodig is.")
                 with st.spinner("AI denkt na…"):
-                    out = ai.complete(prompt, 500)
+                    out = ai.complete(prompt, 900)
                 st.info(out or "Geen antwoord — vul de scores zelf in.")
             else:
                 st.warning("Vul eerst een niche in.")
@@ -668,6 +671,8 @@ with tab_onderzoek:
                 if st.button(f"🤖 AI voor «{_niche_label}»", key=f"btn_{_ogk}"):
                     with st.spinner("AI denkt na…"):
                         st.session_state[_ogk] = ai.complete(
-                            _blok["prompt"].format(niche=_np) + " Antwoord bondig in het Nederlands.", 700)
+                            _blok["prompt"].format(niche=_np) + " Antwoord volledig en beslissend in "
+                            "het Nederlands; maak aannames waar nodig en zeg niet dat verdere "
+                            "analyse nodig is.", 1200)
                 if st.session_state.get(_ogk):
                     st.markdown(st.session_state[_ogk])
