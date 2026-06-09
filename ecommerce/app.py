@@ -287,9 +287,20 @@ with tab_case:
     e = m.stuk_economie(gekozen["Prijs"], gekozen["Inkoop"],
                         dienst=bool(gekozen.get("Dienst", False)), **fees)
 
+    # Eenheid bepalen: een dienst-per-uur rekent in uren, andere diensten in klussen.
+    if gekozen.get("Dienst") and "uur" in (keuze or "").lower():
+        _eenheid, _qlabel = "uur", "Declarabele uren / maand"
+    elif gekozen.get("Dienst"):
+        _eenheid, _qlabel = "klus", "Klussen / maand"
+    else:
+        _eenheid, _qlabel = "stuk", "Stuks / maand"
+    if _eenheid == "uur":
+        st.caption(f"💼 Dienst per uur: **{eur(gekozen['Prijs'])}/uur** tarief, "
+                   f"**{eur(gekozen['Inkoop'])}/uur** kosten → **{eur(e['winst'])}/uur** winst.")
+
     _bc = (NS.get(actieve_niche) or {}).get("bc", {})
     a = st.columns(4)
-    stuks1 = a[0].number_input("Stuks/klussen in maand 1", 1, 5000, int(_bc.get("stuks", 15)), 1,
+    stuks1 = a[0].number_input(_qlabel, 1, 5000, int(_bc.get("stuks", 15)), 1,
                                key=f"bc_stuks_{_niche_key}")
     groei = a[1].slider("Maandelijkse groei %", 0.0, 30.0, float(_bc.get("groei", 10.0)), 1.0,
                         key=f"bc_groei_{_niche_key}") / 100
@@ -301,7 +312,7 @@ with tab_case:
 
     prog, be = m.prognose(stuks1, groei, 12, vast, start, e["winst"], e["omzet_excl"])
     s = st.columns(4)
-    s[0].metric("Winst / stuk", eur(e["winst"]))
+    s[0].metric(f"Winst / {_eenheid}", eur(e["winst"]))
     s[1].metric("Jaar-1 omzet (excl. btw)", eur(prog["Omzet (excl. btw)"].sum()))
     s[2].metric("Jaar-1 netto", eur(prog["Netto/maand"].sum()))
     s[3].metric("Break-even", f"Maand {be}" if be else "niet in 12 mnd")
