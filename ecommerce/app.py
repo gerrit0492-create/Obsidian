@@ -33,22 +33,49 @@ def _startgids_bytes():
     return startgids.build_pdf_bytes(), startgids.build_excel_bytes()
 
 
-# --- Gedeelde platform-aannames (zijbalk) ----------------------------------
-st.sidebar.header("⚙️ Platform-aannames")
-st.sidebar.caption("Standaard: verkopen via Bol.nl (B2C, prijzen incl. 21% btw).")
+# --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
+st.sidebar.header("🎯 Actieve niche")
+_scan_namen = [s["Niche"] for s in st.session_state.get("scans", [])]
+_niche_opties, _seen = [], set()
+for _n in ["(eigen / vrij)"] + [n["naam"] for n in m.NICHES] + _scan_namen:
+    if _n not in _seen:
+        _seen.add(_n)
+        _niche_opties.append(_n)
+actieve_niche = st.sidebar.selectbox(
+    "Kies niche", _niche_opties, key="actieve_niche", label_visibility="collapsed",
+    help="Stuurt titel, portfolio, businesscase, markt, regels en de Niche-scan/Founder-check.")
+if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != actieve_niche:
+    st.session_state["scan_naam"] = actieve_niche
+    st.session_state["founder_idea"] = actieve_niche
+st.session_state["_last_niche"] = actieve_niche
+
+# --- Platform-aannames — bewegen mee met de niche --------------------------
+_portf = m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
+_heeft_producten = any(not p.get("Dienst") for p in _portf)
+st.sidebar.divider()
+if _heeft_producten:
+    st.sidebar.header("⚙️ Platform-aannames")
+    st.sidebar.caption("Standaard: verkopen via Bol.nl (B2C, prijzen incl. 21% btw).")
+    _box = st.sidebar
+else:
+    st.sidebar.markdown("### ⚙️ Platform-aannames")
+    _box = st.sidebar.expander("Marktplaats-fees (alleen nodig bij producten)")
+    _box.caption("Deze niche is dienst-gericht — fees gelden alleen als je producten toevoegt.")
 fees = {
-    "commissie_pct": st.sidebar.slider("Commissie %", 0.0, 25.0, m.BOL["commissie_pct"] * 100, 0.5) / 100,
-    "vaste_fee": st.sidebar.number_input("Vaste fee/artikel (€)", 0.0, 5.0, m.BOL["vaste_fee"], 0.05),
-    "betaal_pct": st.sidebar.slider("Betaalkosten %", 0.0, 5.0, m.BOL["betaal_pct"] * 100, 0.1) / 100,
-    "verzending": st.sidebar.number_input("Verzending naar klant (€)", 0.0, 15.0, m.BOL["verzending"], 0.25),
-    "retour_pct": st.sidebar.slider("Retouren %", 0.0, 30.0, m.BOL["retour_pct"] * 100, 1.0) / 100,
-    "advertentie": st.sidebar.number_input("Advertentie/verkoop — CAC (€)", 0.0, 30.0, m.BOL["advertentie"], 0.25),
-    "verwijderingsbijdrage": st.sidebar.number_input(
+    "commissie_pct": _box.slider("Commissie %", 0.0, 25.0, m.BOL["commissie_pct"] * 100, 0.5) / 100,
+    "vaste_fee": _box.number_input("Vaste fee/artikel (€)", 0.0, 5.0, m.BOL["vaste_fee"], 0.05),
+    "betaal_pct": _box.slider("Betaalkosten %", 0.0, 5.0, m.BOL["betaal_pct"] * 100, 0.1) / 100,
+    "verzending": _box.number_input("Verzending naar klant (€)", 0.0, 15.0, m.BOL["verzending"], 0.25),
+    "retour_pct": _box.slider("Retouren %", 0.0, 30.0, m.BOL["retour_pct"] * 100, 1.0) / 100,
+    "advertentie": _box.number_input("Advertentie/verkoop — CAC (€)", 0.0, 30.0, m.BOL["advertentie"], 0.25),
+    "verwijderingsbijdrage": _box.number_input(
         "Verwijderingsbijdrage WEEE/batterij (€)", 0.0, 2.0, m.BOL["verwijderingsbijdrage"], 0.05,
         help="Verplichte recyclingbijdrage voor elektronica/batterijen in NL."),
 }
-st.sidebar.caption("Bol-commissie varieert echt ~8–17% per categorie. Pas aan naar jouw situatie.")
+if _heeft_producten:
+    st.sidebar.caption("Bol-commissie varieert ~8–17% per categorie. Pas aan naar jouw situatie.")
 
+# --- Startgids -------------------------------------------------------------
 st.sidebar.divider()
 st.sidebar.markdown("#### 📘 Startgids (alles samengevat)")
 try:
@@ -61,33 +88,25 @@ try:
 except Exception as exc:  # noqa: BLE001
     st.sidebar.caption(f"Startgids niet beschikbaar: {exc}")
 
-# --- Gedeelde 'actieve niche' (werkt door alle tabs heen) -------------------
-st.sidebar.divider()
-_scan_namen = [s["Niche"] for s in st.session_state.get("scans", [])]
-_niche_opties, _seen = [], set()
-for _n in ["(eigen / vrij)"] + [n["naam"] for n in m.NICHES] + _scan_namen:
-    if _n not in _seen:
-        _seen.add(_n)
-        _niche_opties.append(_n)
-actieve_niche = st.sidebar.selectbox(
-    "🎯 Actieve niche", _niche_opties, key="actieve_niche",
-    help="Vult automatisch de Niche-scan en Founder-check in.")
-if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != actieve_niche:
-    st.session_state["scan_naam"] = actieve_niche
-    st.session_state["founder_idea"] = actieve_niche
-st.session_state["_last_niche"] = actieve_niche
-
 _niche_label = actieve_niche if actieve_niche != "(eigen / vrij)" else "stekkerbatterij + installatie"
 _niche_key = re.sub(r"\W+", "_", actieve_niche).strip("_") or "vrij"
+_niche = next((n for n in m.NICHES if n["naam"] == actieve_niche), None)  # None = batterij/eigen
+# Installateur-route tonen bij batterij (eigen/vrij) of een installatie-niche.
+show_route = (actieve_niche == "(eigen / vrij)") or (actieve_niche in m.INSTALLATIE_NICHES)
 with _header:
     st.title(f"🛒 E-commerce planner — {_niche_label}")
     st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
                "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
-tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_scan, tab_founder = st.tabs(
-    ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
-     "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route",
-     "💡 Meer niches", "🔎 Niche-scan", "🚀 Founder-check"])
+_labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
+           "🌍 Markt & strategie", "📋 Regels & belasting"]
+if show_route:
+    _labels.append("🧰 Installateur-route")
+_labels += ["💡 Meer niches", "🔎 Niche-scan", "🚀 Founder-check"]
+_it = iter(st.tabs(_labels))
+tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
+tab_route = next(_it) if show_route else None
+tab_niches = next(_it); tab_scan = next(_it); tab_founder = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -250,81 +269,112 @@ with tab_case:
 
 # --- 4. Markt & strategie --------------------------------------------------
 with tab_markt:
-    st.subheader("Markt & strategie — stekkerbatterij + installatie (NL)")
-    cols = st.columns(3)
-    for i, (label, val, sub) in enumerate(m.MARKT["stats"]):
-        cols[i % 3].metric(label, val, sub or None)
-
-    seg = m.MARKT["segmenten"]
-    pie = go.Figure(go.Pie(labels=list(seg), values=list(seg.values()), hole=0.5))
-    pie.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
-                      title="Smart-home omzet per segment (EU, %)")
-    st.plotly_chart(pie, use_container_width=True)
-
-    g1, g2 = st.columns(2)
-    with g1:
-        st.markdown("#### 🎯 Jouw beachhead")
-        for x in m.MARKT["beachhead"]:
+    if _niche:
+        st.subheader(f"Markt & strategie — {_niche['naam']}")
+        st.caption(_niche["waarom"])
+        st.markdown(f"**Wat & voor wie** — {_niche['wat']}")
+        st.markdown(f"_Klant:_ {_niche['klant']}")
+        st.markdown("**Verdienmodel & tarieven**")
+        for x in _niche["verdienmodel"]:
             st.markdown(f"- {x}")
-        st.markdown("#### 🧠 Jouw moat")
-        for x in m.MARKT["moat"]:
-            st.markdown(f"- {x}")
-    with g2:
-        st.markdown("#### 🚫 Hier niet concurreren")
-        for x in m.MARKT["vermijden"]:
-            st.markdown(f"- {x}")
-        st.markdown("#### ⚠️ Risico's om te beheersen")
-        for x in m.MARKT["risicos"]:
-            st.markdown(f"- {x}")
-
-    st.markdown("#### Bronnen")
-    st.markdown("  ·  ".join(f"[{naam}]({url})" for naam, url in m.MARKT["bronnen"]))
+        gg1, gg2 = st.columns(2)
+        with gg1:
+            st.markdown("#### 🎯 Hoe te starten")
+            for x in _niche["start"]:
+                st.markdown(f"- {x}")
+            st.markdown("#### 🧠 Eisen / certificering")
+            for x in _niche["eisen"]:
+                st.markdown(f"- {x}")
+        with gg2:
+            st.markdown("#### 📣 Klanten werven")
+            for x in _niche["klanten_werven"]:
+                st.markdown(f"- {x}")
+            st.markdown("#### ⚠️ Risico's")
+            for x in _niche["risicos"]:
+                st.markdown(f"- {x}")
+        st.success(f"📈 Indicatie: {_niche['cijfers']}")
+        if _niche.get("bronnen"):
+            st.markdown("#### Bronnen")
+            st.markdown("  ·  ".join(f"[{a}]({b})" for a, b in _niche["bronnen"]))
+    else:
+        st.subheader("Markt & strategie — stekkerbatterij + installatie (NL)")
+        cols = st.columns(3)
+        for i, (label, val, sub) in enumerate(m.MARKT["stats"]):
+            cols[i % 3].metric(label, val, sub or None)
+        seg = m.MARKT["segmenten"]
+        pie = go.Figure(go.Pie(labels=list(seg), values=list(seg.values()), hole=0.5))
+        pie.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
+                          title="Smart-home omzet per segment (EU, %)")
+        st.plotly_chart(pie, use_container_width=True)
+        g1, g2 = st.columns(2)
+        with g1:
+            st.markdown("#### 🎯 Jouw beachhead")
+            for x in m.MARKT["beachhead"]:
+                st.markdown(f"- {x}")
+            st.markdown("#### 🧠 Jouw moat")
+            for x in m.MARKT["moat"]:
+                st.markdown(f"- {x}")
+        with g2:
+            st.markdown("#### 🚫 Hier niet concurreren")
+            for x in m.MARKT["vermijden"]:
+                st.markdown(f"- {x}")
+            st.markdown("#### ⚠️ Risico's om te beheersen")
+            for x in m.MARKT["risicos"]:
+                st.markdown(f"- {x}")
+        st.markdown("#### Bronnen")
+        st.markdown("  ·  ".join(f"[{naam}]({url})" for naam, url in m.MARKT["bronnen"]))
 
 
 # --- 5. Regels & belasting -------------------------------------------------
 with tab_regels:
-    st.subheader("Nederlandse regels & regelgeving voor je webshop")
-    st.caption("Algemene informatie om rekening mee te houden — geen juridisch of fiscaal advies. "
+    st.subheader("Nederlandse regels & regelgeving")
+    st.caption(f"Specifiek voor **{_niche_label}** — algemene info, geen juridisch of fiscaal advies. "
                "Check je eigen situatie bij KvK en Belastingdienst.")
+    if _niche:  # dienst-niche → algemene + diensten-secties (geen batterij/China)
+        items = [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]
+    else:       # batterij/eigen → alle secties
+        items = list(m.REGELS.items())
     cols = st.columns(2)
-    for i, (titel, punten) in enumerate(m.REGELS.items()):
+    for i, (titel, punten) in enumerate(items):
         with cols[i % 2]:
             st.markdown(f"#### {titel}")
             for p in punten:
                 st.markdown(f"- {p}")
 
-    st.info("💡 Twee dingen die je marge raken (al meegerekend): de **verwijderingsbijdrage** "
-            "(WEEE/batterij) per stuk, en het **14-daagse retourrecht** dat retouren onvermijdelijk "
-            "maakt — houd de retour-aanname realistisch.")
+    if not _niche:
+        st.info("💡 Twee dingen die je marge raken (al meegerekend): de **verwijderingsbijdrage** "
+                "(WEEE/batterij) per stuk, en het **14-daagse retourrecht** dat retouren onvermijdelijk "
+                "maakt — houd de retour-aanname realistisch.")
     st.markdown("#### Bronnen")
     st.markdown("  ·  ".join(f"[{naam}]({url})" for naam, url in m.REGELS_BRONNEN))
 
 
 # --- 6. Installateur-route -------------------------------------------------
-with tab_route:
-    st.subheader("Installateur-/advies-route — van laag budget naar gecertificeerd")
-    st.caption("Plug-in advies/setup mag zónder erkenning; vaste installaties vragen "
-               "NEN 1010/3140 + InstallQ. Gefaseerd opbouwen houdt het budget laag.")
-    r = m.INSTALLATEUR_ROUTE
-    for f in r["fases"]:
-        st.markdown(f"#### {f['fase']}")
-        for p in f["punten"]:
-            st.markdown(f"- {p}")
+if tab_route is not None:  # alleen zichtbaar bij batterij / installatie-niches
+    with tab_route:
+        st.subheader("Installateur-/advies-route — van laag budget naar gecertificeerd")
+        st.caption("Plug-in advies/setup mag zónder erkenning; vaste installaties vragen "
+                   "NEN 1010/3140 + InstallQ. Gefaseerd opbouwen houdt het budget laag.")
+        r = m.INSTALLATEUR_ROUTE
+        for f in r["fases"]:
+            st.markdown(f"#### {f['fase']}")
+            for p in f["punten"]:
+                st.markdown(f"- {p}")
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("#### 💶 Indicatieve tarieven")
-        st.table(pd.DataFrame(r["tarieven"], columns=["Dienst", "Tarief"]))
-    with c2:
-        st.markdown("#### 🎯 Klanten werven")
-        for x in r["leads"]:
-            st.markdown(f"- {x}")
-        st.markdown("#### 🛡️ Verzekering & risico")
-        for x in r["verzekering"]:
-            st.markdown(f"- {x}")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### 💶 Indicatieve tarieven")
+            st.table(pd.DataFrame(r["tarieven"], columns=["Dienst", "Tarief"]))
+        with c2:
+            st.markdown("#### 🎯 Klanten werven")
+            for x in r["leads"]:
+                st.markdown(f"- {x}")
+            st.markdown("#### 🛡️ Verzekering & risico")
+            for x in r["verzekering"]:
+                st.markdown(f"- {x}")
 
-    st.markdown("#### Bronnen")
-    st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
+        st.markdown("#### Bronnen")
+        st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
 
 
 # --- 7. Meer niches (diep uitgewerkt) --------------------------------------

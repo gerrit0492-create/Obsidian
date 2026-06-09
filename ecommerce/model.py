@@ -601,3 +601,18 @@ NICHE_PORTFOLIOS = {
         {"Product": "Doorverwijsfee (partner)", "Inkoop": 0.0, "Prijs": 100.0, "Dienst": True},
     ],
 }
+
+
+# Welke regel-secties zijn algemeen (gelden voor diensten-niches, zonder batterij/China).
+REGELS_ALGEMEEN = [
+    "🏢 Inschrijving & belasting",
+    "🛒 Consumentenrecht (verplicht)",
+    "🔒 Online, privacy & import",
+    "🧰 Diensten & ZZP (advies/installatie)",
+]
+
+# Niches waarbij de installateur-/montageroute relevant is (fysieke installatie).
+INSTALLATIE_NICHES = {
+    "🔌 EV-laadpaal installatie + advies",
+    "🛠️ Onderhoud/monitoring-abonnementen",
+}
