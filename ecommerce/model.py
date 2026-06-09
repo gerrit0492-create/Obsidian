@@ -563,3 +563,41 @@ def scan_effectief(scores: dict) -> dict:
         s = max(1, min(5, int(scores.get(key, 3))))
         out[label] = (6 - s) if omgekeerd else s
     return out
+
+
+# Producten/diensten per niche → vult de portfolio zodra je de actieve niche kiest.
+# (Niche-naam exact gelijk aan NICHES[*]['naam']; '(eigen / vrij)' valt terug op STANDAARD_PRODUCTEN.)
+NICHE_PORTFOLIOS = {
+    "🧮 Cost engineering / calculatie als ZZP-dienst": [
+        {"Product": "Should-cost analyse (per project)", "Inkoop": 50.0, "Prijs": 1500.0, "Dienst": True},
+        {"Product": "Kostprijsmodel op maat", "Inkoop": 50.0, "Prijs": 2500.0, "Dienst": True},
+        {"Product": "Cost engineering consult (per uur)", "Inkoop": 0.0, "Prijs": 85.0, "Dienst": True},
+        {"Product": "Nacalculatie / kostprijs-update", "Inkoop": 0.0, "Prijs": 750.0, "Dienst": True},
+    ],
+    "💡 Onafhankelijk energie-/besparingsadvies": [
+        {"Product": "Energie-/besparingsadvies (woning)", "Inkoop": 10.0, "Prijs": 250.0, "Dienst": True},
+        {"Product": "Energielabel EP-W", "Inkoop": 15.0, "Prijs": 225.0, "Dienst": True},
+        {"Product": "Subsidie- + offertebegeleiding (ISDE)", "Inkoop": 0.0, "Prijs": 150.0, "Dienst": True},
+    ],
+    "📊 Energiemanagement & maatwerk-dashboards voor MKB": [
+        {"Product": "Energie-/kostendashboard op maat", "Inkoop": 50.0, "Prijs": 2500.0, "Dienst": True},
+        {"Product": "Monitoring-abonnement (per maand)", "Inkoop": 5.0, "Prijs": 99.0, "Dienst": True},
+        {"Product": "Optimalisatie dynamisch laden (advies)", "Inkoop": 0.0, "Prijs": 500.0, "Dienst": True},
+    ],
+    "🔌 EV-laadpaal installatie + advies": [
+        {"Product": "Laadpaal (reseller)", "Inkoop": 500.0, "Prijs": 699.0, "Dienst": False},
+        {"Product": "Installatie laadpaal (per klus)", "Inkoop": 40.0, "Prijs": 450.0, "Dienst": True},
+        {"Product": "Smart charging / load balancing config", "Inkoop": 0.0, "Prijs": 150.0, "Dienst": True},
+        {"Product": "Montagemateriaal + kabel", "Inkoop": 20.0, "Prijs": 79.0, "Dienst": False},
+    ],
+    "🛠️ Onderhoud/monitoring-abonnementen": [
+        {"Product": "Onderhoudsabonnement (per jaar)", "Inkoop": 10.0, "Prijs": 120.0, "Dienst": True},
+        {"Product": "Storingsbezoek (per uur)", "Inkoop": 5.0, "Prijs": 75.0, "Dienst": True},
+        {"Product": "Monitoring-dashboard (per maand)", "Inkoop": 2.0, "Prijs": 9.95, "Dienst": True},
+    ],
+    "🔥 Warmtepomp-advies (niet per se installatie)": [
+        {"Product": "Warmtepomp-haalbaarheidsadvies", "Inkoop": 15.0, "Prijs": 350.0, "Dienst": True},
+        {"Product": "Offerte- + ISDE-begeleiding", "Inkoop": 0.0, "Prijs": 200.0, "Dienst": True},
+        {"Product": "Doorverwijsfee (partner)", "Inkoop": 0.0, "Prijs": 100.0, "Dienst": True},
+    ],
+}

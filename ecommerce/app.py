@@ -10,6 +10,8 @@ Starten:  streamlit run app.py
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -18,9 +20,7 @@ import model as m
 import ai
 
 st.set_page_config(page_title="E-commerce planner", page_icon="🛒", layout="wide")
-st.title("🛒 E-commerce planner — stekkerbatterij + installatie")
-st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
-           "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
+_header = st.container()  # titel + caption worden gevuld zodra de actieve niche bekend is
 
 
 def eur(x: float) -> str:
@@ -76,6 +76,13 @@ if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != 
     st.session_state["scan_naam"] = actieve_niche
     st.session_state["founder_idea"] = actieve_niche
 st.session_state["_last_niche"] = actieve_niche
+
+_niche_label = actieve_niche if actieve_niche != "(eigen / vrij)" else "stekkerbatterij + installatie"
+_niche_key = re.sub(r"\W+", "_", actieve_niche).strip("_") or "vrij"
+with _header:
+    st.title(f"🛒 E-commerce planner — {_niche_label}")
+    st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
+               "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
 tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_scan, tab_founder = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
@@ -138,10 +145,11 @@ with tab_calc:
 # --- 2. Productportfolio ---------------------------------------------------
 with tab_port:
     st.subheader("Vergelijk producten — beste marge bovenaan")
-    st.caption("Pas inkoop/prijs aan of voeg rijen toe. ‘Inkoop’ is geland excl. btw; ‘Prijs’ is incl. btw.")
-    seed = st.session_state.get("producten", m.STANDAARD_PRODUCTEN)
+    st.caption(f"Producten/diensten voor **{_niche_label}**. Pas aan of voeg rijen toe — "
+               "‘Inkoop’ is geland excl. btw; ‘Prijs’ is incl. btw.")
+    seed = m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
     edited = st.data_editor(
-        pd.DataFrame(seed), num_rows="dynamic", use_container_width=True, key="port_edit",
+        pd.DataFrame(seed), num_rows="dynamic", use_container_width=True, key=f"port_{_niche_key}",
         column_config={
             "Inkoop": st.column_config.NumberColumn("Inkoop (geland €)", format="%.2f"),
             "Prijs": st.column_config.NumberColumn("Prijs (incl. btw €)", format="%.2f"),
@@ -182,6 +190,7 @@ with tab_port:
 # --- 3. Businesscase -------------------------------------------------------
 with tab_case:
     st.subheader("12-maands businesscase")
+    st.caption(f"Prognose voor **{_niche_label}** — kies hieronder het hoofdproduct/-dienst.")
     producten = st.session_state.get("producten", m.STANDAARD_PRODUCTEN)
     namen = [p["Product"] for p in producten] or ["—"]
     default_idx = next((i for i, p in enumerate(producten) if p.get("Dienst")), 0)
