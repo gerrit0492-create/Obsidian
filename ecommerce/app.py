@@ -10,6 +10,7 @@ Starten:  streamlit run app.py
 
 from __future__ import annotations
 
+import json
 import re
 
 import pandas as pd
@@ -29,9 +30,11 @@ def eur(x: float) -> str:
 
 
 @st.cache_data
-def _startgids_bytes():
+def _startgids_bytes(niche, producten_json):
+    import json
     import startgids
-    return startgids.build_pdf_bytes(), startgids.build_excel_bytes()
+    prod = json.loads(producten_json)
+    return startgids.build_pdf_bytes(niche, prod), startgids.build_excel_bytes(niche, prod)
 
 
 # --- Permanente state laden (Gist) — per-niche keuzes overleven een reboot ---
@@ -127,9 +130,10 @@ if _heeft_producten:
 
 # --- Startgids -------------------------------------------------------------
 st.sidebar.divider()
-st.sidebar.markdown("#### 📘 Startgids (alles samengevat)")
+st.sidebar.markdown("#### 📘 Startgids (voor deze niche)")
+_gp = (NS.get(actieve_niche) or {}).get("producten") or m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
 try:
-    _pdf, _xl = _startgids_bytes()
+    _pdf, _xl = _startgids_bytes(actieve_niche, json.dumps(_gp))
     st.sidebar.download_button("📄 Startgids (PDF)", _pdf, file_name="Startgids_ecommerce.pdf",
                                mime="application/pdf", use_container_width=True)
     st.sidebar.download_button("📊 Startgids (Excel)", _xl, file_name="Startgids_ecommerce.xlsx",
