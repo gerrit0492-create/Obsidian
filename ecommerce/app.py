@@ -178,20 +178,34 @@ with tab_calc:
     k[3].metric("Omzet excl. btw", eur(e["omzet_excl"]))
 
     if e["marge_pct"] < 0.10:
-        st.error("⚠️ Marge onder 10% — fees + advertentiekosten eten dit op. Bundel het, "
-                 "verhoog de prijs, of verlaag de CAC.")
+        if dienst:
+            st.error("⚠️ Marge onder 10% — je tarief is te laag voor je materiaal-/reiskosten. "
+                     "Verhoog het uur- of projecttarief.")
+        else:
+            st.error("⚠️ Marge onder 10% — fees + advertentiekosten eten dit op. Bundel het, "
+                     "verhoog de prijs, of verlaag de CAC.")
     elif e["marge_pct"] < 0.20:
-        st.warning("Dunne marge (10–20%). Werkbaar, maar weinig ruimte voor ads/retouren.")
+        if dienst:
+            st.warning("Dunne marge (10–20%) voor een dienst — verhoog je tarief. "
+                       "Je hebt hier geen marktplaats-fees of retouren, dus marge zou hoger moeten kunnen.")
+        else:
+            st.warning("Dunne marge (10–20%). Werkbaar, maar weinig ruimte voor advertenties en retouren.")
     else:
         st.success("Gezonde marge (20%+). Dit soort product/bundel is de basis om op te bouwen.")
 
-    # Waterval: omzet → kosten → winst
-    labels = ["Omzet excl. btw", "Inkoop", "Commissie", "Vaste fee", "Betaalkosten",
-              "Verzending", "Retouren", "Advertentie", "Verwijderingsbijdr.", "Winst"]
-    values = [e["omzet_excl"], -e["inkoop"], -e["commissie"], -e["vaste_fee"], -e["betaal"],
-              -e["verzending"], -e["retour_kosten"], -e["advertentie"], -e["verwijderingsbijdrage"],
-              e["winst"]]
-    measure = ["absolute"] + ["relative"] * 8 + ["total"]
+    # Waterval: omzet → (alleen niet-nul kosten) → winst
+    _posten = [("Inkoop", e["inkoop"]), ("Commissie", e["commissie"]), ("Vaste fee", e["vaste_fee"]),
+               ("Betaalkosten", e["betaal"]), ("Verzending", e["verzending"]), ("Retouren", e["retour_kosten"]),
+               ("Advertentie", e["advertentie"]), ("Verwijderingsbijdr.", e["verwijderingsbijdrage"])]
+    labels, values, measure = ["Omzet excl. btw"], [e["omzet_excl"]], ["absolute"]
+    for _lab, _val in _posten:
+        if _val:  # 0-posten (bv. retouren bij een dienst) niet tonen
+            labels.append(_lab)
+            values.append(-_val)
+            measure.append("relative")
+    labels.append("Winst")
+    values.append(e["winst"])
+    measure.append("total")
     fig = go.Figure(go.Waterfall(
         orientation="v", measure=measure, x=labels, y=values,
         connector={"line": {"color": "#cdd5df"}},
