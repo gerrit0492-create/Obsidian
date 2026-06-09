@@ -75,10 +75,13 @@ def suggest_products(niche: str, context: str = ""):
     prompt = (
         f"Stel 3 tot 5 verkoopbare producten/diensten voor de e-commerce niche '{niche}' voor "
         f"een Nederlandse starter met laag budget. Context: {context or 'geen'}.\n"
+        "Gebruik REALISTISCHE Nederlandse marktbedragen (2025/2026): voor een product is "
+        "\"Inkoop\" het gelande inkoopbedrag excl. btw (inkoop + vracht) en \"Prijs\" de gangbare "
+        "consumentprijs incl. 21% btw, met een gezonde marge; voor een dienst is \"Inkoop\" de "
+        "materiaal-/reiskosten (vaak 0) en \"Prijs\" een realistisch uur- of projecttarief.\n"
         "Geef ALLEEN geldige JSON terug: een array van objecten met exact de sleutels "
-        "\"Product\" (korte NL naam), \"Inkoop\" (geland inkoopbedrag excl. btw, getal), "
-        "\"Prijs\" (consumentprijs incl. btw, getal), \"Dienst\" (true voor een dienst/advies, "
-        "anders false). Geen uitleg, alleen de JSON-array."
+        "\"Product\" (korte NL naam), \"Inkoop\" (getal), \"Prijs\" (getal), \"Dienst\" (true voor "
+        "een dienst/advies, anders false). Geen uitleg, alleen de JSON-array."
     )
     raw = complete(prompt, 700)
     if not raw:
