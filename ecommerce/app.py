@@ -156,11 +156,11 @@ _labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase"
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Meer niches", "🔎 Niche-scan", "🚀 Founder-check"]
+_labels += ["💡 Meer niches", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
 _it = iter(st.tabs(_labels))
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
-tab_niches = next(_it); tab_scan = next(_it); tab_founder = next(_it)
+tab_niches = next(_it); tab_scan = next(_it); tab_onderzoek = next(_it); tab_founder = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -624,3 +624,24 @@ with tab_scan:
         if cc[1].button("🗑️ Leeg de vergelijking", key="scan_clear", use_container_width=True):
             st.session_state["scans"] = []
             st.rerun()
+
+
+# --- 10. Onderzoek & groei -------------------------------------------------
+with tab_onderzoek:
+    st.subheader(f"Onderzoek & groei — {_niche_label}")
+    st.caption("Praktische checklists (werken altijd). Met een LLM-key krijg je per onderdeel "
+               "een AI-versie toegespitst op deze niche.")
+    _np = actieve_niche if actieve_niche != "(eigen / vrij)" else _niche_label
+    for _titel, _blok in m.ONDERZOEK_GROEI.items():
+        with st.expander(_titel, expanded=False):
+            st.markdown(f"_{_blok['doel']}_")
+            for _s in _blok["stappen"]:
+                st.markdown(f"- {_s}")
+            if ai.available():
+                _ogk = f"og_{_niche_key}_{_titel}"
+                if st.button(f"🤖 AI voor «{_niche_label}»", key=f"btn_{_ogk}"):
+                    with st.spinner("AI denkt na…"):
+                        st.session_state[_ogk] = ai.complete(
+                            _blok["prompt"].format(niche=_np) + " Antwoord bondig in het Nederlands.", 700)
+                if st.session_state.get(_ogk):
+                    st.markdown(st.session_state[_ogk])

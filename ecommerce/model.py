@@ -621,3 +621,56 @@ INSTALLATIE_NICHES = {
     "🔌 EV-laadpaal installatie + advies",
     "🛠️ Onderhoud/monitoring-abonnementen",
 }
+
+
+# Onderzoek & groei — checklists (werken zonder key) + per-sectie AI-prompt.
+ONDERZOEK_GROEI = {
+    "🔬 Grondig marktonderzoek": {
+        "doel": "Bewijs dát er vraag is en hoe groot/competitief de markt is — vóór je investeert.",
+        "stappen": [
+            "Schat marktomvang + groei (CBS, branchecijfers, Statista).",
+            "Meet vraag: Google Trends/Keyword Planner; best-sellers op Bol/Amazon/Etsy.",
+            "Breng 5–10 concurrenten in kaart: prijs, USP, reviews — waar klanten klagen = jouw kans.",
+            "Praat met 5–10 potentiële klanten: grootste pijn + wat ze nu betalen.",
+            "Kies kanalen: Bol/Amazon/eigen webshop/lokaal/LinkedIn — waar zit jouw klant?",
+        ],
+        "prompt": "Doe een beknopt marktonderzoek voor de niche '{niche}' in Nederland: marktomvang/groei, "
+                  "3-5 concurrenten met hun zwakte, concrete vraag-signalen en de beste verkoopkanalen.",
+    },
+    "✅ Haalbaarheidsstudie": {
+        "doel": "Toets of jíj dit met je kennis, tijd, budget en de regels rendabel kunt doen.",
+        "stappen": [
+            "Kun je het zelf maken/leveren met je kennis en tijd?",
+            "Reken de marge door (tab Marge-calculator) en de break-even (tab Businesscase).",
+            "Check regels & vergunningen (tab Regels & belasting) — drempels en aansprakelijkheid.",
+            "Bepaal het startkapitaal en hoeveel je kunt missen.",
+            "Noteer de 3 grootste risico's + hoe je ze afdekt (zie Founder-check).",
+        ],
+        "prompt": "Beoordeel kort de haalbaarheid van niche '{niche}' voor een NL-starter met laag budget: "
+                  "kennis, kapitaal, marge, regelgeving, tijd en de 3 grootste risico's met afdekking.",
+    },
+    "📈 Flexibel groeiplan": {
+        "doel": "Een plan in fasen met duidelijke go/no-go-momenten, zodat je kunt bijsturen of pivoten.",
+        "stappen": [
+            "Fase 1 — Test: klein en goedkoop de vraag valideren (eerste verkopen/klussen).",
+            "Fase 2 — Valideren: wat werkt herhalen, prijs/aanbod aanscherpen.",
+            "Fase 3 — Opschalen: meer volume, extra kanalen, eventueel uitbesteden.",
+            "Werk met scenario's (voorzichtig / verwacht / ambitieus) + go/no-go per fase.",
+            "Blijf flexibel: durf te pivoten als de cijfers tegenvallen (gebruik de Niche-scan).",
+        ],
+        "prompt": "Stel een flexibel 3-fasen groeiplan op voor niche '{niche}' (test → valideren → "
+                  "opschalen) met go/no-go-momenten en een mogelijke pivot.",
+    },
+    "🤝 Netwerk opbouwen": {
+        "doel": "Mentors, adviseurs en peers versnellen je leercurve en leveren klanten/leads.",
+        "stappen": [
+            "Mentors: 1–2 ervaren ondernemers/experts in je vakgebied (oud-collega's, LinkedIn).",
+            "Adviseurs: boekhouder + KvK-adviespunt voor regels en financiering.",
+            "Peers: lokale ondernemersnetwerken, meetups, online communities (Reddit, FB, Discord).",
+            "Branche: word lid van een brancheorganisatie (bv. Metaalunie, MKB-Nederland).",
+            "Geef eerst waarde: deel kennis/content en help anderen — dan groeit je netwerk vanzelf.",
+        ],
+        "prompt": "Geef een concreet plan om als NL-starter in niche '{niche}' een netwerk van mentors, "
+                  "adviseurs en peers op te bouwen: waar zoeken en hoe benaderen.",
+    },
+}
