@@ -11,6 +11,7 @@ beloftes. De Regels-sectie is algemene info, geen juridisch/fiscaal advies.
 from __future__ import annotations
 
 import io
+import re
 
 import pandas as pd
 
@@ -489,7 +490,9 @@ def df_to_excel_bytes(sheets: dict) -> bytes:
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as xl:
         for naam, df in sheets.items():
-            df.to_excel(xl, sheet_name=naam[:31], index=False)
+            # Excel verbiedt  [ ] : * ? / \  in tabbladnamen.
+            safe = re.sub(r"[\[\]:*?/\\]", "-", str(naam))[:31] or "Blad"
+            df.to_excel(xl, sheet_name=safe, index=False)
     return buf.getvalue()
 
 
