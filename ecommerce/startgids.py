@@ -80,8 +80,13 @@ def build_excel_bytes(niche=VRIJ, producten=None) -> bytes:
             + [{"Onderdeel": "Risico", "Inhoud": x} for x in _n["risicos"]])
     else:
         markt = pd.DataFrame([{"Cijfer": a, "Waarde": b, "Toelichting": c} for a, b, c in m.MARKT["stats"]])
-    regels = pd.DataFrame([{"Categorie": cat, "Punt": p.replace("**", "")}
-                           for cat, punten in _regels_items(niche) for p in punten])
+    regels_rows = []
+    if _n and _n["naam"] in m.NICHE_REGELS:
+        regels_rows += [{"Categorie": "Specifiek voor deze niche", "Punt": p.replace("**", "")}
+                        for p in m.NICHE_REGELS[_n["naam"]]]
+    regels_rows += [{"Categorie": cat, "Punt": p.replace("**", "")}
+                    for cat, punten in _regels_items(niche) for p in punten]
+    regels = pd.DataFrame(regels_rows)
     sheets["Markt & strategie"] = markt
     sheets["Regels"] = regels
     return m.df_to_excel_bytes(sheets)
@@ -166,6 +171,9 @@ def build_pdf_bytes(niche=VRIJ, producten=None) -> bytes:
 
     # Regels — gefilterd per niche
     flow += [PageBreak()] + section("Nederlandse regels & belasting (algemeen — geen advies)")
+    if _n and _n["naam"] in m.NICHE_REGELS:
+        flow += [Paragraph("Specifiek voor deze niche", h3),
+                 bul([p.replace("**", "") for p in m.NICHE_REGELS[_n["naam"]]])]
     for cat, punten in _regels_items(niche):
         flow += [Paragraph(_esc(cat), h3), bul([p.replace("**", "") for p in punten])]
 

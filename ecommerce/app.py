@@ -445,6 +445,13 @@ with tab_regels:
     st.subheader("Nederlandse regels & regelgeving")
     st.caption(f"Specifiek voor **{_niche_label}** — algemene info, geen juridisch of fiscaal advies. "
                "Check je eigen situatie bij KvK en Belastingdienst.")
+
+    if _niche and _niche["naam"] in m.NICHE_REGELS:
+        st.markdown("#### 📌 Specifiek voor deze niche")
+        for p in m.NICHE_REGELS[_niche["naam"]]:
+            st.markdown(f"- {p}")
+        st.divider()
+
     if _niche:  # dienst-niche → algemene + diensten-secties (geen batterij/China)
         items = [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]
     else:       # batterij/eigen → alle secties

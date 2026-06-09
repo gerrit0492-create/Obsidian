@@ -674,3 +674,41 @@ ONDERZOEK_GROEI = {
                   "adviseurs en peers op te bouwen: waar zoeken en hoe benaderen.",
     },
 }
+
+
+# Niche-specifieke regels — getoond bovenaan de Regels-tab voor die niche
+# (naast de algemene secties). Algemene info, geen juridisch/fiscaal advies.
+NICHE_REGELS = {
+    "🧮 Cost engineering / calculatie als ZZP-dienst": [
+        "**ZZP/DBA:** werk met een modelovereenkomst; let op schijnzelfstandigheid (strengere DBA-handhaving sinds 2025).",
+        "**Beroepsaansprakelijkheidsverzekering** aan te raden voor advieswerk.",
+        "**Geheimhouding/NDA:** je werkt met gevoelige kostendata van klanten — leg dit vast.",
+        "Geen specifieke vergunning nodig — je verkoopt kennis/uren.",
+    ],
+    "💡 Onafhankelijk energie-/besparingsadvies": [
+        "Officieel **energielabel** afgeven → **EP-W/EP-U (NTA 8800)**-certificering + jaarlijkse bijscholing verplicht.",
+        "Claim je **'onafhankelijk'**, verkoop dan geen producten (belangenverstrengeling).",
+        "**Subsidies (ISDE):** voorwaarden veranderen — check actueel bij RVO voordat je adviseert.",
+    ],
+    "📊 Energiemanagement & maatwerk-dashboards voor MKB": [
+        "**AVG/GDPR:** je verwerkt verbruiks-/klantdata → sluit een verwerkersovereenkomst.",
+        "**SLA + abonnementsvoorwaarden:** opzegtermijn, beschikbaarheid, data-eigendom.",
+        "Beveilig data (toegang, back-up); geen specifieke vergunning nodig.",
+    ],
+    "🔌 EV-laadpaal installatie + advies": [
+        "**NEN 1010/3140:** vaste aansluiting door een bekwaam persoon; streef naar InstallQ-erkenning.",
+        "**Merk-erkenning** vaak vereist voor garantie en firmware.",
+        "**Zwaardere/3-fasen aansluiting:** melden/aanvragen bij de netbeheerder.",
+        "**Load balancing:** juiste meet- en beveiligingseisen toepassen.",
+    ],
+    "🛠️ Onderhoud/monitoring-abonnementen": [
+        "**NEN 3140** voor werken aan/inspectie van laagspanningsinstallaties.",
+        "**Heldere SLA** + responstijden; leg opleveringen/inspecties vast (foto's, rapport).",
+        "**Bedrijfsaansprakelijkheidsverzekering (AVB)** voor service-/installatiewerk.",
+    ],
+    "🔥 Warmtepomp-advies (niet per se installatie)": [
+        "**Advies:** geen verplichte certificering; **installatie aan koudemiddelen vereist een F-gassen-certificaat**.",
+        "**ISDE-subsidie** voor warmtepompen: actuele voorwaarden via RVO.",
+        "Bewaak **onafhankelijkheid** als je 'onafhankelijk advies' aanbiedt.",
+    ],
+}
