@@ -453,6 +453,8 @@ def portfolio_tabel(producten, **fees) -> pd.DataFrame:
             "Opslag": round(e["opslag_x"], 2),
         })
     df = pd.DataFrame(rijen)
+    if df.empty:
+        return df
     return df.sort_values("Winst/stuk", ascending=False).reset_index(drop=True)
 
 

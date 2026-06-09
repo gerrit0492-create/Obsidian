@@ -62,3 +62,38 @@ def complete(prompt: str, max_tokens: int = 900):
     except Exception:  # noqa: BLE001
         return None
     return None
+
+
+def suggest_products(niche: str, context: str = ""):
+    """Laat de LLM 3-5 producten/diensten + prijzen voorstellen voor een niche.
+
+    Geeft een lijst van {Product, Inkoop, Prijs, Dienst}-dicts, of None bij geen
+    key/parsefout. Bedragen in euro's; Inkoop excl. btw, Prijs incl. btw.
+    """
+    import json
+    import re as _re
+    prompt = (
+        f"Stel 3 tot 5 verkoopbare producten/diensten voor de e-commerce niche '{niche}' voor "
+        f"een Nederlandse starter met laag budget. Context: {context or 'geen'}.\n"
+        "Geef ALLEEN geldige JSON terug: een array van objecten met exact de sleutels "
+        "\"Product\" (korte NL naam), \"Inkoop\" (geland inkoopbedrag excl. btw, getal), "
+        "\"Prijs\" (consumentprijs incl. btw, getal), \"Dienst\" (true voor een dienst/advies, "
+        "anders false). Geen uitleg, alleen de JSON-array."
+    )
+    raw = complete(prompt, 700)
+    if not raw:
+        return None
+    try:
+        match = _re.search(r"\[.*\]", raw, _re.S)
+        items = json.loads(match.group(0) if match else raw)
+        out = []
+        for it in items:
+            out.append({
+                "Product": str(it.get("Product", "")).strip(),
+                "Inkoop": float(it.get("Inkoop", 0) or 0),
+                "Prijs": float(it.get("Prijs", 0) or 0),
+                "Dienst": bool(it.get("Dienst", False)),
+            })
+        return [x for x in out if x["Product"]] or None
+    except Exception:  # noqa: BLE001
+        return None

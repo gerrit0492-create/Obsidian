@@ -18,6 +18,7 @@ import streamlit as st
 
 import model as m
 import ai
+import store
 
 st.set_page_config(page_title="E-commerce planner", page_icon="🛒", layout="wide")
 _header = st.container()  # titel + caption worden gevuld zodra de actieve niche bekend is
@@ -33,14 +34,35 @@ def _startgids_bytes():
     return startgids.build_pdf_bytes(), startgids.build_excel_bytes()
 
 
+# --- Permanente state laden (Gist) — per-niche keuzes overleven een reboot ---
+if "niche_state" not in st.session_state:
+    try:
+        _data = store.load()
+    except Exception:  # noqa: BLE001
+        _data = {}
+    _data = _data if isinstance(_data, dict) else {}
+    st.session_state["niche_state"] = _data.get("niches", {})
+    if "scans" not in st.session_state:
+        st.session_state["scans"] = _data.get("scans", [])
+NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
+
+
+def _persist():
+    return store.save({"niches": NS, "scans": st.session_state.get("scans", [])})
+
+
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
 st.sidebar.header("🎯 Actieve niche")
+_predef = ["(eigen / vrij)"] + [n["naam"] for n in m.NICHES]
+_custom = [k for k in NS.keys() if k not in _predef]
 _scan_namen = [s["Niche"] for s in st.session_state.get("scans", [])]
 _niche_opties, _seen = [], set()
-for _n in ["(eigen / vrij)"] + [n["naam"] for n in m.NICHES] + _scan_namen:
+for _n in _predef + _custom + _scan_namen:
     if _n not in _seen:
         _seen.add(_n)
         _niche_opties.append(_n)
+if st.session_state.get("_force_niche") in _niche_opties:
+    st.session_state["actieve_niche"] = st.session_state.pop("_force_niche")
 actieve_niche = st.sidebar.selectbox(
     "Kies niche", _niche_opties, key="actieve_niche", label_visibility="collapsed",
     help="Stuurt titel, portfolio, businesscase, markt, regels en de Niche-scan/Founder-check.")
@@ -48,6 +70,34 @@ if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != 
     st.session_state["scan_naam"] = actieve_niche
     st.session_state["founder_idea"] = actieve_niche
 st.session_state["_last_niche"] = actieve_niche
+
+with st.sidebar.expander("➕ Nieuwe niche maken"):
+    _nn = st.text_input("Naam van de niche", key="nieuw_naam")
+    _nc = st.text_input("Korte context (optioneel)", key="nieuw_ctx")
+    if st.button("Maak niche", key="nieuw_make", use_container_width=True):
+        if not _nn.strip():
+            st.warning("Geef de niche een naam.")
+        else:
+            _prods = ai.suggest_products(_nn.strip(), _nc) if ai.available() else None
+            NS[_nn.strip()] = {"producten": _prods or []}
+            st.session_state["_force_niche"] = _nn.strip()
+            try:
+                _persist()
+            except Exception:  # noqa: BLE001
+                pass
+            st.rerun()
+    st.caption("Met een LLM-key vult de AI meteen producten/diensten voor; anders start je leeg.")
+
+if store.enabled():
+    if st.sidebar.button("💾 Bewaar alles in Gist", use_container_width=True):
+        try:
+            _persist()
+            st.sidebar.success("Opgeslagen.")
+        except Exception as exc:  # noqa: BLE001
+            st.sidebar.error(f"Opslaan mislukt: {exc}")
+    st.sidebar.caption("☁️ Permanente opslag aan — keuzes overleven een reboot.")
+else:
+    st.sidebar.caption("💾 Per sessie. Zet GIST_TOKEN + ECOM_GIST_ID in Secrets voor permanente opslag.")
 
 # --- Platform-aannames — bewegen mee met de niche --------------------------
 _portf = m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
@@ -166,7 +216,10 @@ with tab_port:
     st.subheader("Vergelijk producten — beste marge bovenaan")
     st.caption(f"Producten/diensten voor **{_niche_label}**. Pas aan of voeg rijen toe — "
                "‘Inkoop’ is geland excl. btw; ‘Prijs’ is incl. btw.")
-    seed = m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
+    if actieve_niche in NS and "producten" in NS[actieve_niche]:
+        seed = NS[actieve_niche]["producten"] or [{"Product": "", "Inkoop": 0.0, "Prijs": 0.0, "Dienst": False}]
+    else:
+        seed = m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
     edited = st.data_editor(
         pd.DataFrame(seed), num_rows="dynamic", use_container_width=True, key=f"port_{_niche_key}",
         column_config={
@@ -175,6 +228,7 @@ with tab_port:
             "Dienst": st.column_config.CheckboxColumn("Dienst?", help="Installatie/advies: geen marktplaats-fees"),
         })
     producten = [r for r in edited.to_dict("records") if r.get("Product")]
+    NS.setdefault(actieve_niche, {})["producten"] = producten
     st.session_state["producten"] = producten
 
     tabel = m.portfolio_tabel(producten, **fees)
@@ -219,13 +273,17 @@ with tab_case:
     e = m.stuk_economie(gekozen["Prijs"], gekozen["Inkoop"],
                         dienst=bool(gekozen.get("Dienst", False)), **fees)
 
+    _bc = (NS.get(actieve_niche) or {}).get("bc", {})
     a = st.columns(4)
-    stuks1 = a[0].number_input("Stuks/klussen in maand 1", 1, 5000, 15, 1)
-    groei = a[1].slider("Maandelijkse groei %", 0.0, 30.0, 10.0, 1.0) / 100
-    vast = a[2].number_input("Vaste kosten / maand €", 0.0, 5000.0, 150.0, 25.0,
-                             help="Webshop/Bol, tools, verzekering, enz.")
-    start = a[3].number_input("Startinvestering €", 0.0, 50000.0, 750.0, 50.0,
-                              help="Laag starten: accessoirevoorraad + gereedschap + opzet.")
+    stuks1 = a[0].number_input("Stuks/klussen in maand 1", 1, 5000, int(_bc.get("stuks", 15)), 1,
+                               key=f"bc_stuks_{_niche_key}")
+    groei = a[1].slider("Maandelijkse groei %", 0.0, 30.0, float(_bc.get("groei", 10.0)), 1.0,
+                        key=f"bc_groei_{_niche_key}") / 100
+    vast = a[2].number_input("Vaste kosten / maand €", 0.0, 5000.0, float(_bc.get("vast", 150.0)), 25.0,
+                             key=f"bc_vast_{_niche_key}", help="Webshop/Bol, tools, verzekering, enz.")
+    start = a[3].number_input("Startinvestering €", 0.0, 50000.0, float(_bc.get("start", 750.0)), 50.0,
+                              key=f"bc_start_{_niche_key}", help="Laag starten: voorraad + gereedschap + opzet.")
+    NS.setdefault(actieve_niche, {})["bc"] = {"stuks": stuks1, "groei": groei * 100, "vast": vast, "start": start}
 
     prog, be = m.prognose(stuks1, groei, 12, vast, start, e["winst"], e["omzet_excl"])
     s = st.columns(4)
