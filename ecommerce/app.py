@@ -61,6 +61,22 @@ try:
 except Exception as exc:  # noqa: BLE001
     st.sidebar.caption(f"Startgids niet beschikbaar: {exc}")
 
+# --- Gedeelde 'actieve niche' (werkt door alle tabs heen) -------------------
+st.sidebar.divider()
+_scan_namen = [s["Niche"] for s in st.session_state.get("scans", [])]
+_niche_opties, _seen = [], set()
+for _n in ["(eigen / vrij)"] + [n["naam"] for n in m.NICHES] + _scan_namen:
+    if _n not in _seen:
+        _seen.add(_n)
+        _niche_opties.append(_n)
+actieve_niche = st.sidebar.selectbox(
+    "🎯 Actieve niche", _niche_opties, key="actieve_niche",
+    help="Vult automatisch de Niche-scan en Founder-check in.")
+if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != actieve_niche:
+    st.session_state["scan_naam"] = actieve_niche
+    st.session_state["founder_idea"] = actieve_niche
+st.session_state["_last_niche"] = actieve_niche
+
 tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_scan, tab_founder = st.tabs(
     ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
      "🌍 Markt & strategie", "📋 Regels & belasting", "🧰 Installateur-route",
@@ -70,6 +86,8 @@ tab_calc, tab_port, tab_case, tab_markt, tab_regels, tab_route, tab_niches, tab_
 # --- 1. Marge-calculator ---------------------------------------------------
 with tab_calc:
     st.subheader("Stuk-economie")
+    if actieve_niche != "(eigen / vrij)":
+        st.caption(f"🎯 Niche-context: **{actieve_niche}** — de marge wordt per product/dienst berekend.")
     c1, c2 = st.columns(2)
     prijs = c1.number_input("Verkoopprijs (incl. btw) €", 1.0, 5000.0, 1199.0, 1.0)
     inkoop = c2.number_input("Geland inkoopbedrag/stuk (excl. btw) €", 0.0, 4000.0, 850.0, 5.0,
@@ -340,7 +358,8 @@ with tab_founder:
     st.subheader("🚀 Founder-check — pressure-test elk idee")
     st.caption("Typ je idee in en draai de zes founder-rollen erop. Werkt met je gratis "
                "Groq-key (Secrets); zonder key krijg je de prompts om te kopiëren.")
-    idea = st.text_area("Jouw idee / niche", placeholder="Bijv. 3D-print STL-designs voor gereedschapshouders…")
+    idea = st.text_area("Jouw idee / niche", key="founder_idea",
+                        placeholder="Bijv. 3D-print STL-designs voor gereedschapshouders…")
     ctx = st.text_input("Context — doelgroep, budget, fase (optioneel)")
     opties = [f"{p['nr']}. {p['titel']}" for p in m.FOUNDER_PROMPTS]
     keuze = st.multiselect("Welke analyses draaien?", opties, default=opties[:3])
