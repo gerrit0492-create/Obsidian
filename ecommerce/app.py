@@ -156,7 +156,7 @@ _labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase"
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Meer niches", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
+_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
 _it = iter(st.tabs(_labels))
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
@@ -492,15 +492,20 @@ if tab_route is not None:  # alleen zichtbaar bij batterij / installatie-niches
         st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
 
 
-# --- 7. Meer niches (diep uitgewerkt) --------------------------------------
+# --- 7. Niches — overzicht (alle niches op één plek) -----------------------
 with tab_niches:
-    st.subheader("Meer high-value niches — diep uitgewerkt")
-    st.caption("Gerangschikt op fit (cost engineer + energie + data/tooling). "
-               "Klap een niche open voor de volledige playbook.")
+    st.subheader("💡 Niches — overzicht")
+    st.caption("Alle niches op één plek: bekende high-value niches, je eigen niches en gescande "
+               "niches. Klik ‘Activeer’ om het hele dashboard op die niche te zetten.")
     st.info("🧠 Sterkste fit: **cost engineering/calculatie als ZZP-dienst** — nul kapitaal, "
             "hoogste uurtarief, en het versterkt je baanzoektocht. Daarna energie-/besparingsadvies.")
+
+    st.markdown("### 🌟 Bekende high-value niches")
     for n in m.NICHES:
         with st.expander(f"{n['naam']}  —  fit {n['fit']} · marge {n['marge']} · drempel {n['drempel']}"):
+            if st.button("▶️ Activeer deze niche", key=f"act_{n['naam']}"):
+                st.session_state["_force_niche"] = n["naam"]
+                st.rerun()
             st.caption(n["waarom"])
             st.markdown(f"**Wat & voor wie** — {n['wat']}")
             st.markdown(f"_Klant:_ {n['klant']}")
@@ -525,6 +530,27 @@ with tab_niches:
             st.success(f"📈 Indicatie: {n['cijfers']}")
             if n.get("bronnen"):
                 st.markdown("Bronnen: " + "  ·  ".join(f"[{a}]({b})" for a, b in n["bronnen"]))
+
+    _eigen = [k for k in NS.keys() if k not in [x["naam"] for x in m.NICHES]]
+    if _eigen:
+        st.markdown("### 🛠️ Jouw eigen niches")
+        for k in _eigen:
+            _prods = (NS.get(k) or {}).get("producten", [])
+            cc = st.columns([3, 1])
+            cc[0].markdown(f"**{k}** — {len(_prods)} product(en)/dienst(en)")
+            if cc[1].button("▶️ Activeer", key=f"acte_{k}"):
+                st.session_state["_force_niche"] = k
+                st.rerun()
+
+    _scans = st.session_state.get("scans", [])
+    if _scans:
+        st.markdown("### 🔎 Gescande niches")
+        for s in sorted(_scans, key=lambda x: x.get("Score", 0), reverse=True):
+            cc = st.columns([3, 1])
+            cc[0].markdown(f"**{s['Niche']}** — score {s.get('Score', '?')}/100 · {s.get('Verdict', '')}")
+            if cc[1].button("▶️ Activeer", key=f"acts_{s['Niche']}"):
+                st.session_state["_force_niche"] = s["Niche"]
+                st.rerun()
 
 
 # --- 8. Founder-check ------------------------------------------------------
