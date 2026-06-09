@@ -167,16 +167,44 @@ tab_niches = next(_it); tab_scan = next(_it); tab_founder = next(_it)
 with tab_calc:
     st.subheader("Stuk-economie")
     if actieve_niche != "(eigen / vrij)":
-        st.caption(f"🎯 Niche-context: **{actieve_niche}** — de marge wordt per product/dienst berekend.")
+        st.caption(f"🎯 Niche-context: **{_niche_label}** — kies een product/dienst of vul zelf in.")
+
+    _calc_prod = (NS.get(actieve_niche) or {}).get("producten") or m.NICHE_PORTFOLIOS.get(actieve_niche, m.STANDAARD_PRODUCTEN)
+    _opts = [p["Product"] for p in _calc_prod if p.get("Product")] + ["— eigen invoer —"]
+    pick = st.selectbox("Reken door voor", _opts, key=f"calc_pick_{_niche_key}")
+    _picked = next((p for p in _calc_prod if p["Product"] == pick), None)
+
+    _pk, _ik, _dk = f"calc_prijs_{_niche_key}", f"calc_inkoop_{_niche_key}", f"calc_dienst_{_niche_key}"
+    if _pk not in st.session_state:
+        _f = _calc_prod[0] if _calc_prod else {}
+        st.session_state[_pk] = float(_f.get("Prijs", 100.0))
+        st.session_state[_ik] = float(_f.get("Inkoop", 0.0))
+        st.session_state[_dk] = bool(_f.get("Dienst"))
+    if _picked and st.session_state.get(f"_calc_last_{_niche_key}") != pick:
+        st.session_state[_pk] = float(_picked["Prijs"])
+        st.session_state[_ik] = float(_picked["Inkoop"])
+        st.session_state[_dk] = bool(_picked.get("Dienst"))
+    st.session_state[f"_calc_last_{_niche_key}"] = pick
+
+    _is_uur = bool(_picked and _picked.get("Dienst") and "uur" in pick.lower())
+    _is_dienst = bool(_picked.get("Dienst")) if _picked else st.session_state.get(_dk, False)
+    if _is_uur:
+        _pl, _il, _unit = "Uurtarief (incl. btw) €", "Kosten per uur (excl. btw) €", "uur"
+    elif _is_dienst:
+        _pl, _il, _unit = "Tarief (incl. btw) €", "Kosten per klus (excl. btw) €", "klus"
+    else:
+        _pl, _il, _unit = "Verkoopprijs (incl. btw) €", "Geland inkoopbedrag/stuk (excl. btw) €", "stuk"
+
     c1, c2 = st.columns(2)
-    prijs = c1.number_input("Verkoopprijs (incl. btw) €", 1.0, 5000.0, 1199.0, 1.0)
-    inkoop = c2.number_input("Geland inkoopbedrag/stuk (excl. btw) €", 0.0, 4000.0, 850.0, 5.0,
-                             help="Inkoop + vracht + eventueel invoerrecht — of materiaal/reiskosten bij een dienst.")
-    dienst = st.toggle("Dit is een dienst (installatie/advies) — geen marktplaats-fees", value=False)
+    prijs = c1.number_input(_pl, 0.0, 5000.0, step=1.0, key=_pk)
+    inkoop = c2.number_input(_il, 0.0, 4000.0, step=1.0, key=_ik,
+                             help="Inkoop + vracht (product) of materiaal-/uurkosten (dienst).")
+    dienst = st.toggle("Dit is een dienst — geen marktplaats-fees of retouren", key=_dk)
     e = m.stuk_economie(prijs, inkoop, dienst=dienst, **fees)
+    _unit = "uur" if (dienst and "uur" in pick.lower()) else ("klus" if dienst else "stuk")
 
     k = st.columns(4)
-    k[0].metric("Winst / stuk", eur(e["winst"]))
+    k[0].metric(f"Winst / {_unit}", eur(e["winst"]))
     k[1].metric("Marge %", f"{e['marge_pct'] * 100:.1f}%")
     k[2].metric("Opslag", f"{e['opslag_x']:.2f}×")
     k[3].metric("Omzet excl. btw", eur(e["omzet_excl"]))
