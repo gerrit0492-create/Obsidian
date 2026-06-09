@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Secrets — nooit committen
+.streamlit/secrets.toml
+
+# Gegenereerde startgids (komt uit startgids.py / de app)
+Startgids.pdf
+Startgids.xlsx
