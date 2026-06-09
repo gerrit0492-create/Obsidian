@@ -46,9 +46,9 @@ def _route_relevant(niche) -> bool:
 
 
 def _regels_items(niche):
-    if _niche_dict(niche):  # dienst-niche → algemene + ZZP-secties
-        return [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]
-    return list(m.REGELS.items())  # batterij/eigen → alles
+    if niche == VRIJ:  # alleen de batterij-niche krijgt batterij/China-secties
+        return list(m.REGELS.items())
+    return [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]  # vast + eigen → algemeen
 
 
 def _prognose(producten):
@@ -78,8 +78,11 @@ def build_excel_bytes(niche=VRIJ, producten=None) -> bytes:
             + [{"Onderdeel": "Klanten werven", "Inhoud": x} for x in _n["klanten_werven"]]
             + [{"Onderdeel": "Cijfers", "Inhoud": _n["cijfers"]}]
             + [{"Onderdeel": "Risico", "Inhoud": x} for x in _n["risicos"]])
-    else:
+    elif niche == VRIJ:
         markt = pd.DataFrame([{"Cijfer": a, "Waarde": b, "Toelichting": c} for a, b, c in m.MARKT["stats"]])
+    else:
+        markt = pd.DataFrame([{"Markt": "Eigen niche — nog geen vaste marktdata. "
+                               "Gebruik de Markt-tab (AI) en Onderzoek & groei in de app."}])
     regels_rows = []
     if _n and _n["naam"] in m.NICHE_REGELS:
         regels_rows += [{"Categorie": "Specifiek voor deze niche", "Punt": p.replace("**", "")}
@@ -162,12 +165,15 @@ def build_pdf_bytes(niche=VRIJ, producten=None) -> bytes:
                  Paragraph("<b>Klanten werven</b>", body), bul(_n["klanten_werven"]),
                  Paragraph(f"<b>Indicatie:</b> {_esc(_n['cijfers'])}", body),
                  Paragraph("<b>Risico's</b>", body), bul(_n["risicos"])]
-    else:
+    elif niche == VRIJ:
         flow += [Paragraph("  ·  ".join(f"{_esc(a)}: <b>{_esc(b)}</b>" for a, b, _ in m.MARKT["stats"]), body),
                  Paragraph("Beachhead", h3), bul(m.MARKT["beachhead"]),
                  Paragraph("Moat", h3), bul(m.MARKT["moat"]),
                  Paragraph("Niet hier concurreren", h3), bul(m.MARKT["vermijden"]),
                  Paragraph("Risico's", h3), bul(m.MARKT["risicos"])]
+    else:
+        flow += [Paragraph("Eigen niche — nog geen vaste marktdata. Gebruik de Markt-tab (AI) en "
+                           "de tab Onderzoek & groei in de app om dit in te vullen.", italic)]
 
     # Regels — gefilterd per niche
     flow += [PageBreak()] + section("Nederlandse regels & belasting (algemeen — geen advies)")

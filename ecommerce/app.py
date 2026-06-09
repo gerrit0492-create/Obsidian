@@ -70,8 +70,10 @@ actieve_niche = st.sidebar.selectbox(
     "Kies niche", _niche_opties, key="actieve_niche", label_visibility="collapsed",
     help="Stuurt titel, portfolio, businesscase, markt, regels en de Niche-scan/Founder-check.")
 if actieve_niche != "(eigen / vrij)" and st.session_state.get("_last_niche") != actieve_niche:
-    st.session_state["scan_naam"] = actieve_niche
+    _nd = next((n for n in m.NICHES if n["naam"] == actieve_niche), None)
     st.session_state["founder_idea"] = actieve_niche
+    st.session_state["founder_ctx"] = ((f"Doelgroep: {_nd['klant']} " if _nd else "")
+                                       + "Nederlandse starter met laag budget.")
 st.session_state["_last_niche"] = actieve_niche
 
 with st.sidebar.expander("➕ Nieuwe niche maken"):
@@ -145,8 +147,10 @@ except Exception as exc:  # noqa: BLE001
 _niche_label = actieve_niche if actieve_niche != "(eigen / vrij)" else "stekkerbatterij + installatie"
 _niche_key = re.sub(r"\W+", "_", actieve_niche).strip("_") or "vrij"
 _niche = next((n for n in m.NICHES if n["naam"] == actieve_niche), None)  # None = batterij/eigen
+_is_battery = actieve_niche == "(eigen / vrij)"
+_is_custom = (not _is_battery) and (_niche is None)  # zelf-gemaakte/gescande niche
 # Installateur-route tonen bij batterij (eigen/vrij) of een installatie-niche.
-show_route = (actieve_niche == "(eigen / vrij)") or (actieve_niche in m.INSTALLATIE_NICHES)
+show_route = _is_battery or (actieve_niche in m.INSTALLATIE_NICHES)
 with _header:
     st.title(f"🛒 E-commerce planner — {_niche_label}")
     st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
@@ -411,7 +415,7 @@ with tab_markt:
         if _niche.get("bronnen"):
             st.markdown("#### Bronnen")
             st.markdown("  ·  ".join(f"[{a}]({b})" for a, b in _niche["bronnen"]))
-    else:
+    elif _is_battery:
         st.subheader("Markt & strategie — stekkerbatterij + installatie (NL)")
         cols = st.columns(3)
         for i, (label, val, sub) in enumerate(m.MARKT["stats"]):
@@ -438,6 +442,23 @@ with tab_markt:
                 st.markdown(f"- {x}")
         st.markdown("#### Bronnen")
         st.markdown("  ·  ".join(f"[{naam}]({url})" for naam, url in m.MARKT["bronnen"]))
+    else:  # zelf-gemaakte niche → geen vaste marktdata; AI-analyse op maat
+        st.subheader(f"Markt & strategie — {actieve_niche}")
+        _mk = f"markt_ai_{_niche_key}"
+        if ai.available():
+            if st.button("🤖 Genereer marktanalyse voor deze niche", key=f"btn_{_mk}"):
+                with st.spinner("AI denkt na…"):
+                    st.session_state[_mk] = ai.complete(
+                        m.ONDERZOEK_GROEI["🔬 Grondig marktonderzoek"]["prompt"].format(niche=actieve_niche)
+                        + " Voeg beachhead, moat en de 3 grootste risico's toe. Antwoord volledig en "
+                        "beslissend in het Nederlands.", 1200)
+            if st.session_state.get(_mk):
+                st.markdown(st.session_state[_mk])
+            else:
+                st.info("Klik op de knop voor een AI-marktanalyse die specifiek op deze niche is toegespitst.")
+        else:
+            st.info("Voor een eigen niche is er nog geen vaste marktdata. Zet een LLM-key (Groq) voor een "
+                    "AI-marktanalyse, of gebruik de tab **📑 Onderzoek & groei** voor het marktonderzoek.")
 
 
 # --- 5. Regels & belasting -------------------------------------------------
@@ -452,10 +473,10 @@ with tab_regels:
             st.markdown(f"- {p}")
         st.divider()
 
-    if _niche:  # dienst-niche → algemene + diensten-secties (geen batterij/China)
-        items = [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]
-    else:       # batterij/eigen → alle secties
+    if _is_battery:  # alleen de batterij-niche krijgt de batterij/China-secties
         items = list(m.REGELS.items())
+    else:            # vaste dienst-niche én eigen niche → algemene + ZZP-secties
+        items = [(t, p) for t, p in m.REGELS.items() if t in m.REGELS_ALGEMEEN]
     cols = st.columns(2)
     for i, (titel, punten) in enumerate(items):
         with cols[i % 2]:
@@ -499,64 +520,85 @@ if tab_route is not None:  # alleen zichtbaar bij batterij / installatie-niches
         st.markdown("  ·  ".join(f"[{n}]({u})" for n, u in r["bronnen"]))
 
 
-# --- 7. Niches — overzicht (alle niches op één plek) -----------------------
+# --- 7. Niche-overzicht (alle niches, gesorteerd op fit + marge) -----------
 with tab_niches:
-    st.subheader("💡 Niches — overzicht")
-    st.caption("Alle niches op één plek: bekende high-value niches, je eigen niches en gescande "
-               "niches. Klik ‘Activeer’ om het hele dashboard op die niche te zetten.")
-    st.info("🧠 Sterkste fit: **cost engineering/calculatie als ZZP-dienst** — nul kapitaal, "
-            "hoogste uurtarief, en het versterkt je baanzoektocht. Daarna energie-/besparingsadvies.")
+    st.subheader("🗂️ Niche-overzicht")
+    st.caption("Alle niches — bekende én je eigen — gesorteerd op fit en marge. "
+               "Klik ‘Activeer’ om het hele dashboard op die niche te zetten.")
 
-    st.markdown("### 🌟 Bekende high-value niches")
-    for n in m.NICHES:
-        with st.expander(f"{n['naam']}  —  fit {n['fit']} · marge {n['marge']} · drempel {n['drempel']}"):
-            if st.button("▶️ Activeer deze niche", key=f"act_{n['naam']}"):
-                st.session_state["_force_niche"] = n["naam"]
+    def _fitnum(f):
+        try:
+            return float(str(f).split("/")[0].replace(",", "."))
+        except Exception:  # noqa: BLE001
+            return 0.0
+
+    def _margerank(mg):
+        t = str(mg).lower()
+        return 5 if "zeer hoog" in t else 4 if "hoog" in t else 3 if "goed" in t else 2
+
+    _pre = [n["naam"] for n in m.NICHES]
+    _entries = [{"naam": n["naam"], "fit": n["fit"], "marge": n["marge"],
+                 "drempel": n["drempel"], "data": n, "custom": False, "icon": "⭐"} for n in m.NICHES]
+    for k in [x for x in NS.keys() if x not in _pre]:
+        _sc = next((s for s in st.session_state.get("scans", []) if s["Niche"] == k), None)
+        _entries.append({"naam": k, "fit": (f"{int(_sc['Score']) // 10}/10" if _sc else "—"),
+                         "marge": "eigen niche", "drempel": "—", "data": None, "custom": True,
+                         "icon": "🆕", "score": _sc["Score"] if _sc else None})
+    _entries.sort(key=lambda e: (-_fitnum(e["fit"]), -_margerank(e["marge"])))
+
+    for e in _entries:
+        with st.expander(f"{e['icon']} {e['naam']}  —  fit {e['fit']} · marge {e['marge']} · drempel {e['drempel']}"):
+            if st.button("▶️ Activeer deze niche", key=f"act_{e['naam']}"):
+                st.session_state["_force_niche"] = e["naam"]
                 st.rerun()
-            st.caption(n["waarom"])
-            st.markdown(f"**Wat & voor wie** — {n['wat']}")
-            st.markdown(f"_Klant:_ {n['klant']}")
-            st.markdown("**Verdienmodel & tarieven**")
-            for x in n["verdienmodel"]:
-                st.markdown(f"- {x}")
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                st.markdown("**Hoe te starten**")
-                for x in n["start"]:
+            n = e["data"]
+            if n:
+                st.caption(n["waarom"])
+                st.markdown(f"**Wat & voor wie** — {n['wat']}")
+                st.markdown(f"_Klant:_ {n['klant']}")
+                st.markdown("**Verdienmodel & tarieven**")
+                for x in n["verdienmodel"]:
                     st.markdown(f"- {x}")
-                st.markdown("**Eisen / certificering / regels**")
-                for x in n["eisen"]:
-                    st.markdown(f"- {x}")
-            with cc2:
-                st.markdown("**Klanten werven**")
-                for x in n["klanten_werven"]:
-                    st.markdown(f"- {x}")
-                st.markdown("**Risico's**")
-                for x in n["risicos"]:
-                    st.markdown(f"- {x}")
-            st.success(f"📈 Indicatie: {n['cijfers']}")
-            if n.get("bronnen"):
-                st.markdown("Bronnen: " + "  ·  ".join(f"[{a}]({b})" for a, b in n["bronnen"]))
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    st.markdown("**Hoe te starten**")
+                    for x in n["start"]:
+                        st.markdown(f"- {x}")
+                    st.markdown("**Eisen / certificering / regels**")
+                    for x in n["eisen"]:
+                        st.markdown(f"- {x}")
+                with cc2:
+                    st.markdown("**Klanten werven**")
+                    for x in n["klanten_werven"]:
+                        st.markdown(f"- {x}")
+                    st.markdown("**Risico's**")
+                    for x in n["risicos"]:
+                        st.markdown(f"- {x}")
+                st.success(f"📈 Indicatie: {n['cijfers']}")
+                if n.get("bronnen"):
+                    st.markdown("Bronnen: " + "  ·  ".join(f"[{a}]({b})" for a, b in n["bronnen"]))
+            else:
+                _prods = (NS.get(e["naam"]) or {}).get("producten", [])
+                _extra = f" · scan-score {e['score']}/100" if e.get("score") else ""
+                st.caption(f"Zelf-gemaakte niche — {len(_prods)} product(en)/dienst(en){_extra}.")
+                st.markdown("Werk 'm uit via **Markt & strategie** (AI), **Productportfolio** en "
+                            "**📑 Onderzoek & groei**.")
 
-    _eigen = [k for k in NS.keys() if k not in [x["naam"] for x in m.NICHES]]
-    if _eigen:
-        st.markdown("### 🛠️ Jouw eigen niches")
-        for k in _eigen:
-            _prods = (NS.get(k) or {}).get("producten", [])
-            cc = st.columns([3, 1])
-            cc[0].markdown(f"**{k}** — {len(_prods)} product(en)/dienst(en)")
-            if cc[1].button("▶️ Activeer", key=f"acte_{k}"):
-                st.session_state["_force_niche"] = k
-                st.rerun()
-
-    _scans = st.session_state.get("scans", [])
-    if _scans:
-        st.markdown("### 🔎 Gescande niches")
-        for s in sorted(_scans, key=lambda x: x.get("Score", 0), reverse=True):
+    # Gescande ideeën die nog geen niche zijn → activeer maakt er een aan
+    _created = set(NS.keys()) | set(_pre)
+    _ideas = [s for s in st.session_state.get("scans", []) if s["Niche"] not in _created]
+    if _ideas:
+        st.markdown("#### 🔎 Gescande ideeën (nog niet aangemaakt)")
+        for s in sorted(_ideas, key=lambda x: x.get("Score", 0), reverse=True):
             cc = st.columns([3, 1])
             cc[0].markdown(f"**{s['Niche']}** — score {s.get('Score', '?')}/100 · {s.get('Verdict', '')}")
             if cc[1].button("▶️ Activeer", key=f"acts_{s['Niche']}"):
+                NS.setdefault(s["Niche"], {"producten": []})
                 st.session_state["_force_niche"] = s["Niche"]
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
                 st.rerun()
 
 
@@ -567,7 +609,7 @@ with tab_founder:
                "Groq-key (Secrets); zonder key krijg je de prompts om te kopiëren.")
     idea = st.text_area("Jouw idee / niche", key="founder_idea",
                         placeholder="Bijv. 3D-print STL-designs voor gereedschapshouders…")
-    ctx = st.text_input("Context — doelgroep, budget, fase (optioneel)")
+    ctx = st.text_input("Context — doelgroep, budget, fase (optioneel)", key="founder_ctx")
     opties = [f"{p['nr']}. {p['titel']}" for p in m.FOUNDER_PROMPTS]
     keuze = st.multiselect("Welke analyses draaien?", opties, default=opties[:3])
 
@@ -603,9 +645,16 @@ with tab_founder:
 # --- 9. Niche-scan ---------------------------------------------------------
 with tab_scan:
     st.subheader("🔎 Niche-scan — kies flexibel, zie of het iets is")
-    st.caption("Typ een niche, scoor 'm op 6 criteria → score + verdict. Voeg toe om te vergelijken.")
-    naam = st.text_input("Niche", key="scan_naam",
-                         placeholder="Bijv. 3D-print STL functioneel, printables bruiloft, POD volleybal…")
+    st.caption("Kies een bestaande niche of voeg er zelf één toe, scoor 'm op 6 criteria → "
+               "score + verdict. Voeg toe om te vergelijken.")
+    _scan_opts = [o for o in _niche_opties if o != "(eigen / vrij)"] + ["✏️ Eigen invoer…"]
+    _sel_idx = _scan_opts.index(actieve_niche) if actieve_niche in _scan_opts else len(_scan_opts) - 1
+    _sel = st.selectbox("Niche", _scan_opts, index=_sel_idx, key="scan_sel")
+    if _sel == "✏️ Eigen invoer…":
+        naam = st.text_input("Naam van de niche", key="scan_naam",
+                             placeholder="Bijv. 3D-print STL functioneel, printables bruiloft, POD volleybal…")
+    else:
+        naam = _sel
 
     if ai.available():
         if st.button("🤖 AI-tweede mening", key="scan_ai"):
