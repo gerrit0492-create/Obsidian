@@ -29,6 +29,19 @@ def eur(x: float) -> str:
     return f"€{x:,.2f}"
 
 
+# Dakrenovatie offerte-tracker — startdata (vooringevuld met de Westermeer-offerte).
+DAK_DEFAULT = [
+    {"Bedrijf": "Dakbedrijf Westermeer", "Offertenr.": "OFF-2026-0189", "Datum": "2026-06-11",
+     "Geldig t/m": "2026-06-25", "Excl. btw": 16680.0, "Incl. btw": 20182.80, "Status": "Ontvangen",
+     "Notities": "60 m² × €250/m² + lood €900 + vogelwering €780; isolatie Rd 3,8; betaling 50/50"},
+    {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
+     "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
+    {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
+     "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
+]
+DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
+
+
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
     import json
@@ -47,11 +60,14 @@ if "niche_state" not in st.session_state:
     st.session_state["niche_state"] = _data.get("niches", {})
     if "scans" not in st.session_state:
         st.session_state["scans"] = _data.get("scans", [])
+    if "dakofferte" not in st.session_state:
+        st.session_state["dakofferte"] = _data.get("dakofferte", DAK_DEFAULT)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
 def _persist():
-    return store.save({"niches": NS, "scans": st.session_state.get("scans", [])})
+    return store.save({"niches": NS, "scans": st.session_state.get("scans", []),
+                       "dakofferte": st.session_state.get("dakofferte", [])})
 
 
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
@@ -160,11 +176,13 @@ _labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase"
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
+_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check",
+            "🏠 Dakofferte-tracker"]
 _it = iter(st.tabs(_labels))
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
 tab_niches = next(_it); tab_scan = next(_it); tab_onderzoek = next(_it); tab_founder = next(_it)
+tab_dak = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -732,3 +750,68 @@ with tab_onderzoek:
                             "analyse nodig is.", 1200)
                 if st.session_state.get(_ogk):
                     st.markdown(st.session_state[_ogk])
+
+
+# --- 11. Dakofferte-tracker ------------------------------------------------
+with tab_dak:
+    st.subheader("🏠 Dakrenovatie — offertes volgen & vergelijken")
+    st.caption("Compiègnehof 11, Eindhoven · volledige dakrenovatie. Vergelijk op €/m² incl. btw.")
+    dc = st.columns(3)
+    dak_opp = dc[0].number_input("Dakoppervlak (m²)", 1.0, 1000.0, 60.0, 1.0, key="dak_opp")
+    dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
+    dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
+
+    _dak_edit = st.data_editor(
+        pd.DataFrame(st.session_state.get("dakofferte", DAK_DEFAULT)), num_rows="dynamic",
+        use_container_width=True, key="dak_oe",
+        column_config={
+            "Excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+            "Incl. btw": st.column_config.NumberColumn(format="€%.2f"),
+            "Status": st.column_config.SelectboxColumn(
+                options=["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"]),
+        })
+    _dak_rows = [r for r in _dak_edit.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
+    st.session_state["dakofferte"] = _dak_rows
+    if store.enabled() and st.button("💾 Offertes bewaren in Gist", key="dak_save"):
+        try:
+            _persist()
+            st.success("Opgeslagen.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Opslaan mislukt: {exc}")
+
+    def _dak_oordeel(v):
+        if v <= DAK_MARKT_HI:
+            return "🟢 marktconform"
+        return "🟡 aan de hoge kant" if v <= DAK_MARKT_HI * 1.25 else "🔴 fors boven markt"
+
+    if _dak_rows:
+        _dv = pd.DataFrame(_dak_rows)
+        _dv["€/m² incl."] = (_dv["Incl. btw"] / dak_opp).round(0)
+        _dv["Oordeel"] = _dv["€/m² incl."].apply(_dak_oordeel)
+        _dv = _dv.sort_values("Incl. btw").reset_index(drop=True)
+        st.dataframe(
+            _dv[["Bedrijf", "Offertenr.", "Geldig t/m", "Excl. btw", "Incl. btw", "€/m² incl.",
+                 "Oordeel", "Status", "Notities"]],
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                "Incl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                "€/m² incl.": st.column_config.NumberColumn(format="€%.0f"),
+            })
+        st.bar_chart(_dv[["Bedrijf", "€/m² incl."]].set_index("Bedrijf"), use_container_width=True)
+        st.download_button("⬇️ Download vergelijking (Excel)",
+                           m.df_to_excel_bytes({"Offertes": _dv}),
+                           file_name="dakrenovatie_offertes.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    st.markdown("#### 📋 Advies — is dit marktconform?")
+    st.markdown(
+        "- De offerte van Westermeer (~€250/m² **excl.** btw, ≈ €336/m² **incl.**) zit **fors boven** "
+        "de markt: een hellend pannendak vervangen *mét isolatie* kost in NL ~€110–€160/m² excl. btw "
+        "(≈ €180–€260/m² incl.).\n"
+        "- **Nuance:** kleine klus (60 m²) → hogere prijs/m²; keramische pannen + Rd 3,8 zitten aan de "
+        "betere kant — maar zelfs dan aan de hoge kant.\n"
+        "- **Vraag na / onderhandel:** is de **steiger** inbegrepen? Geldt het **9%-btw-tarief op de "
+        "isolatie-arbeid** (woning > 2 jaar)? Vraag een **uitsplitsing arbeid/materiaal** en de "
+        "**garantietermijn** schriftelijk.\n"
+        "- **Doe:** vraag **minstens 2 extra offertes** met dezelfde scope en vergelijk hierboven op €/m².")
