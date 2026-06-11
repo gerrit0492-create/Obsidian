@@ -732,14 +732,21 @@ def _llm_complete(prompt: str, max_tokens: int = 600):
     qk = setting("GROQ_API_KEY")
     try:
         if ak:
+            # Writing-heavy work (CV summary, motivation letters) — use Fable for quality.
             r = requests.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                json={"model": "claude-haiku-4-5-20251001", "max_tokens": max_tokens,
+                json={"model": "claude-fable-5", "max_tokens": max_tokens,
                       "messages": [{"role": "user", "content": prompt}]},
                 timeout=45)
             r.raise_for_status()
-            return r.json()["content"][0]["text"].strip()
+            data = r.json()
+            if data.get("stop_reason") == "refusal":
+                return None
+            # Fable emits (empty) thinking blocks first; take the text block, not content[0].
+            text = "".join(b.get("text", "") for b in data.get("content", [])
+                           if b.get("type") == "text").strip()
+            return text or None
         if gk:
             r = requests.post(
                 "https://generativelanguage.googleapis.com/v1beta/models/"

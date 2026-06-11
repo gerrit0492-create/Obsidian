@@ -9,6 +9,15 @@ from __future__ import annotations
 
 import os
 
+# Anthropic-model keuze per taaktype (alleen relevant als ANTHROPIC_API_KEY is gezet).
+# Gratis Groq/Gemini gebruiken één model en negeren dit.
+#   "prose" -> sterk schrijfmodel voor brieven, niche-analyses, founder-check
+#   "json"  -> goedkoop/snel model voor gestructureerde extractie (offerte, producten)
+ANTHROPIC_MODELS = {
+    "prose": "claude-fable-5",
+    "json": "claude-haiku-4-5",
+}
+
 
 def setting(name: str) -> str:
     try:
@@ -25,42 +34,69 @@ def available() -> bool:
                or setting("GOOGLE_API_KEY") or setting("ANTHROPIC_API_KEY"))
 
 
-def complete(prompt: str, max_tokens: int = 900):
-    """Roept de geconfigureerde LLM aan (Groq/Gemini gratis, of Anthropic). None bij fout."""
+def complete(prompt: str, max_tokens: int = 900, kind: str = "prose"):
+    """Roept de geconfigureerde LLM aan (Anthropic/Groq/Gemini). None bij fout.
+
+    `kind` bepaalt de voorkeursvolgorde van providers:
+      "prose" (brieven, analyses, founder-check) -> Anthropic Fable eerst voor de
+        beste schrijfkwaliteit, anders gratis Groq/Gemini.
+      "json"  (offerte/producten extraheren) -> gratis Groq/Gemini eerst (goedkoop,
+        kwaliteit volstaat), anders Anthropic Haiku.
+    Alleen providers met een key worden geprobeerd.
+    """
     import requests
     qk = setting("GROQ_API_KEY")
     gk = setting("GEMINI_API_KEY") or setting("GOOGLE_API_KEY")
     ak = setting("ANTHROPIC_API_KEY")
-    try:
-        if qk:
-            r = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {qk}", "content-type": "application/json"},
-                json={"model": "llama-3.3-70b-versatile", "max_tokens": max_tokens,
-                      "messages": [{"role": "user", "content": prompt}]},
-                timeout=60)
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"].strip()
-        if gk:
-            r = requests.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"gemini-2.0-flash:generateContent?key={gk}",
-                json={"contents": [{"parts": [{"text": prompt}]}],
-                      "generationConfig": {"maxOutputTokens": max_tokens}},
-                timeout=60)
-            r.raise_for_status()
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        if ak:
-            r = requests.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={"x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                json={"model": "claude-haiku-4-5-20251001", "max_tokens": max_tokens,
-                      "messages": [{"role": "user", "content": prompt}]},
-                timeout=60)
-            r.raise_for_status()
-            return r.json()["content"][0]["text"].strip()
-    except Exception:  # noqa: BLE001
-        return None
+
+    def _groq():
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {qk}", "content-type": "application/json"},
+            json={"model": "llama-3.3-70b-versatile", "max_tokens": max_tokens,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=60)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"].strip()
+
+    def _gemini():
+        r = requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"gemini-2.0-flash:generateContent?key={gk}",
+            json={"contents": [{"parts": [{"text": prompt}]}],
+                  "generationConfig": {"maxOutputTokens": max_tokens}},
+            timeout=60)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _anthropic():
+        model = ANTHROPIC_MODELS.get(kind, ANTHROPIC_MODELS["prose"])
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": model, "max_tokens": max_tokens,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("stop_reason") == "refusal":
+            return None
+        # Fable geeft eerst (lege) thinking-blokken; pak het tekstblok, niet content[0].
+        text = "".join(b.get("text", "") for b in data.get("content", [])
+                       if b.get("type") == "text").strip()
+        return text or None
+
+    providers = {"groq": (qk, _groq), "gemini": (gk, _gemini), "anthropic": (ak, _anthropic)}
+    order = (["anthropic", "groq", "gemini"] if kind == "prose"
+             else ["groq", "gemini", "anthropic"])
+    for name in order:
+        key, fn = providers[name]
+        if not key:
+            continue
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001
+            return None
     return None
 
 
@@ -83,7 +119,7 @@ def suggest_products(niche: str, context: str = ""):
         "\"Product\" (korte NL naam), \"Inkoop\" (getal), \"Prijs\" (getal), \"Dienst\" (true voor "
         "een dienst/advies, anders false). Geen uitleg, alleen de JSON-array."
     )
-    raw = complete(prompt, 700)
+    raw = complete(prompt, 700, kind="json")
     if not raw:
         return None
     try:
@@ -132,7 +168,7 @@ def parse_offerte(text: str):
         "Bedragen zijn euro-getallen (gebruik punten/geen euroteken). Elke duidelijke prijspost wordt "
         "een item in 'posten'. Geen uitleg, alleen de JSON.\n\nTEKST:\n" + text[:6000]
     )
-    raw = complete(prompt, 1300)
+    raw = complete(prompt, 1300, kind="json")
     if not raw:
         return None
     try:
