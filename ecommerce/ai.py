@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import os
 
-# Anthropic-model keuze per taaktype (alleen relevant als ANTHROPIC_API_KEY is gezet).
-# Gratis Groq/Gemini gebruiken één model en negeren dit.
-#   "prose" -> sterk schrijfmodel voor brieven, niche-analyses, founder-check
-#   "json"  -> goedkoop/snel model voor gestructureerde extractie (offerte, producten)
-ANTHROPIC_MODELS = {
-    "prose": "claude-fable-5",
-    "json": "claude-haiku-4-5",
-}
+# Deze planner gebruikt altijd gratis Groq/Gemini eerst; Anthropic is alleen een
+# betaalde fallback en draait op het goedkope Haiku. Fable (premium) is hier bewust
+# niet in gebruik: de analyses/founder-check zijn intern en het gratis model volstaat,
+# dus Fable verbetert het resultaat niet genoeg om de kosten te rechtvaardigen.
+# (Fable wordt wel gebruikt voor de motivatiebrieven/CV in de portfolio, waar de
+# schrijfkwaliteit er echt toe doet.)
+ANTHROPIC_MODEL = "claude-haiku-4-5"
 
 
 def setting(name: str) -> str:
@@ -35,14 +34,11 @@ def available() -> bool:
 
 
 def complete(prompt: str, max_tokens: int = 900, kind: str = "prose"):
-    """Roept de geconfigureerde LLM aan (Anthropic/Groq/Gemini). None bij fout.
+    """Roept de geconfigureerde LLM aan. None bij fout.
 
-    `kind` bepaalt de voorkeursvolgorde van providers:
-      "prose" (brieven, analyses, founder-check) -> Anthropic Fable eerst voor de
-        beste schrijfkwaliteit, anders gratis Groq/Gemini.
-      "json"  (offerte/producten extraheren) -> gratis Groq/Gemini eerst (goedkoop,
-        kwaliteit volstaat), anders Anthropic Haiku.
-    Alleen providers met een key worden geprobeerd.
+    Volgorde is altijd: gratis Groq -> Gemini -> betaalde Anthropic Haiku. Alleen
+    providers met een key worden geprobeerd. `kind` blijft bestaan voor de aanroepers
+    maar verandert het model niet meer (deze planner gebruikt geen premium Fable).
     """
     import requests
     qk = setting("GROQ_API_KEY")
@@ -70,25 +66,22 @@ def complete(prompt: str, max_tokens: int = 900, kind: str = "prose"):
         return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
 
     def _anthropic():
-        model = ANTHROPIC_MODELS.get(kind, ANTHROPIC_MODELS["prose"])
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": model, "max_tokens": max_tokens,
+            json={"model": ANTHROPIC_MODEL, "max_tokens": max_tokens,
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=60)
         r.raise_for_status()
         data = r.json()
         if data.get("stop_reason") == "refusal":
             return None
-        # Fable geeft eerst (lege) thinking-blokken; pak het tekstblok, niet content[0].
         text = "".join(b.get("text", "") for b in data.get("content", [])
                        if b.get("type") == "text").strip()
         return text or None
 
     providers = {"groq": (qk, _groq), "gemini": (gk, _gemini), "anthropic": (ak, _anthropic)}
-    order = (["anthropic", "groq", "gemini"] if kind == "prose"
-             else ["groq", "gemini", "anthropic"])
+    order = ["groq", "gemini", "anthropic"]
     for name in order:
         key, fn = providers[name]
         if not key:
