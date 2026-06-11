@@ -41,6 +41,20 @@ DAK_DEFAULT = [
 ]
 DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
 
+# Gedetailleerde uitsplitsing van de Westermeer-offerte mét marktindicatie per onderdeel.
+DAK_DETAIL = [
+    {"Onderdeel": "Complete dakrenovatie 60 m² — isolatie Rd 3,8, keramische pannen, tengels/panlatten, afvoer",
+     "Offerte (excl. btw)": 15000.0, "Eenheidsprijs": "€250/m²",
+     "Marktindicatie (excl. btw)": "€110–160/m² → €6.600–9.600", "Oordeel": "🔴 ~1,5–2× markt"},
+    {"Onderdeel": "Loodwerk dakkapel voorzijde (loodaansluiting rondom)",
+     "Offerte (excl. btw)": 900.0, "Eenheidsprijs": "post",
+     "Marktindicatie (excl. btw)": "loodslab €85–300/m²", "Oordeel": "🟡 tot hoge kant"},
+    {"Onderdeel": "Vogelwering (≈ 12 m)",
+     "Offerte (excl. btw)": 780.0, "Eenheidsprijs": "€65/m",
+     "Marktindicatie (excl. btw)": "€15–35/m → €180–420", "Oordeel": "🔴 ~2–4× markt"},
+]
+DAK_SUBTOTAAL, DAK_BTW, DAK_TOTAAL = 16680.0, 3502.80, 20182.80
+
 
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
@@ -761,9 +775,50 @@ with tab_dak:
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
 
+    with st.expander("📄 Offerte Dakbedrijf Westermeer — volledige uitsplitsing + marktprijzen", expanded=True):
+        st.dataframe(
+            pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
+            column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
+        tt = st.columns(3)
+        tt[0].metric("Subtotaal excl. btw", eur(DAK_SUBTOTAAL))
+        tt[1].metric("Btw 21%", eur(DAK_BTW))
+        tt[2].metric("Totaal incl. btw", eur(DAK_TOTAAL), f"≈ €{DAK_TOTAAL / 60:.0f}/m²")
+        st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
+                   "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
+                   "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
+
+    with st.expander("➕ Nieuwe offerte toevoegen", expanded=False):
+        with st.form("dak_add", clear_on_submit=True):
+            af = st.columns(2)
+            _b = af[0].text_input("Bedrijf *")
+            _nr = af[1].text_input("Offertenummer")
+            af2 = st.columns(2)
+            _datum = af2[0].text_input("Datum (jjjj-mm-dd)")
+            _geldig = af2[1].text_input("Geldig t/m")
+            af3 = st.columns(2)
+            _excl = af3[0].number_input("Bedrag excl. btw (€)", 0.0, 1_000_000.0, 0.0, 100.0)
+            _incl = af3[1].number_input("Bedrag incl. btw (€) — 0 = excl × 1,21", 0.0, 1_000_000.0, 0.0, 100.0)
+            _status = st.selectbox("Status", ["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"])
+            _notes = st.text_input("Notities")
+            if st.form_submit_button("Toevoegen", type="primary"):
+                if _b.strip():
+                    st.session_state["dakofferte"].append({
+                        "Bedrijf": _b.strip(), "Offertenr.": _nr, "Datum": _datum, "Geldig t/m": _geldig,
+                        "Excl. btw": _excl, "Incl. btw": _incl or round(_excl * 1.21, 2),
+                        "Status": _status, "Notities": _notes})
+                    try:
+                        _persist()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    st.rerun()
+                else:
+                    st.warning("Vul minimaal het bedrijf in.")
+
+    st.markdown("#### Offertes vergelijken")
+    st.caption("Of bewerk hieronder rechtstreeks in de tabel (rij toevoegen met +).")
     _dak_edit = st.data_editor(
         pd.DataFrame(st.session_state.get("dakofferte", DAK_DEFAULT)), num_rows="dynamic",
-        use_container_width=True, key="dak_oe",
+        use_container_width=True, key=f"dak_oe_{len(st.session_state.get('dakofferte', []))}",
         column_config={
             "Excl. btw": st.column_config.NumberColumn(format="€%.2f"),
             "Incl. btw": st.column_config.NumberColumn(format="€%.2f"),
