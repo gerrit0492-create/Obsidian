@@ -27,6 +27,27 @@ Offertes voor de volledige dakrenovatie verzamelen, volgen en vergelijken.
 
 > Voeg per offerte een rij toe. Houd **Status** bij: `Aangevraagd → Ontvangen → Vergeleken → Gekozen` / `Afgewezen`.
 
+## Advies / beoordeling — is deze offerte marktconform?
+**Korte conclusie: aan de hoge kant.** Marktprijs voor een hellend pannendak vervangen *inclusief isolatie* ligt rond **€110–€160/m² (excl. btw)**. Deze offerte rekent **€250/m² (excl. btw)** voor het hoofdwerk — ruwweg **1,5–2× het gemiddelde**.
+
+- **Nuance omhoog:** het is een **kleine klus (60 m²)**, dus de prijs/m² ligt hoger door vaste kosten (opstart, afvoer, materieel). Keramische pannen + isolatie Rd 3,8 zitten aan de betere kant. Maar zelfs dan oogt €250/m² fors.
+- **Totaal:** € 20.182,80 incl. btw ≈ **€ 336/m² incl.** Realistisch voor dit werk is eerder **€ 180–€ 260/m² incl.**
+- **Loodwerk € 900** en **vogelwering € 780** zijn op zich redelijk.
+
+### Onderhandel- en checkpunten
+- **Steiger:** niet genoemd in de offerte — vraag expliciet of die is inbegrepen (kan honderden euro's schelen).
+- **Btw op isolatie:** bij een woning **ouder dan 2 jaar** geldt voor de **arbeid van het isoleren** meestal het **verlaagde 9%-tarief** i.p.v. 21%. Vraag of dat hier is toegepast — scheelt geld op de isolatiepost.
+- **Specificatie:** vraag een uitsplitsing **arbeid vs. materiaal** en de m²-prijs per onderdeel.
+- **Garantie:** termijn niet hard genoemd — vraag schriftelijk de garantie op werk én op de pannen.
+- **Betaling:** 50% vooraf is gangbaar; probeer een deel pas **bij/na oplevering** te koppelen aan goedkeuring.
+
+### Aanbeveling
+1. **Vraag minimaal 2 extra offertes** met exact dezelfde scope (isolatie Rd-waarde, pannentype, steiger, afvoer) en vergelijk op **€/m² incl. btw**.
+2. Gebruik deze offerte als **bovengrens**; verwacht dat anderen lager uitkomen.
+3. Onderhandel met Westermeer op basis van de m²-prijs, de steiger-vraag en het 9%-btw-tarief op de isolatie.
+
+> Marktcijfers (hellend pannendak + isolatie ≈ €110–€160/m² excl. btw): Werkspot, Oranje Dakbeheer, Homedeal (2025/2026). Algemene indicatie — geen taxatie.
+
 ## Vergelijking & aandachtspunten
 - **Prijs per m²** (totaal incl. btw ÷ m²) als eerlijke vergelijking tussen offertes.
 - **Wat zit erin?** isolatie (Rd-waarde), loodwerk, vogelwering, afvoer/container, steiger, nok-/kantpannen.
