@@ -55,6 +55,13 @@ DAK_DETAIL = [
 ]
 DAK_SUBTOTAAL, DAK_BTW, DAK_TOTAAL = 16680.0, 3502.80, 20182.80
 
+# Posten per offerte (lang formaat) — voor de onderlinge vergelijking met scope-verschillen.
+DAK_POSTEN_DEFAULT = [
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Dakrenovatie (incl. isolatie + afvoer)", "Prijs excl. btw": 15000.0},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Loodwerk dakkapel", "Prijs excl. btw": 900.0},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0},
+]
+
 
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
@@ -76,12 +83,15 @@ if "niche_state" not in st.session_state:
         st.session_state["scans"] = _data.get("scans", [])
     if "dakofferte" not in st.session_state:
         st.session_state["dakofferte"] = _data.get("dakofferte", DAK_DEFAULT)
+    if "dak_posten" not in st.session_state:
+        st.session_state["dak_posten"] = _data.get("dak_posten", DAK_POSTEN_DEFAULT)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
 def _persist():
     return store.save({"niches": NS, "scans": st.session_state.get("scans", []),
-                       "dakofferte": st.session_state.get("dakofferte", [])})
+                       "dakofferte": st.session_state.get("dakofferte", []),
+                       "dak_posten": st.session_state.get("dak_posten", [])})
 
 
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
@@ -782,7 +792,10 @@ with tab_dak:
         tt = st.columns(3)
         tt[0].metric("Subtotaal excl. btw", eur(DAK_SUBTOTAAL))
         tt[1].metric("Btw 21%", eur(DAK_BTW))
-        tt[2].metric("Totaal incl. btw", eur(DAK_TOTAAL), f"≈ €{DAK_TOTAAL / 60:.0f}/m²")
+        tt[2].metric("Totaal incl. btw", eur(DAK_TOTAAL), f"≈ €{DAK_TOTAAL / 60:.0f}/m² alles-in")
+        st.caption("ℹ️ €336/m² is **alles incl. btw** (incl. loodwerk + vogelwering). De **dakrenovatie "
+                   "zelf** = €15.000 ÷ 60 m² = **€250/m² excl. btw** (≈ €302/m² incl.) — dát is de eerlijke "
+                   "vergelijking met de marktprijs per m².")
         st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
                    "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
                    "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
@@ -863,6 +876,41 @@ with tab_dak:
                            m.df_to_excel_bytes({"Offertes": _dv}),
                            file_name="dakrenovatie_offertes.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
+    st.caption("Voer per offerte de posten in (Bedrijf · Onderdeel · Prijs excl. btw). Een lege cel = "
+               "die post zit **niet** in die offerte — zo zie je scope-verschillen meteen.")
+    _pe = st.data_editor(
+        pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)), num_rows="dynamic",
+        use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
+        column_config={
+            "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+            "Onderdeel": st.column_config.TextColumn(width="large"),
+        })
+    _prows = [r for r in _pe.to_dict("records")
+              if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip()]
+    st.session_state["dak_posten"] = _prows
+    if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
+        try:
+            _persist()
+            st.success("Opgeslagen.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Opslaan mislukt: {exc}")
+
+    if _prows:
+        _pm = pd.DataFrame(_prows).pivot_table(
+            index="Onderdeel", columns="Bedrijf", values="Prijs excl. btw", aggfunc="sum")
+        _ontbreekt = [idx for idx in _pm.index if not _pm.loc[idx].notna().all()]
+        _disp = _pm.round(0).copy()
+        _disp.loc["── Totaal (excl. btw) ──"] = _pm.sum()
+        st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True)
+        st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
+        if _ontbreekt:
+            st.warning("⚠️ **Scope-verschil** — niet in alle offertes: " + ", ".join(_ontbreekt)
+                       + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
+                       "het vergelijken (een lagere offerte kan posten missen).")
+        else:
+            st.success("✅ Alle offertes bevatten dezelfde posten — eerlijke vergelijking.")
 
     st.markdown("#### 📋 Advies — is dit marktconform?")
     st.markdown(
