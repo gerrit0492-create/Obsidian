@@ -182,7 +182,7 @@ _is_custom = (not _is_battery) and (_niche is None)  # zelf-gemaakte/gescande ni
 # Installateur-route tonen bij batterij (eigen/vrij) of een installatie-niche.
 show_route = _is_battery or (actieve_niche in m.INSTALLATIE_NICHES)
 with _header:
-    st.title(f"🛒 E-commerce planner — {_niche_label}")
+    st.title("🛒 E-commerce planner")
     st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
                "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
