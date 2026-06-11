@@ -16,6 +16,7 @@ import re
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 import model as m
 import ai
@@ -800,12 +801,61 @@ with tab_dak:
                    "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
                    "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
         from pathlib import Path as _P
+        import base64 as _b64
         _pdf_path = _P(__file__).parent.parent / "vault" / "attachments" / "Offerte-Westermeer-OFF-2026-0189.pdf"
         if _pdf_path.exists():
-            st.download_button("📄 Originele offerte (PDF) bekijken/downloaden", _pdf_path.read_bytes(),
+            _bytes = _pdf_path.read_bytes()
+            st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
                                file_name="Offerte-Westermeer-OFF-2026-0189.pdf", mime="application/pdf")
+            if st.checkbox("👁️ Offerte hier inline tonen", key="dak_show_pdf"):
+                _b = _b64.b64encode(_bytes).decode()
+                components.html(f'<iframe src="data:application/pdf;base64,{_b}" width="100%" '
+                                'height="700" style="border:1px solid #ddd"></iframe>', height=720)
+                st.caption("Zie je niets? Sommige browsers blokkeren PDF-preview — gebruik dan de downloadknop.")
+        else:
+            st.info("De originele offerte staat in de repo maar is hier nog niet geladen — "
+                    "**reboot** de app (Manage app → Reboot) zodat het bestand wordt opgehaald.")
 
-    with st.expander("➕ Nieuwe offerte toevoegen", expanded=False):
+    with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
+        _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
+        if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
+            if not ai.available():
+                st.warning("Automatisch uitlezen vereist een LLM-key (Groq). Voeg anders handmatig toe.")
+            else:
+                with st.spinner("PDF uitlezen + posten herkennen…"):
+                    _txt = ai.extract_pdf_text(_up.read())
+                    _od = ai.parse_offerte(_txt) if _txt else None
+                if not _od or not str(_od.get("bedrijf") or "").strip():
+                    st.error("Kon de offerte niet automatisch uitlezen. Voeg 'm handmatig toe.")
+                else:
+                    _bn = str(_od["bedrijf"]).strip()
+                    st.session_state["dakofferte"].append({
+                        "Bedrijf": _bn, "Offertenr.": _od.get("offertenummer", ""),
+                        "Datum": _od.get("datum", ""), "Geldig t/m": _od.get("geldig", ""),
+                        "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
+                        "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
+                        "Status": "Ontvangen", "Notities": "automatisch uit PDF"})
+                    _np = 0
+                    for _p in _od.get("posten", []):
+                        try:
+                            _pr = float(_p.get("prijs_excl", 0) or 0)
+                        except Exception:  # noqa: BLE001
+                            _pr = 0.0
+                        if str(_p.get("onderdeel") or "").strip():
+                            st.session_state["dak_posten"].append(
+                                {"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
+                                 "Prijs excl. btw": _pr})
+                            _np += 1
+                    try:
+                        _persist()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    st.success(f"Offerte van {_bn} toegevoegd met {_np} posten — zie de tabel en posten-matrix.")
+                    st.rerun()
+        st.caption("De posten/totalen worden automatisch uit de PDF gehaald (met je Groq-key). "
+                   "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
+
+    with st.expander("➕ Nieuwe offerte handmatig toevoegen", expanded=False):
         with st.form("dak_add", clear_on_submit=True):
             af = st.columns(2)
             _b = af[0].text_input("Bedrijf *")

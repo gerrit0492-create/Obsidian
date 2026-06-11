@@ -100,3 +100,43 @@ def suggest_products(niche: str, context: str = ""):
         return [x for x in out if x["Product"]] or None
     except Exception:  # noqa: BLE001
         return None
+
+
+def extract_pdf_text(data: bytes, maxpages: int = 12) -> str:
+    """Haal platte tekst uit een geüploade PDF (pdfminer.six). '' bij fout."""
+    try:
+        import io
+        from pdfminer.high_level import extract_text
+        return extract_text(io.BytesIO(data), maxpages=maxpages) or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def parse_offerte(text: str):
+    """Laat de LLM een offerte-tekst omzetten naar gestructureerde posten + totalen.
+
+    Geeft een dict {bedrijf, offertenummer, datum, geldig, posten:[{onderdeel, prijs_excl}],
+    totaal_excl, totaal_incl} of None.
+    """
+    text = (text or "").strip()
+    if not text:
+        return None
+    import json
+    import re as _re
+    prompt = (
+        "Hieronder de tekst van een (dak)offerte. Haal de gegevens eruit en geef ALLEEN geldige JSON "
+        "terug met exact deze sleutels:\n"
+        '{"bedrijf": "...", "offertenummer": "...", "datum": "jjjj-mm-dd", "geldig": "jjjj-mm-dd", '
+        '"posten": [{"onderdeel": "korte omschrijving", "prijs_excl": getal}], '
+        '"totaal_excl": getal, "totaal_incl": getal}\n'
+        "Bedragen zijn euro-getallen (gebruik punten/geen euroteken). Elke duidelijke prijspost wordt "
+        "een item in 'posten'. Geen uitleg, alleen de JSON.\n\nTEKST:\n" + text[:6000]
+    )
+    raw = complete(prompt, 1300)
+    if not raw:
+        return None
+    try:
+        match = _re.search(r"\{.*\}", raw, _re.S)
+        return json.loads(match.group(0) if match else raw)
+    except Exception:  # noqa: BLE001
+        return None
