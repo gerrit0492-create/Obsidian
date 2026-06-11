@@ -66,6 +66,9 @@ Offertes voor de volledige dakrenovatie verzamelen, volgen en vergelijken.
 - [ ] Oplevering + controle
 - [ ] Eindbetaling
 
+## Bijlagen
+- [📄 Offerte Dakbedrijf Westermeer — OFF-2026-0189 (PDF)](../attachments/Offerte-Westermeer-OFF-2026-0189.pdf)
+
 ## Contacten
 - **Dakbedrijf Westermeer** — Lichttoren 32, 5611 BJ Eindhoven · 040 304 14 75 · info@dakbedrijfeindhoven.nl · KvK 98765809
 

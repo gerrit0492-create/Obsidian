@@ -786,6 +786,11 @@ with tab_dak:
         st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
                    "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
                    "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
+        from pathlib import Path as _P
+        _pdf_path = _P(__file__).parent.parent / "vault" / "attachments" / "Offerte-Westermeer-OFF-2026-0189.pdf"
+        if _pdf_path.exists():
+            st.download_button("📄 Originele offerte (PDF) bekijken/downloaden", _pdf_path.read_bytes(),
+                               file_name="Offerte-Westermeer-OFF-2026-0189.pdf", mime="application/pdf")
 
     with st.expander("➕ Nieuwe offerte toevoegen", expanded=False):
         with st.form("dak_add", clear_on_submit=True):
