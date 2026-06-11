@@ -16,7 +16,6 @@ import re
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 
 import model as m
 import ai
@@ -801,20 +800,23 @@ with tab_dak:
                    "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
                    "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
         from pathlib import Path as _P
-        import base64 as _b64
-        _pdf_path = _P(__file__).parent.parent / "vault" / "attachments" / "Offerte-Westermeer-OFF-2026-0189.pdf"
-        if _pdf_path.exists():
+        _fn = "Offerte-Westermeer-OFF-2026-0189.pdf"
+        _cands = [_P(__file__).parent.parent / "vault" / "attachments" / _fn,
+                  _P.cwd() / "vault" / "attachments" / _fn]
+        _pdf_path = next((p for p in _cands if p.exists()), None)
+        if _pdf_path:
             _bytes = _pdf_path.read_bytes()
             st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
-                               file_name="Offerte-Westermeer-OFF-2026-0189.pdf", mime="application/pdf")
-            if st.checkbox("👁️ Offerte hier inline tonen", key="dak_show_pdf"):
-                _b = _b64.b64encode(_bytes).decode()
-                components.html(f'<iframe src="data:application/pdf;base64,{_b}" width="100%" '
-                                'height="700" style="border:1px solid #ddd"></iframe>', height=720)
-                st.caption("Zie je niets? Sommige browsers blokkeren PDF-preview — gebruik dan de downloadknop.")
+                               file_name=_fn, mime="application/pdf")
+            if st.checkbox("👁️ Offerte-tekst hier tonen", key="dak_show_pdf"):
+                _txt = ai.extract_pdf_text(_bytes, maxpages=12)
+                if _txt.strip():
+                    st.text_area("Offerte-tekst (uit de PDF)", _txt, height=420)
+                else:
+                    st.info("Tekst uitlezen lukte niet — download de PDF met de knop hierboven.")
         else:
-            st.info("De originele offerte staat in de repo maar is hier nog niet geladen — "
-                    "**reboot** de app (Manage app → Reboot) zodat het bestand wordt opgehaald.")
+            st.info("De originele offerte is hier nog niet geladen — **reboot** de app "
+                    "(Manage app → Reboot) zodat het repo-bestand wordt opgehaald.")
 
     with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
         _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
