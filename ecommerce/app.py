@@ -95,14 +95,14 @@ DAK_AFSPRAKEN_DEFAULT = [
     {"Bedrijf": "Albers Dakbedekking", "Type": "Bezoek/inspectie", "Datum": "2026-06-12", "Tijd": "08:30",
      "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek uitgevoerd", "Notitie": "Uit agenda DePoorter"},
     {"Bedrijf": "Dak & Timmerwerken Deluxe", "Type": "Bezoek/inspectie", "Datum": "2026-06-13", "Tijd": "12:30",
-     "Contactpersoon": "Giovanni", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland",
+     "Contactpersoon": "Giovanni", "Telefoon": "+31 6 85302895", "E-mail": "", "Status": "Bezoek gepland",
      "Notitie": "Giovanni belt of hij vóór 13:30 kan, anders volgende week"},
     {"Bedrijf": "Stipt Dakgroep", "Type": "Offerte-overleg", "Datum": "2026-06-15", "Tijd": "09:00",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Offerte (agenda DePoorter)"},
+     "Contactpersoon": "", "Telefoon": "06 53755391", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Offerte (agenda DePoorter)"},
     {"Bedrijf": "Tony Pennings (klusbedrijf)", "Type": "Bezoek/inspectie", "Datum": "2026-06-16", "Tijd": "16:30",
      "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Voor het dak, via Roy"},
     {"Bedrijf": "Bonné Dakonderhoud", "Type": "Bezoek/inspectie", "Datum": "2026-06-18", "Tijd": "10:00",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Uit agenda DePoorter"},
+     "Contactpersoon": "", "Telefoon": "013 440 0270", "E-mail": "info@bonnedak.nl", "Status": "Bezoek gepland", "Notitie": "Uit agenda DePoorter"},
 ]
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
 DAK_AFSPR_STATUS = ["Bezoek gepland", "Bezoek uitgevoerd", "Wachten op offerte", "Offerte ontvangen", "Geannuleerd"]
