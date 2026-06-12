@@ -291,6 +291,110 @@ def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
                              unsafe_allow_html=True)
 
 
+def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi):
+    """Twee staafdiagrammen: totaal incl. btw per offerte + €/m² t.o.v. de marktband. PNG-bytes."""
+    import io
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    namen = [h["Offerte"] for h in hl]
+    incl = [h["Incl. btw"] for h in hl]
+    m2 = [h["€/m² incl."] for h in hl]
+    kleur = ["#2d6cdf", "#1e8449", "#d68910", "#8e44ad", "#16a085"][:len(namen)] or ["#2d6cdf"]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.2, 3.2))
+    b1 = ax1.bar(namen, incl, color=kleur)
+    ax1.set_title("Totaal incl. btw (€)", fontsize=10)
+    ax1.bar_label(b1, fmt="€%.0f", fontsize=8)
+    ax1.tick_params(axis="x", labelrotation=12, labelsize=7)
+    if hi > 0:
+        ax2.axhspan(lo, hi, color="#e7f1fb", label=f"markt €{lo:.0f}–{hi:.0f}/m²")
+    b2 = ax2.bar(namen, m2, color=kleur)
+    ax2.set_title("€/m² incl. btw", fontsize=10)
+    ax2.bar_label(b2, fmt="€%.0f", fontsize=8)
+    ax2.tick_params(axis="x", labelrotation=12, labelsize=7)
+    ax2.legend(fontsize=7)
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=130)
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bullets, lo, hi, normdf=None):
+    """Printbaar A4-rapport van de offertevergelijking met grafieken, scope en advies."""
+    import io
+    from datetime import date
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=14 * mm, bottomMargin=14 * mm,
+                            leftMargin=13 * mm, rightMargin=13 * mm)
+    ss = getSampleStyleSheet()
+    title = ParagraphStyle("t", parent=ss["Title"], fontSize=16)
+    h2 = ParagraphStyle("h2", parent=ss["Heading2"], fontSize=11, spaceBefore=8, spaceAfter=3)
+    sub = ParagraphStyle("sub", parent=ss["Normal"], fontSize=8, textColor=colors.HexColor("#555555"))
+    head = ParagraphStyle("hd", parent=ss["Normal"], fontSize=7.5, textColor=colors.white, fontName="Helvetica-Bold")
+    cell = ParagraphStyle("cl", parent=ss["Normal"], fontSize=7.5)
+    small = ParagraphStyle("sm", parent=ss["Normal"], fontSize=8, leading=11)
+
+    def esc(t):
+        return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _tbl(cols, rows, widths):
+        data = [[Paragraph(esc(c), head) for c in cols]]
+        for r in rows:
+            data.append([Paragraph(esc(v), cell) for v in r])
+        t = Table(data, repeatRows=1, colWidths=widths)
+        style = [("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
+                 ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#b8bcc0")),
+                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f5f7")])]
+        t.setStyle(TableStyle(style))
+        return t
+
+    el = [Paragraph("Offertevergelijking — dakrenovatie", title),
+          Paragraph(f"Gegenereerd op {date.today().isoformat()} · dakoppervlak {dak_opp:.0f} m²", sub),
+          Spacer(1, 6)]
+    el.append(Paragraph("Kerncijfers", h2))
+    _kcols = ["Offerte", "Excl. btw", "Incl. btw", "€/m²", "Btw", "Isolatie", "Garantie"]
+    _krows = [[h.get("Offerte", ""), f"€{h.get('Excl. btw', 0):.0f}", f"€{h.get('Incl. btw', 0):.0f}",
+               f"€{h.get('€/m² incl.', 0):.0f}", h.get("Effectief btw", ""), h.get("Isolatie", ""),
+               h.get("Garantie", "")] for h in hl]
+    el.append(_tbl(_kcols, _krows, [30 * mm, 20 * mm, 20 * mm, 14 * mm, 12 * mm, 36 * mm, 30 * mm]))
+    try:
+        el.append(Spacer(1, 6))
+        el.append(Image(io.BytesIO(_dak_vergelijking_chart_png(hl, dak_opp, lo, hi)), width=172 * mm, height=67 * mm))
+    except Exception:  # noqa: BLE001
+        pass
+    el.append(Paragraph("Scope-vergelijking", h2))
+    _scols = list(cmpdf.columns)
+    _srows = [[r[c] for c in _scols] for _, r in cmpdf.iterrows()]
+    el.append(_tbl(_scols, _srows, None))
+    el.append(Paragraph("ISDE-subsidie & advies", h2))
+    el.append(Paragraph(f"Dakisolatie met Rd ≥ 3,5 m²K/W komt in aanmerking. Indicatie voor {dak_opp:.0f} m²: "
+                        f"± €{isde1:.0f} (één maatregel) tot € {isde2:.0f} (twee maatregelen). Geldt voor beide "
+                        "offertes en verlaagt de netto kosten.", small))
+    el.append(Spacer(1, 3))
+    for b in bullets:
+        el.append(Paragraph("• " + esc(b.replace("**", "")), small))
+    if normdf is not None and len(normdf):
+        el.append(Paragraph("Appels met appels — zelfde scope, netto (incl. btw)", h2))
+        _ncols = [c for c in normdf.columns if c != "Toegevoegd"]
+        _nrows = [[(str(r[c]) if c == "Offerte" else f"€{r[c]:.0f}") for c in _ncols] for _, r in normdf.iterrows()]
+        el.append(_tbl(_ncols, _nrows, None))
+    el.append(Spacer(1, 8))
+    el.append(Paragraph("Posten per offerte", h2))
+    _prows2 = [[str(r["Bedrijf"]), str(r["Onderdeel"]), f"€{float(r['Prijs excl. btw']):.0f}", f"{int(r['Btw %'])}%"]
+               for _, r in posten_df.iterrows()]
+    el.append(_tbl(["Offerte", "Post", "Excl. btw", "Btw"], _prows2, [32 * mm, 96 * mm, 22 * mm, 12 * mm]))
+    doc.build(el)
+    return buf.getvalue()
+
+
 def _afspraken_pdf_bytes(rows, conflicten=None):
     """Printbare A4-PDF (liggend) van de contacten & afspraken."""
     import io
@@ -1933,11 +2037,65 @@ with tab_dak:
         st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
                    "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
                    "stelposten realistisch zijn.")
-        st.download_button("⬇️ Download vergelijking (Excel)",
-                           m.df_to_excel_bytes({"Scope-vergelijking": _cmpdf, "Kerncijfers": _hldf}),
-                           file_name="dakrenovatie_vergelijking.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           key="dak_vergelijk_xlsx")
+        # ---- Appels met appels: normaliseer elke offerte naar dezelfde (firm) scope ----
+        _cat_eur = {b: {c: sum(float(p.get("Prijs excl. btw") or 0) for p in items
+                               if "bundel" not in str(p.get("Onderdeel") or "").lower())
+                        for c, items in _assign[b].items()} for b in _detbedr}
+        _allcats = {c for b in _detbedr for c in _assign[b]}
+        _norm = []
+        for b in _detbedr:
+            _o = _off_by.get(b, {})
+            _qi = float(_o.get("Incl. btw") or 0)
+            _add, _added = 0.0, []
+            for _cat in sorted(_allcats):
+                if _cat in _assign[b]:
+                    continue  # offerte dekt deze scope al
+                _peer = [_cat_eur[p].get(_cat, 0) for p in _detbedr if p != b and _cat_eur[p].get(_cat, 0) > 0]
+                if _peer:
+                    _est = sum(_peer) / len(_peer)
+                    _add += _est
+                    _added.append(f"{_cat} (~€{_est:.0f})")
+            _ni = _qi + round(_add * 1.21)
+            _norm.append({"Offerte": b, "Zoals geoffreerd": round(_qi), "+ ontbrekende scope": round(_add * 1.21),
+                          "Gelijke scope": round(_ni), "− ISDE": _isde1, "Netto": round(_ni - _isde1),
+                          "Toegevoegd": ", ".join(_added) or "—"})
+        _normdf = pd.DataFrame(_norm)
+        st.markdown("**🍏 Appels met appels — zelfde scope, incl. btw, ná ISDE**")
+        st.dataframe(_normdf, use_container_width=True, hide_index=True,
+                     column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
+                                    ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
+        _vld = [n for n in _norm if n["Gelijke scope"] > 0]
+        if len(_vld) >= 2:
+            _wc = min(_vld, key=lambda n: n["Netto"])
+            _we = max(_vld, key=lambda n: n["Netto"])
+            st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat met wat de ander er firm voor "
+                       f"rekent) en ná ISDE is **{_wc['Offerte']}** het voordeligst: **€{_wc['Netto']:.0f}** netto "
+                       f"vs €{_we['Netto']:.0f} — verschil **€{_we['Netto'] - _wc['Netto']:.0f}**.")
+        st.caption("Ontbrekende scope wordt bijgeschat met de firm-prijs van de andere offerte(s); stelposten "
+                   "tellen niet mee. Zo vergelijk je appels met appels i.p.v. ongelijke scope.")
+
+        _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
+                                    "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
+                                    "Btw %": int(float(p.get("Btw %") or 21))}
+                                   for b in _detbedr for p in _byb[b]])
+        _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
+                 "Posten": _posten_df,
+                 "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
+                                                + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
+                                                   f"€{_isde2:.0f} (2 maatregelen) voor {dak_opp:.0f} m²"]})}
+        _cda, _cdb = st.columns(2)
+        _cda.download_button("⬇️ Vergelijking — Excel", m.df_to_excel_bytes(_xlsx),
+                             file_name="dakrenovatie_vergelijking.xlsx",
+                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             key="dak_vergelijk_xlsx", use_container_width=True)
+        try:
+            _pdfb = _dak_vergelijking_pdf_bytes(_hl, _cmpdf, _posten_df, dak_opp, _isde1, _isde2, _bullets,
+                                                DAK_MARKT_LO, DAK_MARKT_HI, _normdf)
+            _cdb.download_button("🖨️ Vergelijking — PDF (met grafieken)", _pdfb,
+                                 file_name="dakrenovatie_vergelijking.pdf", mime="application/pdf",
+                                 key="dak_vergelijk_pdf", use_container_width=True)
+        except Exception as _exc:  # noqa: BLE001
+            _cdb.caption(f"PDF-rapport tijdelijk niet beschikbaar: {_exc}")
 
     st.markdown("#### 📋 Advies — is dit marktconform?")
     st.markdown(

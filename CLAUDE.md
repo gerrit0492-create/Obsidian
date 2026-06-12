@@ -19,6 +19,11 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 - **Keep source documents available and findable.** Uploaded source files (e.g.
   offerte PDF's) are saved to `vault/attachments/` so they stay downloadable/
   viewable in the app and survive in the repo — never only parse-and-discard.
+- **Always compare apples-to-apples.** When comparing quotes/offers, first
+  normalise them to the same scope: add each quote's missing scope at the firm
+  price the others charge for it (stelposten excluded), then compare incl. btw and
+  net of subsidy (e.g. ISDE). Never rank quotes on headline price alone when their
+  scope differs.
 
 ## Building & checking
 - Plugin: `cd plugin && npm install && npm run build` (runs the `tsc` typecheck + esbuild bundle)
