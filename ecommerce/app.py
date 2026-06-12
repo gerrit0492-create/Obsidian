@@ -412,22 +412,28 @@ def _persist():
                        "dak_migr": st.session_state.get("dak_migr", 0)})
 
 
+_DAK_SEED_KW = ("westermeer", "albers")  # trefwoorden van de geseedde offertes
+
+
 def _dak_fix_albers(offertes, posten):
-    """One-time data fix: correct the Albers quote and (re)seat the seeded posten (Westermeer + Albers)."""
-    def _alb(r):
-        return "albers" in str(r.get("Bedrijf") or "").lower()
-    offertes[:] = [o for o in offertes if not (_alb(o) or str(o.get("Offertenr.") or "") == "2026060231")]
-    offertes.extend(dict(o) for o in DAK_DEFAULT if _alb(o))
-    # herstel de posten van álle geseedde offertes (Westermeer + Albers); overige bedrijven blijven
-    _seed_bedr = {str(p["Bedrijf"]).strip().lower() for p in DAK_POSTEN_DEFAULT}
-    posten[:] = [p for p in posten if str(p.get("Bedrijf") or "").strip().lower() not in _seed_bedr]
+    """One-time data fix: correct the Albers quote and (re)seat the seeded posten (Westermeer + Albers).
+
+    Matcht op trefwoord, zodat ook naam-varianten en dubbele regels (bv. 'Westermeer' naast
+    'Dakbedrijf Westermeer') worden opgeschoond. Posten van andere bedrijven blijven staan.
+    """
+    def _kw(r):
+        b = str(r.get("Bedrijf") or "").lower()
+        return any(k in b for k in _DAK_SEED_KW)
+    offertes[:] = [o for o in offertes if not (_kw(o) or str(o.get("Offertenr.") or "") == "2026060231")]
+    offertes.extend(dict(o) for o in DAK_DEFAULT if _kw(o))
+    posten[:] = [p for p in posten if not _kw(p)]
     posten.extend(dict(p) for p in DAK_POSTEN_DEFAULT)
 
 
-# Eenmalige correctie: Albers-mis-parse goedzetten + geseedde posten (Westermeer) terugzetten.
-if st.session_state.get("dak_migr", 0) < 2:
+# Eenmalige correctie: Albers-mis-parse + dubbele/variant-posten van Westermeer opschonen.
+if st.session_state.get("dak_migr", 0) < 3:
     _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
-    st.session_state["dak_migr"] = 2
+    st.session_state["dak_migr"] = 3
     try:
         _persist()
     except Exception:  # noqa: BLE001
