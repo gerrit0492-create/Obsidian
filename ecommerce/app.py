@@ -39,6 +39,25 @@ DAK_DEFAULT = [
     {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
      "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
 ]
+def _dak_offerte_key(row):
+    """Sleutel om dezelfde offerte te herkennen: offertenummer, anders bedrijfsnaam."""
+    nr = str(row.get("Offertenr.") or "").strip().lower()
+    return ("nr", nr) if nr else ("bedrijf", str(row.get("Bedrijf") or "").strip().lower())
+
+
+def _dak_dedup(offertes):
+    """Houd per offerte (zelfde offertenummer, anders bedrijf) alleen de laatste regel."""
+    out, idx = [], {}
+    for row in offertes:
+        k = _dak_offerte_key(row)
+        if k in idx:
+            out[idx[k]] = row
+        else:
+            idx[k] = len(out)
+            out.append(row)
+    return out
+
+
 DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
 
 # Gedetailleerde uitsplitsing van de Westermeer-offerte mét marktindicatie per onderdeel.
@@ -1154,39 +1173,51 @@ with tab_dak:
                 with st.spinner("PDF uitlezen + posten herkennen…"):
                     _txt = ai.extract_pdf_text(_up.read())
                     _od = ai.parse_offerte(_txt) if _txt else None
-                _np = 0
-                if not _od or not str(_od.get("bedrijf") or "").strip():
+                _ok = bool(_od and str(_od.get("bedrijf") or "").strip())
+                _new_posten = []
+                if not _ok:
                     # uitlezen mislukt — tóch toevoegen (op bestandsnaam) zodat de offerte niet verdwijnt
                     _bn = (getattr(_up, "name", "") or "Onbekende offerte").rsplit(".", 1)[0].strip() \
                         or "Onbekende offerte"
-                    st.session_state["dakofferte"].append({
-                        "Bedrijf": _bn, "Offertenr.": "", "Datum": "", "Geldig t/m": "",
-                        "Excl. btw": 0.0, "Incl. btw": 0.0, "Status": "Ontvangen",
-                        "Notities": "automatisch uitlezen mislukt — vul bedragen handmatig aan"})
-                    st.session_state["dak_flash"] = (
-                        "warning", f"Kon '{_bn}' niet automatisch uitlezen — als lege regel toegevoegd, "
-                        "vul de bedragen handmatig aan in de tabel.")
+                    _row = {"Bedrijf": _bn, "Offertenr.": "", "Datum": "", "Geldig t/m": "",
+                            "Excl. btw": 0.0, "Incl. btw": 0.0, "Status": "Ontvangen",
+                            "Notities": "automatisch uitlezen mislukt — vul bedragen handmatig aan"}
                 else:
                     _bn = str(_od["bedrijf"]).strip()
-                    st.session_state["dakofferte"].append({
-                        "Bedrijf": _bn, "Offertenr.": _od.get("offertenummer", ""),
-                        "Datum": _od.get("datum", ""), "Geldig t/m": _od.get("geldig", ""),
-                        "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
-                        "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
-                        "Status": "Ontvangen", "Notities": "automatisch uit PDF"})
+                    _row = {"Bedrijf": _bn, "Offertenr.": _od.get("offertenummer", ""),
+                            "Datum": _od.get("datum", ""), "Geldig t/m": _od.get("geldig", ""),
+                            "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
+                            "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
+                            "Status": "Ontvangen", "Notities": "automatisch uit PDF"}
                     for _p in _od.get("posten", []):
                         try:
                             _pr = float(_p.get("prijs_excl", 0) or 0)
                         except Exception:  # noqa: BLE001
                             _pr = 0.0
                         if str(_p.get("onderdeel") or "").strip():
-                            st.session_state["dak_posten"].append(
-                                {"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
-                                 "Prijs excl. btw": _pr})
-                            _np += 1
+                            _new_posten.append({"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
+                                                "Prijs excl. btw": _pr})
+                # dezelfde offerte (zelfde offertenummer/bedrijf) bijwerken i.p.v. dubbel toevoegen
+                _lst = st.session_state["dakofferte"]
+                _key = _dak_offerte_key(_row)
+                _hit = next((i for i, r in enumerate(_lst) if _dak_offerte_key(r) == _key), None)
+                if _hit is None:
+                    _lst.append(_row)
+                else:
+                    _lst[_hit] = _row
+                # posten van dit bedrijf vervangen, zodat her-upload geen dubbele posten geeft
+                st.session_state["dak_posten"] = [
+                    p for p in st.session_state.get("dak_posten", [])
+                    if str(p.get("Bedrijf") or "").strip().lower() != _bn.lower()] + _new_posten
+                _verb = "bijgewerkt" if _hit is not None else "toegevoegd"
+                if _ok:
                     st.session_state["dak_flash"] = (
-                        "success", f"Offerte van {_bn} toegevoegd met {_np} posten — "
+                        "success", f"Offerte van {_bn} {_verb} met {len(_new_posten)} posten — "
                         "zie de tabel en posten-matrix.")
+                else:
+                    st.session_state["dak_flash"] = (
+                        "warning", f"Kon '{_bn}' niet automatisch uitlezen — als lege regel {_verb}, "
+                        "vul de bedragen handmatig aan in de tabel.")
                 try:
                     _persist()
                 except Exception as _exc:  # noqa: BLE001
@@ -1238,6 +1269,25 @@ with tab_dak:
     st.session_state["dakofferte"] = _dak_rows
     st.caption(f"📄 {len(_dak_rows)} offerte(s) in beheer"
                + (": " + ", ".join(str(r["Bedrijf"]) for r in _dak_rows) if _dak_rows else "."))
+    _dak_uniek = _dak_dedup(_dak_rows)
+    if len(_dak_uniek) < len(_dak_rows):
+        st.warning(f"⚠️ {len(_dak_rows) - len(_dak_uniek)} dubbele offerte(s) gevonden "
+                   "(zelfde offertenummer/bedrijf).")
+        if st.button("🧹 Dubbele offertes opruimen (laatste behouden)", key="dak_dedup_btn"):
+            st.session_state["dakofferte"] = _dak_uniek
+            _keep = {str(r.get("Bedrijf") or "").strip().lower() for r in _dak_uniek}
+            _seen, _pd = set(), []
+            for _p in st.session_state.get("dak_posten", []):
+                _pk = (str(_p.get("Bedrijf") or "").strip().lower(), str(_p.get("Onderdeel") or "").strip().lower())
+                if _pk not in _seen:
+                    _seen.add(_pk)
+                    _pd.append(_p)
+            st.session_state["dak_posten"] = _pd
+            try:
+                _persist()
+            except Exception:  # noqa: BLE001
+                pass
+            st.rerun()
     if store.enabled() and st.button("💾 Offertes bewaren in Gist", key="dak_save"):
         try:
             _persist()
