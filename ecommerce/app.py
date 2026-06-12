@@ -413,19 +413,21 @@ def _persist():
 
 
 def _dak_fix_albers(offertes, posten):
-    """Eenmalige datacorrectie: zet de Albers-offerte + posten goed (eerder fout uit de PDF-parse)."""
+    """One-time data fix: correct the Albers quote and (re)seat the seeded posten (Westermeer + Albers)."""
     def _alb(r):
         return "albers" in str(r.get("Bedrijf") or "").lower()
     offertes[:] = [o for o in offertes if not (_alb(o) or str(o.get("Offertenr.") or "") == "2026060231")]
     offertes.extend(dict(o) for o in DAK_DEFAULT if _alb(o))
-    posten[:] = [p for p in posten if not _alb(p)]
-    posten.extend(dict(p) for p in DAK_POSTEN_DEFAULT if _alb(p))
+    # herstel de posten van álle geseedde offertes (Westermeer + Albers); overige bedrijven blijven
+    _seed_bedr = {str(p["Bedrijf"]).strip().lower() for p in DAK_POSTEN_DEFAULT}
+    posten[:] = [p for p in posten if str(p.get("Bedrijf") or "").strip().lower() not in _seed_bedr]
+    posten.extend(dict(p) for p in DAK_POSTEN_DEFAULT)
 
 
-# Eenmalige correctie van de eerder fout ingelezen Albers-offerte (mis-parse uit de PDF).
-if st.session_state.get("dak_migr", 0) < 1:
+# Eenmalige correctie: Albers-mis-parse goedzetten + geseedde posten (Westermeer) terugzetten.
+if st.session_state.get("dak_migr", 0) < 2:
     _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
-    st.session_state["dak_migr"] = 1
+    st.session_state["dak_migr"] = 2
     try:
         _persist()
     except Exception:  # noqa: BLE001
