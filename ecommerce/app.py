@@ -106,6 +106,31 @@ DAK_AFSPRAKEN_DEFAULT = [
 ]
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
 DAK_AFSPR_STATUS = ["Bezoek gepland", "Bezoek uitgevoerd", "Wachten op offerte", "Offerte ontvangen", "Geannuleerd"]
+DAK_AFSPR_GAP_MIN = 60  # minimaal aantal minuten tussen twee afspraken op dezelfde dag
+
+
+def _afspraak_conflicten(rows, min_gap_min=DAK_AFSPR_GAP_MIN):
+    """Afspraken op dezelfde dag die overlappen of < min_gap_min uit elkaar liggen."""
+    from datetime import datetime
+    per_dag = {}
+    for r in rows:
+        d, t = str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip()
+        if str(r.get("Status") or "") == "Geannuleerd" or not d or not t:
+            continue
+        try:
+            tt = datetime.strptime(t, "%H:%M")
+        except ValueError:
+            continue
+        per_dag.setdefault(d, []).append((tt.hour * 60 + tt.minute, t, str(r.get("Bedrijf") or "")))
+    waarschuwingen = []
+    for d in sorted(per_dag):
+        items = sorted(per_dag[d])
+        for (m1, t1, b1), (m2, t2, b2) in zip(items, items[1:]):
+            gap = m2 - m1
+            if gap < min_gap_min:
+                hoe = "overlap" if gap <= 0 else f"maar {gap} min ertussen"
+                waarschuwingen.append(f"{d}: {t1} {b1} ↔ {t2} {b2} ({hoe})")
+    return waarschuwingen
 
 
 def _fetch_url(url, timeout=15):
@@ -1122,7 +1147,8 @@ with tab_dak:
                "Rij toevoegen met +, of gebruik het formulier eronder.")
     _af = st.data_editor(
         pd.DataFrame(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)), num_rows="dynamic",
-        use_container_width=True, key=f"dak_afspr_oe_{len(st.session_state.get('dak_afspraken', []))}",
+        use_container_width=True,
+        key=f"dak_afspr_oe_{len(st.session_state.get('dak_afspraken', []))}_{st.session_state.get('dak_afspr_nonce', 0)}",
         column_config={
             "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
             "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
@@ -1132,6 +1158,12 @@ with tab_dak:
         })
     _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
     st.session_state["dak_afspraken"] = _af_rows
+    _conflicten = _afspraak_conflicten(_af_rows)
+    if _conflicten:
+        st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
+                   + "\n".join(f"- {c}" for c in _conflicten))
+    elif _af_rows:
+        st.caption("✅ Planning-check: nergens overlap — overal minstens een uur tussen afspraken op dezelfde dag.")
     with st.expander("➕ Afspraak / contact toevoegen", expanded=False):
         with st.form("dak_afspr_add", clear_on_submit=True):
             gf = st.columns(2)
@@ -1196,6 +1228,30 @@ with tab_dak:
                         st.info(f"{len(_new)} dak-afspraak(en) gevonden — allemaal al in de log.")
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Ophalen mislukt: {exc}")
+    if st.button("↪️ Fases bijwerken (na bezoek → wachten op offerte)", key="dak_afspr_bump",
+                 help="Zet een langsgeweest 'Bezoek gepland' (datum voorbij) op 'Bezoek uitgevoerd', "
+                      "en 'Bezoek uitgevoerd' door naar 'Wachten op offerte'. Eén fase per klik."):
+        from datetime import date as _date
+        _vandaag = _date.today().isoformat()
+        _bump = 0
+        for _r in st.session_state.get("dak_afspraken", []):
+            _s = str(_r.get("Status") or "")
+            if _s == "Bezoek gepland" and str(_r.get("Datum") or "9999") < _vandaag:
+                _r["Status"] = "Bezoek uitgevoerd"
+                _bump += 1
+            elif _s == "Bezoek uitgevoerd":
+                _r["Status"] = "Wachten op offerte"
+                _bump += 1
+        if _bump:
+            st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+            try:
+                _persist()
+            except Exception:  # noqa: BLE001
+                pass
+            st.success(f"{_bump} afspra(a)k(en) een fase doorgezet.")
+            st.rerun()
+        else:
+            st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
     if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
         try:
             _persist()
@@ -1206,11 +1262,16 @@ with tab_dak:
         _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
         _komend = _afdf[_afdf["Status"] == "Bezoek gepland"]
         if not _komend.empty:
-            st.caption("📅 Gepland: " + " · ".join(
+            st.caption("📅 Bezoek gepland: " + " · ".join(
                 f"{r['Bedrijf']} {r.get('Datum') or ''} {r.get('Tijd') or ''}".strip()
                 for r in _komend.to_dict("records")))
+        _sheets = {"Afspraken": _afdf}
+        _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
+                                     if _conflicten else
+                                     pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
+                                                                      "tussen afspraken op dezelfde dag."]}))
         st.download_button("⬇️ Download contacten & afspraken (Excel)",
-                           m.df_to_excel_bytes({"Afspraken": _afdf}),
+                           m.df_to_excel_bytes(_sheets),
                            file_name="dakrenovatie_afspraken.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="dak_afspr_xlsx")
