@@ -92,30 +92,36 @@ def _dak_dedup(offertes):
 
 
 def _dak_shouldcost_posten(opp):
-    """Onafhankelijke should-cost baseline per scope-onderdeel (excl. btw), geschaald naar het dakoppervlak.
+    """Should-cost baseline per scope-onderdeel met **LCL/UCL** (excl. btw), geschaald naar het dakoppervlak.
 
-    Complete bottom-up raming (NL midmarkt, 60 m² referentie) die álle scope-onderdelen dekt die in de
-    ontvangen offertes voorkomen — zodat je elke offerte tegen een eerlijke 'zou-moeten'-prijs kunt leggen.
+    Complete bottom-up raming (NL, 60 m² referentie) die álle scope-onderdelen dekt die in de ontvangen
+    offertes voorkomen. Per post een ondergrens (LCL, efficiënt) en bovengrens (UCL); het midpunt voedt de
+    puntvergelijking, de band toont wat een offerte 'zou moeten' kosten.
     """
     r = max(float(opp or 60), 1.0) / 60.0
-    items = [  # (Onderdeel, prijs @60 m², btw %, schaalt mee met oppervlak)
-        ("Steiger + materieel + pannenlift", 1400, 21, False),
-        ("Sloop + afvoer + container", 1000, 21, True),
-        ("Isolatie materiaal (Rd ≥ 3,5)", 1300, 21, True),
-        ("Isolatie aanbrengen (arbeid)", 700, 9, True),
-        ("Tengels + panlatten", 900, 21, True),
-        ("Dakpannen (beton, midmarkt)", 1500, 21, True),
-        ("Dakpannen leggen / montage", 1400, 21, True),
-        ("Nokvorsten + ruiters", 700, 21, False),
-        ("Kant-/gevelpannen", 500, 21, False),
-        ("Zinken bakgoot + gootbeugels", 1300, 21, False),
-        ("Loodaansluiting dakkapel (10 m)", 750, 21, False),
-        ("Vogelwering + dakvoet (12 m)", 350, 21, False),
-        ("Panhaken / stormklemmen", 250, 21, False),
+    items = [  # (Onderdeel, LCL @60 m², UCL @60 m², btw %, schaalt mee met oppervlak)
+        ("Steiger + materieel + pannenlift", 900, 1400, 21, False),
+        ("Sloop + afvoer + container", 700, 1100, 21, True),
+        ("Isolatie materiaal (Rd ≥ 3,5)", 900, 1400, 21, True),
+        ("Isolatie aanbrengen (arbeid)", 500, 800, 9, True),
+        ("Tengels + panlatten", 600, 1000, 21, True),
+        ("Dakpannen (beton, midmarkt)", 1000, 1600, 21, True),
+        ("Dakpannen leggen / montage", 1000, 1600, 21, True),
+        ("Nokvorsten + ruiters", 400, 800, 21, False),
+        ("Kant-/gevelpannen", 300, 600, 21, False),
+        ("Zinken bakgoot + gootbeugels", 900, 1500, 21, False),
+        ("Loodaansluiting dakkapel (10 m)", 500, 900, 21, False),
+        ("Vogelwering + dakvoet (12 m)", 250, 450, 21, False),
+        ("Panhaken / stormklemmen", 150, 350, 21, False),
     ]
-    return [{"Bedrijf": "Should-cost (baseline)", "Onderdeel": _n,
-             "Prijs excl. btw": float(round(_p * (r if _s else 1.0))), "Btw %": _b}
-            for _n, _p, _b, _s in items]
+    out = []
+    for _n, _lo, _hi, _b, _s in items:
+        _sc = r if _s else 1.0
+        _l, _u = round(_lo * _sc), round(_hi * _sc)
+        out.append({"Bedrijf": "Should-cost (baseline)", "Onderdeel": _n,
+                    "Prijs excl. btw": float(round((_l + _u) / 2)), "Btw %": _b,
+                    "LCL": float(_l), "UCL": float(_u)})
+    return out
 
 
 def _dak_attachments_dir():
@@ -2032,8 +2038,14 @@ with tab_dak:
         _off_by = {str(o.get("Bedrijf") or "").strip(): o for o in st.session_state.get("dakofferte", [])}
         _scx = sum(float(p["Prijs excl. btw"]) for p in _byb[_SC])
         _scb = sum(float(p["Prijs excl. btw"]) * p["Btw %"] / 100 for p in _byb[_SC])
+        _sc_lcl_i = sum(float(p.get("LCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
+        _sc_ucl_i = sum(float(p.get("UCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
         _off_by[_SC] = {"Bedrijf": _SC, "Excl. btw": round(_scx), "Incl. btw": round(_scx + _scb),
                         "Isolatie": "Rd ≥ 3,5 (norm)", "Garantie": "—"}
+        st.info(f"📐 **Should-cost band (LCL–UCL):** €{_sc_lcl_i:.0f} – €{_sc_ucl_i:.0f} incl. btw "
+                f"(€{_sc_lcl_i / dak_opp:.0f} – €{_sc_ucl_i / dak_opp:.0f}/m²) · midpunt "
+                f"€{round(_scx + _scb):.0f}. LCL = efficiënt/scherp, UCL = bovengrens. Een offerte **boven de "
+                f"UCL** is duur; **binnen de band** is marktconform.")
         _hl = []
         for b in _detbedr:
             _o = _off_by.get(b, {})
@@ -2124,10 +2136,16 @@ with tab_dak:
             st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat) en ná ISDE is **{_wc['Offerte']}** "
                        f"het voordeligst: **€{_wc['Netto']:.0f}** netto vs €{_we['Netto']:.0f} — verschil "
                        f"**€{_we['Netto'] - _wc['Netto']:.0f}**.")
-        if _scnet > 0 and _vld:
-            _gaps = " · ".join(f"{n['Offerte']}: +€{n['Netto'] - _scnet:.0f} ({(n['Netto'] - _scnet) / _scnet * 100:.0f}%)"
-                               for n in _vld)
-            st.markdown(f"📐 **Boven de should-cost** (€{_scnet:.0f} netto baseline): {_gaps}.")
+        if _vld:
+            _parts = []
+            for n in _vld:
+                _gs = n["Gelijke scope"]  # incl. btw, gelijke scope
+                if _gs <= _sc_ucl_i:
+                    _v = "🟢 binnen de band" if _gs >= _sc_lcl_i else "🔵 onder LCL (scherp)"
+                else:
+                    _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{(_gs - _sc_ucl_i) / _sc_ucl_i * 100:.0f}%)"
+                _parts.append(f"**{n['Offerte']}** {_v}")
+            st.markdown("📐 **Toets aan de should-cost band** (gelijke scope, incl. btw): " + " · ".join(_parts) + ".")
         st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
                    "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
                    "niet mee). Zo vergelijk je appels met appels.")
