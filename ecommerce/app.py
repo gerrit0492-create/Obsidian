@@ -133,6 +133,59 @@ def _afspraak_conflicten(rows, min_gap_min=DAK_AFSPR_GAP_MIN):
     return waarschuwingen
 
 
+def _afspraken_pdf_bytes(rows, conflicten=None):
+    """Printbare A4-PDF (liggend) van de contacten & afspraken."""
+    import io
+    from datetime import date
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=12 * mm, bottomMargin=12 * mm,
+                            leftMargin=12 * mm, rightMargin=12 * mm,
+                            title="Dakrenovatie — contacten & afspraken")
+    base = getSampleStyleSheet()
+    h = ParagraphStyle("h", parent=base["Title"], fontSize=16, spaceAfter=2)
+    sub = ParagraphStyle("sub", parent=base["Normal"], fontSize=9, textColor=colors.grey)
+    cell = ParagraphStyle("cell", parent=base["Normal"], fontSize=8, leading=10)
+    head = ParagraphStyle("head", parent=cell, textColor=colors.white, fontName="Helvetica-Bold")
+
+    def _p(txt, style):
+        return Paragraph(str(txt or "").replace("&", "&amp;").replace("<", "&lt;"), style)
+
+    elems = [_p("Dakrenovatie — contacten & afspraken", h),
+             _p("Gegenereerd op " + date.today().isoformat(), sub), Spacer(1, 6)]
+    cols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
+    widths = [34, 22, 20, 13, 30, 28, 44, 28, 54]  # mm, som ≈ 273 (liggend A4 minus marges)
+    data = [[_p(c, head) for c in cols]]
+    for r in sorted(rows, key=lambda x: (str(x.get("Datum") or ""), str(x.get("Tijd") or ""))):
+        data.append([_p(r.get(c, ""), cell) for c in cols])
+    tbl = Table(data, repeatRows=1, colWidths=[w * mm for w in widths])
+    style = [("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
+             ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#b0b0b0")),
+             ("VALIGN", (0, 0), (-1, -1), "TOP"),
+             ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]
+    for i in range(1, len(data)):
+        if i % 2 == 0:
+            style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#f2f4f6")))
+    tbl.setStyle(TableStyle(style))
+    elems.append(tbl)
+    elems.append(Spacer(1, 8))
+    if conflicten:
+        red = ParagraphStyle("red", parent=cell, textColor=colors.HexColor("#c0392b"))
+        elems.append(_p("Planning-check — te krap (overlap of < 1 uur ertussen):", red))
+        for c in conflicten:
+            elems.append(_p("• " + c, red))
+    else:
+        green = ParagraphStyle("green", parent=cell, textColor=colors.HexColor("#1e8449"))
+        elems.append(_p("Planning-check: geen overlap — minstens 1 uur tussen afspraken op dezelfde dag.", green))
+    doc.build(elems)
+    return buf.getvalue()
+
+
 def _fetch_url(url, timeout=15):
     """Download tekst van een URL (stdlib, geen extra dependency)."""
     import urllib.request
@@ -1260,11 +1313,20 @@ with tab_dak:
             st.error(f"Opslaan mislukt: {exc}")
     if _af_rows:
         _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
-        _komend = _afdf[_afdf["Status"] == "Bezoek gepland"]
+        _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
         if not _komend.empty:
-            st.caption("📅 Bezoek gepland: " + " · ".join(
-                f"{r['Bedrijf']} {r.get('Datum') or ''} {r.get('Tijd') or ''}".strip()
-                for r in _komend.to_dict("records")))
+            _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+
+            def _weekdag(d):
+                try:
+                    from datetime import date as _date
+                    return _dagen[_date.fromisoformat(str(d)).weekday()]
+                except Exception:  # noqa: BLE001
+                    return ""
+            _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
+            st.markdown("**📅 Geplande bezoeken**")
+            st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
+                         use_container_width=True, hide_index=True)
         _sheets = {"Afspraken": _afdf}
         _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
                                      if _conflicten else
@@ -1275,6 +1337,10 @@ with tab_dak:
                            file_name="dakrenovatie_afspraken.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="dak_afspr_xlsx")
+        st.download_button("🖨️ Print / PDF — contacten & afspraken",
+                           _afspraken_pdf_bytes(_af_rows, _conflicten),
+                           file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
+                           key="dak_afspr_pdf")
 
     st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
     st.caption("Voer per offerte de posten in (Bedrijf · Onderdeel · Prijs excl. btw). Een lege cel = "
