@@ -62,6 +62,18 @@ DAK_POSTEN_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0},
 ]
 
+# Should-cost (bottom-up referentie) voor een dakkapel — NL-marktbanden 2025/2026, incl. btw,
+# voor een standaard geïsoleerde prefab dakkapel van ± 3 m breed. Per onderdeel een lage/hoge band.
+DAK_KAPEL_SHOULDCOST = [
+    {"Onderdeel": "Prefab dakkapel-element (geïsoleerd, incl. kozijn + HR++ beglazing)", "Laag": 4000.0, "Hoog": 6500.0},
+    {"Onderdeel": "Transport + hijsen/kraan", "Laag": 350.0, "Hoog": 800.0},
+    {"Onderdeel": "Plaatsing: dak openen, sparing, element plaatsen, waterdicht (arbeid)", "Laag": 1500.0, "Hoog": 2800.0},
+    {"Onderdeel": "Lood-/zinkwerk + dakaansluitingen", "Laag": 300.0, "Hoog": 700.0},
+    {"Onderdeel": "Binnenafwerking (gipsplaat, vensterbank, schilderwerk)", "Laag": 800.0, "Hoog": 1600.0},
+    {"Onderdeel": "Steiger / valbeveiliging", "Laag": 300.0, "Hoog": 700.0},
+]
+DAK_KAPEL_PM_LO, DAK_KAPEL_PM_HI = 2500.0, 3500.0  # €/strekkende meter breedte, turnkey incl. btw
+
 
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
@@ -817,6 +829,43 @@ with tab_dak:
         else:
             st.info("De originele offerte is hier nog niet geladen — **reboot** de app "
                     "(Manage app → Reboot) zodat het repo-bestand wordt opgehaald.")
+
+    with st.expander("🧮 Should-cost dakkapel — wat zou een dakkapel mógen kosten?", expanded=False):
+        st.caption("Onafhankelijke bottom-up referentie om een dakkapel-offerte te toetsen "
+                   "(zoals een cost engineer een should-cost opbouwt). Bedragen incl. btw voor "
+                   "een standaard geïsoleerde prefab dakkapel.")
+        _kb = pd.DataFrame(DAK_KAPEL_SHOULDCOST)
+        _klo, _khi = float(_kb["Laag"].sum()), float(_kb["Hoog"].sum())
+        st.dataframe(_kb, use_container_width=True, hide_index=True,
+                     column_config={"Laag": st.column_config.NumberColumn(format="€%.0f"),
+                                    "Hoog": st.column_config.NumberColumn(format="€%.0f")})
+        kc = st.columns(2)
+        kc[0].metric("Should-cost standaard (± 3 m)", f"{eur(_klo)} – {eur(_khi)}")
+        _breedte = kc[1].number_input("Breedte dakkapel (m)", 0.5, 12.0, 3.0, 0.5, key="dak_kapel_breedte")
+        _pm_lo, _pm_hi = _breedte * DAK_KAPEL_PM_LO, _breedte * DAK_KAPEL_PM_HI
+        st.metric(f"Richtprijs bij {_breedte:.1f} m (€{DAK_KAPEL_PM_LO:.0f}–€{DAK_KAPEL_PM_HI:.0f}/m turnkey)",
+                  f"{eur(_pm_lo)} – {eur(_pm_hi)}")
+        _q = st.number_input("Offerteprijs dakkapel toetsen (€ incl. btw · 0 = overslaan)",
+                             0.0, 100_000.0, 0.0, 250.0, key="dak_kapel_quote")
+        if _q > 0:
+            _hi_ref = max(_khi, _pm_hi)
+            _lo_ref = min(_klo, _pm_lo)
+            if _q < _lo_ref:
+                st.success(f"🟢 {eur(_q)} ligt **onder** de should-cost — scherp (check wel de specs en garantie).")
+            elif _q <= _hi_ref:
+                st.success(f"🟢 {eur(_q)} is **marktconform** voor deze dakkapel.")
+            elif _q <= _hi_ref * 1.15:
+                st.warning(f"🟡 {eur(_q)} ligt **aan de hoge kant** — onderhandel of vraag een uitsplitsing.")
+            else:
+                st.error(f"🔴 {eur(_q)} ligt **fors boven** de should-cost (~{eur(_hi_ref)}).")
+        st.caption("Banden: prefab dakkapel turnkey ≈ €2.500–3.500/m breedte (Daktrends/Allijn/Homedeal, "
+                   "2025/2026). Btw: meestal 21%; het **isoleren** van een woning > 2 jaar kan op de "
+                   "arbeid onder 9% vallen. Indicatie, geen offerte.")
+        st.download_button("⬇️ Download should-cost dakkapel (Excel)",
+                           m.df_to_excel_bytes({"Should-cost dakkapel": _kb}),
+                           file_name="dakkapel_shouldcost.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           key="dak_kapel_xlsx")
 
     with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
         _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
