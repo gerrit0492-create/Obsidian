@@ -87,6 +87,15 @@ DAK_RENO_PANTYPE = {
     "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
 }
 
+# Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — vooringevuld met Westermeer.
+DAK_AFSPRAKEN_DEFAULT = [
+    {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Contact", "Datum": "2026-06-11", "Tijd": "",
+     "Contactpersoon": "", "Telefoon": "040 304 14 75", "E-mail": "info@dakbedrijfeindhoven.nl",
+     "Status": "Gehad", "Notitie": "Offerte OFF-2026-0189 ontvangen"},
+]
+DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
+DAK_AFSPR_STATUS = ["Gepland", "Gehad", "Geannuleerd"]
+
 
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
@@ -110,13 +119,16 @@ if "niche_state" not in st.session_state:
         st.session_state["dakofferte"] = _data.get("dakofferte", DAK_DEFAULT)
     if "dak_posten" not in st.session_state:
         st.session_state["dak_posten"] = _data.get("dak_posten", DAK_POSTEN_DEFAULT)
+    if "dak_afspraken" not in st.session_state:
+        st.session_state["dak_afspraken"] = _data.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
 def _persist():
     return store.save({"niches": NS, "scans": st.session_state.get("scans", []),
                        "dakofferte": st.session_state.get("dakofferte", []),
-                       "dak_posten": st.session_state.get("dak_posten", [])})
+                       "dak_posten": st.session_state.get("dak_posten", []),
+                       "dak_afspraken": st.session_state.get("dak_afspraken", [])})
 
 
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
@@ -1022,6 +1034,68 @@ with tab_dak:
                            m.df_to_excel_bytes({"Offertes": _dv}),
                            file_name="dakrenovatie_offertes.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    st.markdown("#### 📇 Contacten & afspraken")
+    st.caption("Leg per bedrijf de contactgegevens en afspraken vast — datum, tijd, type en status. "
+               "Rij toevoegen met +, of gebruik het formulier eronder.")
+    _af = st.data_editor(
+        pd.DataFrame(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)), num_rows="dynamic",
+        use_container_width=True, key=f"dak_afspr_oe_{len(st.session_state.get('dak_afspraken', []))}",
+        column_config={
+            "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
+            "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
+            "Tijd": st.column_config.TextColumn(help="uu:mm"),
+            "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
+            "Notitie": st.column_config.TextColumn(width="large"),
+        })
+    _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
+    st.session_state["dak_afspraken"] = _af_rows
+    with st.expander("➕ Afspraak / contact toevoegen", expanded=False):
+        with st.form("dak_afspr_add", clear_on_submit=True):
+            gf = st.columns(2)
+            _ab = gf[0].text_input("Bedrijf *")
+            _atype = gf[1].selectbox("Type", DAK_AFSPR_TYPES)
+            gf2 = st.columns(2)
+            _adatum = gf2[0].text_input("Datum (jjjj-mm-dd)")
+            _atijd = gf2[1].text_input("Tijd (uu:mm)")
+            gf3 = st.columns(2)
+            _acp = gf3[0].text_input("Contactpersoon")
+            _atel = gf3[1].text_input("Telefoon")
+            gf4 = st.columns(2)
+            _amail = gf4[0].text_input("E-mail")
+            _astatus = gf4[1].selectbox("Status", DAK_AFSPR_STATUS)
+            _anote = st.text_input("Notitie")
+            if st.form_submit_button("Toevoegen", type="primary"):
+                if _ab.strip():
+                    st.session_state["dak_afspraken"].append({
+                        "Bedrijf": _ab.strip(), "Type": _atype, "Datum": _adatum, "Tijd": _atijd,
+                        "Contactpersoon": _acp, "Telefoon": _atel, "E-mail": _amail,
+                        "Status": _astatus, "Notitie": _anote})
+                    try:
+                        _persist()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    st.rerun()
+                else:
+                    st.warning("Vul minimaal het bedrijf in.")
+    if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
+        try:
+            _persist()
+            st.success("Opgeslagen.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Opslaan mislukt: {exc}")
+    if _af_rows:
+        _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
+        _komend = _afdf[_afdf["Status"] == "Gepland"]
+        if not _komend.empty:
+            st.caption("📅 Gepland: " + " · ".join(
+                f"{r['Bedrijf']} {r.get('Datum') or ''} {r.get('Tijd') or ''}".strip()
+                for r in _komend.to_dict("records")))
+        st.download_button("⬇️ Download contacten & afspraken (Excel)",
+                           m.df_to_excel_bytes({"Afspraken": _afdf}),
+                           file_name="dakrenovatie_afspraken.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           key="dak_afspr_xlsx")
 
     st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
     st.caption("Voer per offerte de posten in (Bedrijf · Onderdeel · Prijs excl. btw). Een lege cel = "
