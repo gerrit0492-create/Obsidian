@@ -399,6 +399,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_posten"] = _data.get("dak_posten", DAK_POSTEN_DEFAULT)
     if "dak_afspraken" not in st.session_state:
         st.session_state["dak_afspraken"] = _data.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)
+    if "dak_migr" not in st.session_state:
+        st.session_state["dak_migr"] = _data.get("dak_migr", 0)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
@@ -406,7 +408,28 @@ def _persist():
     return store.save({"niches": NS, "scans": st.session_state.get("scans", []),
                        "dakofferte": st.session_state.get("dakofferte", []),
                        "dak_posten": st.session_state.get("dak_posten", []),
-                       "dak_afspraken": st.session_state.get("dak_afspraken", [])})
+                       "dak_afspraken": st.session_state.get("dak_afspraken", []),
+                       "dak_migr": st.session_state.get("dak_migr", 0)})
+
+
+def _dak_fix_albers(offertes, posten):
+    """Eenmalige datacorrectie: zet de Albers-offerte + posten goed (eerder fout uit de PDF-parse)."""
+    def _alb(r):
+        return "albers" in str(r.get("Bedrijf") or "").lower()
+    offertes[:] = [o for o in offertes if not (_alb(o) or str(o.get("Offertenr.") or "") == "2026060231")]
+    offertes.extend(dict(o) for o in DAK_DEFAULT if _alb(o))
+    posten[:] = [p for p in posten if not _alb(p)]
+    posten.extend(dict(p) for p in DAK_POSTEN_DEFAULT if _alb(p))
+
+
+# Eenmalige correctie van de eerder fout ingelezen Albers-offerte (mis-parse uit de PDF).
+if st.session_state.get("dak_migr", 0) < 1:
+    _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
+    st.session_state["dak_migr"] = 1
+    try:
+        _persist()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
