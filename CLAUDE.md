@@ -11,6 +11,14 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 - Don't refactor or rename things that weren't part of the requested change
 - The plugin build artifact `plugin/main.js` and `node_modules/` are git-ignored — never commit them
 - When a feature adds or changes a data view, keep its export (e.g. the Excel/CSV download) in sync in the same commit so the download always matches the UI
+- **Generalise, don't hardcode one case.** If the user asks for something once and
+  it works for one instance, apply the same rule to all comparable instances —
+  drive it from the data, not from a single hardcoded name. (E.g. the "Westermeer
+  rule": every offerte, not just Westermeer, gets a full breakdown and a
+  retrievable original PDF.)
+- **Keep source documents available and findable.** Uploaded source files (e.g.
+  offerte PDF's) are saved to `vault/attachments/` so they stay downloadable/
+  viewable in the app and survive in the repo — never only parse-and-discard.
 
 ## Building & checking
 - Plugin: `cd plugin && npm install && npm run build` (runs the `tsc` typecheck + esbuild bundle)

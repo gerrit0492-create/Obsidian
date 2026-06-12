@@ -34,8 +34,9 @@ DAK_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Offertenr.": "OFF-2026-0189", "Datum": "2026-06-11",
      "Geldig t/m": "2026-06-25", "Excl. btw": 16680.0, "Incl. btw": 20182.80, "Status": "Ontvangen",
      "Notities": "60 m² × €250/m² + lood €900 + vogelwering €780; isolatie Rd 3,8; betaling 50/50"},
-    {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
-     "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
+    {"Bedrijf": "B. Albers Dakwerken", "Offertenr.": "2026060231", "Datum": "2026-06-01",
+     "Geldig t/m": "2026-07-01", "Excl. btw": 13540.0, "Incl. btw": 16191.40, "Status": "Ontvangen",
+     "Notities": "Compleet dakrenovatie + isoleren; 9% btw op isolatie-arbeid; 10 jr garantie; PDF 2026060231"},
     {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
      "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
 ]
@@ -56,6 +57,33 @@ def _dak_dedup(offertes):
             idx[k] = len(out)
             out.append(row)
     return out
+
+
+def _dak_attachments_dir():
+    """Map waar de originele offerte-PDF's staan (Westermeer-regel: altijd terugvindbaar)."""
+    from pathlib import Path
+    for d in (Path(__file__).parent.parent / "vault" / "attachments",
+              Path.cwd() / "vault" / "attachments"):
+        if d.exists():
+            return d
+    return None
+
+
+def _offerte_pdf_path(orow):
+    """Zoek de originele PDF van een offerte op offertenummer, anders op bedrijfsnaam."""
+    d = _dak_attachments_dir()
+    if d is None:
+        return None
+    nr = str(orow.get("Offertenr.") or "").strip().lower()
+    woorden = [w for w in str(orow.get("Bedrijf") or "").lower().replace(".", " ").split() if len(w) > 3]
+    pdfs = sorted(d.glob("*.pdf"))
+    for p in pdfs:                                   # 1) match op offertenummer
+        if nr and nr in p.name.lower():
+            return p
+    for p in pdfs:                                   # 2) anders op een woord uit de bedrijfsnaam
+        if any(w in p.name.lower() for w in woorden):
+            return p
+    return None
 
 
 DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
@@ -79,6 +107,21 @@ DAK_POSTEN_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Dakrenovatie (incl. isolatie + afvoer 3,5 m³)", "Prijs excl. btw": 15000.0, "Btw %": 21},
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Loodwerk dakkapel", "Prijs excl. btw": 900.0, "Btw %": 21},
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Bouwkundige voorzieningen: steiger (Layher) + pannenlift + puincontainer", "Prijs excl. btw": 2390.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "SF40BB isolatiefolie aanbrengen — arbeid (Rc 3,89–4,11, 60 m²)", "Prijs excl. btw": 1600.0, "Btw %": 9},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "SF40BB isolatiefolie leveren (60 m²)", "Prijs excl. btw": 2000.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panlatten als tengels t.b.v. folie (200 m¹)", "Prijs excl. btw": 800.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panlatten (200 m¹)", "Prijs excl. btw": 1100.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Ruitersteunen (10 st) + ruiterbalk nok + ondervorst (7 m¹)", "Prijs excl. btw": 650.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Sneldek betonpannen Antraciet (60 m²)", "Prijs excl. btw": 1800.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Gevelpannen links + rechts", "Prijs excl. btw": 600.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Nelskamp halfronde vorst Antraciet (21 st, keramisch)", "Prijs excl. btw": 700.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Gootbeugels", "Prijs excl. btw": 400.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Zinken bakgoot b37 (14 m¹)", "Prijs excl. btw": 1200.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panhaken (RVS, NEN 6707)", "Prijs excl. btw": 300.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: regenpijpen zink vervangen (optie €1.400)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: kunstlood dakkapel vernieuwen (optie €700/dakkapel)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: dakdoorvoer/rookgasafvoer (optie €400, extern)", "Prijs excl. btw": 0.0, "Btw %": 21},
 ]
 
 # Should-cost (bottom-up) voor een hellend pannendak vervangen INCL. isolatie — NL 2025/2026,
@@ -356,6 +399,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_posten"] = _data.get("dak_posten", DAK_POSTEN_DEFAULT)
     if "dak_afspraken" not in st.session_state:
         st.session_state["dak_afspraken"] = _data.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)
+    if "dak_migr" not in st.session_state:
+        st.session_state["dak_migr"] = _data.get("dak_migr", 0)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
@@ -363,7 +408,28 @@ def _persist():
     return store.save({"niches": NS, "scans": st.session_state.get("scans", []),
                        "dakofferte": st.session_state.get("dakofferte", []),
                        "dak_posten": st.session_state.get("dak_posten", []),
-                       "dak_afspraken": st.session_state.get("dak_afspraken", [])})
+                       "dak_afspraken": st.session_state.get("dak_afspraken", []),
+                       "dak_migr": st.session_state.get("dak_migr", 0)})
+
+
+def _dak_fix_albers(offertes, posten):
+    """Eenmalige datacorrectie: zet de Albers-offerte + posten goed (eerder fout uit de PDF-parse)."""
+    def _alb(r):
+        return "albers" in str(r.get("Bedrijf") or "").lower()
+    offertes[:] = [o for o in offertes if not (_alb(o) or str(o.get("Offertenr.") or "") == "2026060231")]
+    offertes.extend(dict(o) for o in DAK_DEFAULT if _alb(o))
+    posten[:] = [p for p in posten if not _alb(p)]
+    posten.extend(dict(p) for p in DAK_POSTEN_DEFAULT if _alb(p))
+
+
+# Eenmalige correctie van de eerder fout ingelezen Albers-offerte (mis-parse uit de PDF).
+if st.session_state.get("dak_migr", 0) < 1:
+    _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
+    st.session_state["dak_migr"] = 1
+    try:
+        _persist()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # --- Actieve niche (bovenaan de zijbalk) — stuurt het hele dashboard --------
@@ -1130,19 +1196,21 @@ with tab_dak:
                 st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
                            "vogelwering €15–35/m geïnstalleerd, loodslab €85–300/m² (Gevelpro). "
                            "Betaling 50/50 · uitvoering max. 3 werkdagen.")
-                from pathlib import Path as _P
-                _fn = "Offerte-Westermeer-OFF-2026-0189.pdf"
-                _cands = [_P(__file__).parent.parent / "vault" / "attachments" / _fn,
-                          _P.cwd() / "vault" / "attachments" / _fn]
-                _pdf_path = next((p for p in _cands if p.exists()), None)
-                if _pdf_path:
-                    _bytes = _pdf_path.read_bytes()
-                    st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
-                                       file_name=_fn, mime="application/pdf")
-                    if st.checkbox("👁️ Offerte-tekst hier tonen", key="dak_show_pdf"):
-                        _txt = ai.extract_pdf_text(_bytes, maxpages=12)
-                        st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
-                                     height=420)
+
+            # Westermeer-regel voor élke offerte: originele PDF altijd terugvindbaar.
+            _pdf_path = _offerte_pdf_path(_orow)
+            if _pdf_path:
+                _bytes = _pdf_path.read_bytes()
+                st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
+                                   file_name=_pdf_path.name, mime="application/pdf",
+                                   key=f"dak_pdf_dl_{_sel}")
+                if st.checkbox("👁️ Offerte-tekst hier tonen", key=f"dak_show_pdf_{_sel}"):
+                    _txt = ai.extract_pdf_text(_bytes, maxpages=12)
+                    st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
+                                 height=420, key=f"dak_pdf_txt_{_sel}")
+            else:
+                st.caption("ℹ️ Geen originele PDF gevonden voor deze offerte. Upload 'm bij "
+                           "**⬆️ Offerte uploaden** — dan wordt-ie bewaard en hier terugvindbaar.")
 
             _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", f"Btw ({_eff:.0f}%)", "Totaal incl. btw", "€/m² incl."],
                                    "Bedrag": [_sub, _btw, _tot_incl, round(_m2, 0)]})
@@ -1231,7 +1299,8 @@ with tab_dak:
                 st.warning("Automatisch uitlezen vereist een LLM-key (Groq). Voeg anders handmatig toe.")
             else:
                 with st.spinner("PDF uitlezen + posten herkennen…"):
-                    _txt = ai.extract_pdf_text(_up.read())
+                    _pdf_bytes = _up.read()
+                    _txt = ai.extract_pdf_text(_pdf_bytes)
                     _od = ai.parse_offerte(_txt) if _txt else None
                 _ok = bool(_od and str(_od.get("bedrijf") or "").strip())
                 _new_posten = []
@@ -1269,6 +1338,15 @@ with tab_dak:
                 st.session_state["dak_posten"] = [
                     p for p in st.session_state.get("dak_posten", [])
                     if str(p.get("Bedrijf") or "").strip().lower() != _bn.lower()] + _new_posten
+                # Westermeer-regel: bewaar de geüploade PDF zodat de offerte altijd terugvindbaar is
+                try:
+                    _adir = _dak_attachments_dir()
+                    if _adir is not None:
+                        _safe = "".join(c for c in _bn if c.isalnum() or c in " -_").strip().replace(" ", "-")
+                        _nr2 = str(_row.get("Offertenr.") or "").strip() or "offerte"
+                        (_adir / f"Offerte-{_safe}-{_nr2}.pdf").write_bytes(_pdf_bytes)
+                except Exception:  # noqa: BLE001
+                    pass
                 _verb = "bijgewerkt" if _hit is not None else "toegevoegd"
                 if _ok:
                     st.session_state["dak_flash"] = (
