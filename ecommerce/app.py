@@ -134,12 +134,17 @@ def _afspraak_conflicten(rows, min_gap_min=DAK_AFSPR_GAP_MIN):
 
 
 def _maand_kalender_html(jaar, maand, per_dag, conf_dat):
-    """HTML-maandkalender (ma–zo) met gemarkeerde afspraakdagen (blauw) en conflicten (rood)."""
+    """HTML-maandkalender (ma–zo); afspraken gekleurd per status, conflictdagen rood."""
     import calendar
     from datetime import date
     dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
     mnd = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus",
            "september", "oktober", "november", "december"]
+    kleur = {"Bezoek gepland": ("#e1ecff", "#2d6cdf"),
+             "Bezoek uitgevoerd": ("#e3f5e9", "#1e8449"),
+             "Offerte ontvangen": ("#fdf2dc", "#d68910"),
+             "Wachten op offerte": ("#fdf2dc", "#d68910"),
+             "Geannuleerd": ("#eeeeee", "#999999")}
 
     def esc(s):
         return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -159,21 +164,26 @@ def _maand_kalender_html(jaar, maand, per_dag, conf_dat):
                 continue
             iso = date(jaar, maand, daynum).isoformat()
             appts = per_dag.get(iso, [])
+            statuses = [a[2] for a in appts]
             if iso in conf_dat:
-                bg = "#fde8e8"
+                bg = "#fdecec"
+            elif "Bezoek gepland" in statuses:
+                bg = "#eef4fd"
             elif appts:
-                bg = "#e7f1fb"
+                bg = "#ffffff"
             elif i >= 5:
                 bg = "#f6f7f8"
             else:
                 bg = "#ffffff"
             inner = f'<div style="text-align:right;color:#8a9099;">{daynum}</div>'
-            for t, b in appts:
-                mark = "⚠️" if iso in conf_dat else "•"
+            for t, b, sstat in appts:
+                bgc, brc = kleur.get(sstat, ("#eef2f5", "#8a9099"))
+                mark = "⚠️ " if iso in conf_dat else ""
+                strike = "text-decoration:line-through;" if sstat == "Geannuleerd" else ""
                 label = (f"{t} " if t else "") + esc(b)
-                inner += (f'<div style="background:#fff;border:1px solid #cfd8e3;border-radius:3px;'
-                          f'margin-top:1px;padding:0 2px;white-space:nowrap;overflow:hidden;'
-                          f'text-overflow:ellipsis;" title="{label}">{mark} {label}</div>')
+                inner += (f'<div style="background:{bgc};border:1px solid {brc};border-left:3px solid {brc};'
+                          f'border-radius:3px;margin-top:1px;padding:0 3px;{strike}white-space:nowrap;'
+                          f'overflow:hidden;text-overflow:ellipsis;" title="{esc(sstat)}: {label}">{mark}{label}</div>')
             html.append(f'<td style="{cel}background:{bg};">{inner}</td>')
         html.append('</tr>')
     html.append('</table>')
@@ -1132,6 +1142,9 @@ with tab_dak:
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="dak_reno_xlsx")
 
+    if st.session_state.get("dak_flash"):
+        _lvl, _msg = st.session_state.pop("dak_flash")
+        getattr(st, _lvl, st.info)(_msg)
     with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
         _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
         if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
@@ -1141,8 +1154,18 @@ with tab_dak:
                 with st.spinner("PDF uitlezen + posten herkennen…"):
                     _txt = ai.extract_pdf_text(_up.read())
                     _od = ai.parse_offerte(_txt) if _txt else None
+                _np = 0
                 if not _od or not str(_od.get("bedrijf") or "").strip():
-                    st.error("Kon de offerte niet automatisch uitlezen. Voeg 'm handmatig toe.")
+                    # uitlezen mislukt — tóch toevoegen (op bestandsnaam) zodat de offerte niet verdwijnt
+                    _bn = (getattr(_up, "name", "") or "Onbekende offerte").rsplit(".", 1)[0].strip() \
+                        or "Onbekende offerte"
+                    st.session_state["dakofferte"].append({
+                        "Bedrijf": _bn, "Offertenr.": "", "Datum": "", "Geldig t/m": "",
+                        "Excl. btw": 0.0, "Incl. btw": 0.0, "Status": "Ontvangen",
+                        "Notities": "automatisch uitlezen mislukt — vul bedragen handmatig aan"})
+                    st.session_state["dak_flash"] = (
+                        "warning", f"Kon '{_bn}' niet automatisch uitlezen — als lege regel toegevoegd, "
+                        "vul de bedragen handmatig aan in de tabel.")
                 else:
                     _bn = str(_od["bedrijf"]).strip()
                     st.session_state["dakofferte"].append({
@@ -1151,7 +1174,6 @@ with tab_dak:
                         "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
                         "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
                         "Status": "Ontvangen", "Notities": "automatisch uit PDF"})
-                    _np = 0
                     for _p in _od.get("posten", []):
                         try:
                             _pr = float(_p.get("prijs_excl", 0) or 0)
@@ -1162,12 +1184,15 @@ with tab_dak:
                                 {"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
                                  "Prijs excl. btw": _pr})
                             _np += 1
-                    try:
-                        _persist()
-                    except Exception:  # noqa: BLE001
-                        pass
-                    st.success(f"Offerte van {_bn} toegevoegd met {_np} posten — zie de tabel en posten-matrix.")
-                    st.rerun()
+                    st.session_state["dak_flash"] = (
+                        "success", f"Offerte van {_bn} toegevoegd met {_np} posten — "
+                        "zie de tabel en posten-matrix.")
+                try:
+                    _persist()
+                except Exception as _exc:  # noqa: BLE001
+                    st.session_state["dak_flash"] = (
+                        "warning", f"Toegevoegd, maar opslaan in Gist mislukte: {_exc}")
+                st.rerun()
         st.caption("De posten/totalen worden automatisch uit de PDF gehaald (met je Groq-key). "
                    "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
 
@@ -1211,6 +1236,8 @@ with tab_dak:
         })
     _dak_rows = [r for r in _dak_edit.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
     st.session_state["dakofferte"] = _dak_rows
+    st.caption(f"📄 {len(_dak_rows)} offerte(s) in beheer"
+               + (": " + ", ".join(str(r["Bedrijf"]) for r in _dak_rows) if _dak_rows else "."))
     if store.enabled() and st.button("💾 Offertes bewaren in Gist", key="dak_save"):
         try:
             _persist()
@@ -1385,38 +1412,48 @@ with tab_dak:
                     return _dagen[_date.fromisoformat(str(d)).weekday()]
                 except Exception:  # noqa: BLE001
                     return ""
-            # groepeer geplande bezoeken per dag, render een maandkalender per maand
+            # alle zichtbare afspraken per dag (voor kleur per status); maanden uit de geplande bezoeken
             _per_dag = {}
-            for _r in _komend.to_dict("records"):
+            for _r in _afdf.to_dict("records"):
                 try:
                     _dd = _date.fromisoformat(str(_r.get("Datum")))
                 except Exception:  # noqa: BLE001
                     continue
                 _per_dag.setdefault(_dd.isoformat(), []).append(
-                    (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip()))
+                    (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip(),
+                     str(_r.get("Status") or "").strip()))
             for _iso in _per_dag:
                 _per_dag[_iso].sort()
+            _planmaanden = set()
+            for _x in _komend["Datum"]:
+                try:
+                    _pm = _date.fromisoformat(str(_x))
+                    _planmaanden.add((_pm.year, _pm.month))
+                except Exception:  # noqa: BLE001
+                    continue
             st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
-            _maanden = sorted({(_date.fromisoformat(k).year, _date.fromisoformat(k).month) for k in _per_dag})
-            for _jr, _mn in _maanden:
+            for _jr, _mn in sorted(_planmaanden):
                 st.markdown(_maand_kalender_html(_jr, _mn, _per_dag, _conf_dat), unsafe_allow_html=True)
-            _legenda = "🟦 = afspraak"
+            _legenda = "Kleur per status: 🟦 gepland · 🟩 uitgevoerd · 🟧 offerte ontvangen/wachten · ⬜ geannuleerd"
             if _conf_dat:
-                _legenda += " · 🟥 / ⚠️ = planning-conflict (overlap of < 1 uur ertussen) — zie de check hierboven"
+                _legenda += " · 🟥 / ⚠️ planning-conflict (overlap of < 1 uur ertussen)"
             st.caption(_legenda)
-            # platte rijen voor de Excel-export
+            # platte rijen (alleen plan-maanden) voor de Excel-export
             for _iso in sorted(_per_dag):
                 _dd = _date.fromisoformat(_iso)
-                for _t, _b in _per_dag[_iso]:
+                if (_dd.year, _dd.month) not in _planmaanden:
+                    continue
+                for _t, _b, _sstat in _per_dag[_iso]:
                     _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
-                                       "Bedrijf": _b, "Let op": "conflict" if _iso in _conf_dat else ""})
+                                       "Bedrijf": _b, "Status": _sstat,
+                                       "Let op": "conflict" if _iso in _conf_dat else ""})
             _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
             with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
                 st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
                              use_container_width=True, hide_index=True)
         _sheets = {"Afspraken": _afdf}
         if _weekrijen:
-            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Let op"]]
+            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Status", "Let op"]]
         _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
                                      if _conflicten else
                                      pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
