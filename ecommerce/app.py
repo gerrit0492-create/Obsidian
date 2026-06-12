@@ -228,8 +228,8 @@ def _ics_dt(val, key):
         return "", ""
 
 
-def _ics_dak_afspraken(text, keyword="dak", today=None):
-    """Haal uit een iCal-tekst de afspraken waarvan de titel het trefwoord bevat."""
+def _ics_dak_afspraken(text, keyword="dak", today=None, min_datum=None):
+    """Afspraken uit iCal waarvan de titel het trefwoord bevat en datum >= min_datum."""
     from datetime import date
     today = today or date.today().isoformat()
     rows, cur = [], None
@@ -238,11 +238,12 @@ def _ics_dak_afspraken(text, keyword="dak", today=None):
             cur = {}
         elif line == "END:VEVENT":
             s = (cur or {}).get("summary", "") if cur is not None else ""
-            if cur is not None and keyword in s.lower():
+            d = (cur or {}).get("datum", "") if cur is not None else ""
+            if cur is not None and keyword in s.lower() and not (min_datum and d and d < min_datum):
                 typ = "Offerte-overleg" if "offerte" in s.lower() else "Bezoek/inspectie"
-                status = "Bezoek uitgevoerd" if cur.get("datum", "9999") < today else "Bezoek gepland"
+                status = "Bezoek uitgevoerd" if (d or "9999") < today else "Bezoek gepland"
                 rows.append({"Bedrijf": s.strip()[:60], "Type": typ,
-                             "Datum": cur.get("datum", ""), "Tijd": cur.get("tijd", ""),
+                             "Datum": d, "Tijd": cur.get("tijd", ""),
                              "Contactpersoon": "", "Telefoon": "", "E-mail": "",
                              "Status": status, "Notitie": "Uit Google Agenda"})
             cur = None
@@ -1198,10 +1199,18 @@ with tab_dak:
     st.markdown("#### 📇 Contacten & afspraken")
     st.caption("Leg per bedrijf de contactgegevens en afspraken vast — datum, tijd, type en status. "
                "Rij toevoegen met +, of gebruik het formulier eronder.")
+    from datetime import date as _date_af
+    _vanaf = st.date_input("Toon afspraken vanaf", value=_date_af(2026, 6, 1), key="dak_afspr_vanaf",
+                           format="DD-MM-YYYY")
+    _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
+    _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
+    _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
+    _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
+    _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
     _af = st.data_editor(
-        pd.DataFrame(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)), num_rows="dynamic",
+        pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
         use_container_width=True,
-        key=f"dak_afspr_oe_{len(st.session_state.get('dak_afspraken', []))}_{st.session_state.get('dak_afspr_nonce', 0)}",
+        key=f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}",
         column_config={
             "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
             "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
@@ -1210,7 +1219,10 @@ with tab_dak:
             "Notitie": st.column_config.TextColumn(width="large"),
         })
     _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-    st.session_state["dak_afspraken"] = _af_rows
+    st.session_state["dak_afspraken"] = _verborgen + _af_rows
+    if _verborgen:
+        st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
+                   "(blijven wel bewaard).")
     _conflicten = _afspraak_conflicten(_af_rows)
     if _conflicten:
         st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
@@ -1264,7 +1276,8 @@ with tab_dak:
                 st.warning("Vul eerst de iCal-URL in.")
             else:
                 try:
-                    _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower())
+                    _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
+                                              min_datum=_vanaf_s)
                     _have = {(r.get("Datum"), r.get("Tijd")) for r in st.session_state.get("dak_afspraken", [])}
                     _added = [r for r in _new if (r["Datum"], r["Tijd"]) not in _have]
                     st.session_state.setdefault("dak_afspraken", [])
