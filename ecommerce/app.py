@@ -66,7 +66,8 @@ DAK_POSTEN_DEFAULT = [
 # €/m² EXCL. btw. Directe kosten (materiaal + arbeid); de opslagen (AK + winst/risico) worden
 # eronder berekend. Loodwerk en vogelwering zijn aparte posten (zie de offerte-uitsplitsing).
 DAK_RENO_SHOULDCOST = [
-    {"Onderdeel": "Oude pannen/tengels/panlatten verwijderen + afvoer/container", "Laag": 10.0, "Hoog": 17.0},
+    {"Onderdeel": "Oude pannen/tengels/panlatten verwijderen (sloop, arbeid)", "Laag": 6.0, "Hoog": 11.0},
+    {"Onderdeel": "Afvoer afval — container(s) + stortkosten (pannen/hout/folie)", "Laag": 5.0, "Hoog": 10.0},
     {"Onderdeel": "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)", "Laag": 3.0, "Hoog": 6.0},
     {"Onderdeel": "Isolatie Rd 3,8 — materiaal + aanbrengen", "Laag": 20.0, "Hoog": 30.0},
     {"Onderdeel": "Nieuwe tengels + panlatten — materiaal + arbeid", "Laag": 8.0, "Hoog": 13.0},
