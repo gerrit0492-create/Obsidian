@@ -62,18 +62,23 @@ DAK_POSTEN_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0},
 ]
 
-# Should-cost (bottom-up referentie) voor een hellend pannendak vervangen INCL. isolatie —
-# NL-marktbanden 2025/2026, €/m² EXCL. btw. Per onderdeel een lage/hoge band. Loodwerk en
-# vogelwering zijn aparte posten (zie de offerte-uitsplitsing).
+# Should-cost (bottom-up) voor een hellend pannendak vervangen INCL. isolatie — NL 2025/2026,
+# €/m² EXCL. btw. Directe kosten (materiaal + arbeid); de opslagen (AK + winst/risico) worden
+# eronder berekend. Loodwerk en vogelwering zijn aparte posten (zie de offerte-uitsplitsing).
 DAK_RENO_SHOULDCOST = [
-    {"Onderdeel": "Oude pannen/tengels/panlatten verwijderen + afvoer/container", "Laag": 12.0, "Hoog": 22.0},
-    {"Onderdeel": "Isolatie Rd 3,8 — materiaal + aanbrengen", "Laag": 22.0, "Hoog": 36.0},
-    {"Onderdeel": "Nieuwe tengels + panlatten — materiaal + arbeid", "Laag": 9.0, "Hoog": 16.0},
-    {"Onderdeel": "Keramische pannen — materiaal", "Laag": 15.0, "Hoog": 24.0},
-    {"Onderdeel": "Pannen leggen — arbeid", "Laag": 18.0, "Hoog": 28.0},
-    {"Onderdeel": "Nok-/kantpannen, hulpstukken, bevestiging", "Laag": 6.0, "Hoog": 12.0},
-    {"Onderdeel": "Steiger (toegerekend per m²)", "Laag": 8.0, "Hoog": 16.0},
+    {"Onderdeel": "Oude pannen/tengels/panlatten verwijderen + afvoer/container", "Laag": 10.0, "Hoog": 17.0},
+    {"Onderdeel": "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)", "Laag": 3.0, "Hoog": 6.0},
+    {"Onderdeel": "Isolatie Rd 3,8 — materiaal + aanbrengen", "Laag": 20.0, "Hoog": 30.0},
+    {"Onderdeel": "Nieuwe tengels + panlatten — materiaal + arbeid", "Laag": 8.0, "Hoog": 13.0},
+    {"Onderdeel": "Keramische pannen — materiaal", "Laag": 14.0, "Hoog": 21.0},
+    {"Onderdeel": "Pannen leggen — arbeid", "Laag": 16.0, "Hoog": 24.0},
+    {"Onderdeel": "Nok-/kantpannen (droge nok/vorst), hulpstukken, bevestiging", "Laag": 6.0, "Hoog": 10.0},
+    {"Onderdeel": "Dakrandafwerking — boeiboord/windveer, daktrim", "Laag": 3.0, "Hoog": 6.0},
+    {"Onderdeel": "Steiger (toegerekend per m²)", "Laag": 7.0, "Hoog": 12.0},
+    {"Onderdeel": "Materiaaltransport, kraan/hijswerk, klein materieel", "Laag": 3.0, "Hoog": 6.0},
 ]
+DAK_RENO_AK = 0.10   # algemene kosten / overhead (werkvoorbereiding, projectleiding, CAR, administratie)
+DAK_RENO_WR = 0.07   # winst & risico
 
 
 @st.cache_data
@@ -836,36 +841,51 @@ with tab_dak:
                    "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                    "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
         _rb = pd.DataFrame(DAK_RENO_SHOULDCOST)
-        _rlo_m2, _rhi_m2 = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())
+        _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
         st.dataframe(_rb, use_container_width=True, hide_index=True,
                      column_config={"Laag": st.column_config.NumberColumn("Laag (€/m²)", format="€%.0f"),
                                     "Hoog": st.column_config.NumberColumn("Hoog (€/m²)", format="€%.0f")})
-        _rlo_tot, _rhi_tot = _rlo_m2 * dak_opp, _rhi_m2 * dak_opp
+        # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico.
+        _ak_lo, _ak_hi = _dlo * DAK_RENO_AK, _dhi * DAK_RENO_AK
+        _wr_lo, _wr_hi = (_dlo + _ak_lo) * DAK_RENO_WR, (_dhi + _ak_hi) * DAK_RENO_WR
+        _slo, _shi = _dlo + _ak_lo + _wr_lo, _dhi + _ak_hi + _wr_hi  # should-price €/m²
+        _opb = pd.DataFrame([
+            {"Opbouw": "Directe kosten (materiaal + arbeid)", "Laag (€/m²)": _dlo, "Hoog (€/m²)": _dhi},
+            {"Opbouw": f"+ Algemene kosten ({DAK_RENO_AK * 100:.0f}%)", "Laag (€/m²)": _ak_lo, "Hoog (€/m²)": _ak_hi},
+            {"Opbouw": f"+ Winst & risico ({DAK_RENO_WR * 100:.0f}%)", "Laag (€/m²)": _wr_lo, "Hoog (€/m²)": _wr_hi},
+            {"Opbouw": "= Should-price", "Laag (€/m²)": _slo, "Hoog (€/m²)": _shi},
+        ])
+        st.dataframe(_opb, use_container_width=True, hide_index=True,
+                     column_config={"Laag (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
+                                    "Hoog (€/m²)": st.column_config.NumberColumn(format="€%.0f")})
         rc = st.columns(2)
-        rc[0].metric("Should-cost", f"€{_rlo_m2:.0f}–€{_rhi_m2:.0f}/m² excl.")
-        rc[1].metric(f"Voor {dak_opp:.0f} m² (excl. btw)", f"{eur(_rlo_tot)} – {eur(_rhi_tot)}")
+        rc[0].metric("Should-price", f"€{_slo:.0f}–€{_shi:.0f}/m² excl.")
+        rc[1].metric(f"Voor {dak_opp:.0f} m² (excl. btw)", f"{eur(_slo * dak_opp)} – {eur(_shi * dak_opp)}")
         _wm_m2 = 15000.0 / dak_opp  # dakrenovatie-deel van Westermeer (zonder lood/vogelwering)
-        _wm_v = ("🟢 marktconform" if _wm_m2 <= _rhi_m2
-                 else "🟡 aan de hoge kant" if _wm_m2 <= _rhi_m2 * 1.25 else "🔴 fors boven should-cost")
+        _wm_v = ("🟢 marktconform" if _wm_m2 <= _shi
+                 else "🟡 aan de hoge kant" if _wm_m2 <= _shi * 1.25 else "🔴 fors boven should-price")
         st.markdown(f"**Westermeer dakrenovatie:** {eur(15000.0)} excl. = **€{_wm_m2:.0f}/m²** → {_wm_v} "
-                    f"(should-cost €{_rlo_m2:.0f}–€{_rhi_m2:.0f}/m²).")
+                    f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
         _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
                              0.0, 1_000_000.0, 0.0, 250.0, key="dak_reno_quote")
         if _q > 0:
             _qm2 = _q / dak_opp
-            if _qm2 < _rlo_m2:
-                st.success(f"🟢 €{_qm2:.0f}/m² ligt **onder** de should-cost — scherp (check specs en garantie).")
-            elif _qm2 <= _rhi_m2:
+            if _qm2 < _slo:
+                st.success(f"🟢 €{_qm2:.0f}/m² ligt **onder** de should-price — scherp (check specs en garantie).")
+            elif _qm2 <= _shi:
                 st.success(f"🟢 €{_qm2:.0f}/m² is **marktconform**.")
-            elif _qm2 <= _rhi_m2 * 1.25:
+            elif _qm2 <= _shi * 1.25:
                 st.warning(f"🟡 €{_qm2:.0f}/m² ligt **aan de hoge kant** — onderhandel of vraag uitsplitsing.")
             else:
-                st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-cost (~€{_rhi_m2:.0f}/m²).")
-        st.caption("Banden: hellend pannendak + isolatie ≈ €110–160/m² excl. btw all-in (Werkspot/Homedeal, "
-                   "2025/2026); de onderkant hier is strakke directe kosten — reken in de praktijk opslag/winst "
-                   "erbij. Btw op isolatie-arbeid (woning > 2 jr) vaak 9%. Indicatie, geen offerte.")
+                st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-price (~€{_shi:.0f}/m²).")
+        st.caption("Directe kosten = materiaal + arbeid. **AK** dekt werkvoorbereiding, projectleiding, "
+                   "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
+                   "should-*price* van die je met een offerte mag vergelijken. Ter controle: een hellend "
+                   "pannendak + isolatie kost all-in ≈ €110–160/m² excl. btw (Werkspot/Homedeal, 2025/2026). "
+                   "Loodwerk + vogelwering apart. Btw op isolatie-arbeid (woning > 2 jr) vaak 9%. Indicatie, "
+                   "geen offerte.")
         st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                           m.df_to_excel_bytes({"Should-cost dakrenovatie": _rb}),
+                           m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
                            file_name="dakrenovatie_shouldcost.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="dak_reno_xlsx")
