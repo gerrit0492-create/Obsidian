@@ -1370,6 +1370,8 @@ with tab_dak:
     _auto_added = []
     for _o in st.session_state.get("dakofferte", []):
         _b = str(_o.get("Bedrijf") or "").strip()
+        if str(_o.get("Status") or "") == "Afgewezen":
+            continue  # afgewezen / oude offertes niet meenemen in de vergelijking
         try:
             _ex = float(_o.get("Excl. btw") or 0)
         except Exception:  # noqa: BLE001
