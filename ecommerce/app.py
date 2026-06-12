@@ -63,12 +63,14 @@ def eur(x: float) -> str:
 DAK_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Offertenr.": "OFF-2026-0189", "Datum": "2026-06-11",
      "Geldig t/m": "2026-06-25", "Excl. btw": 16680.0, "Incl. btw": 20182.80, "Status": "Ontvangen",
+     "Garantie": "15 jaar werkgarantie", "Isolatie": "Rd 3,8",
      "Notities": "60 m² × €250/m² + lood €900 + vogelwering €780; isolatie Rd 3,8; betaling 50/50"},
     {"Bedrijf": "B. Albers Dakwerken", "Offertenr.": "2026060231", "Datum": "2026-06-01",
      "Geldig t/m": "2026-07-01", "Excl. btw": 13540.0, "Incl. btw": 16191.40, "Status": "Ontvangen",
+     "Garantie": "10 jaar", "Isolatie": "Rc 3,89–4,11 (SF40BB, ISDE KA28563)",
      "Notities": "Compleet dakrenovatie + isoleren; 9% btw op isolatie-arbeid; 10 jr garantie; PDF 2026060231"},
     {"Bedrijf": "", "Offertenr.": "", "Datum": "", "Geldig t/m": "", "Excl. btw": 0.0,
-     "Incl. btw": 0.0, "Status": "Aangevraagd", "Notities": ""},
+     "Incl. btw": 0.0, "Status": "Aangevraagd", "Garantie": "", "Isolatie": "", "Notities": ""},
 ]
 def _dak_offerte_key(row):
     """Sleutel om dezelfde offerte te herkennen: offertenummer, anders bedrijfsnaam."""
@@ -470,9 +472,9 @@ def _dak_fix_albers(offertes, posten):
 
 
 # Eenmalige correctie: Albers-mis-parse + dubbele/variant-posten van Westermeer opschonen.
-if st.session_state.get("dak_migr", 0) < 4:
+if st.session_state.get("dak_migr", 0) < 5:
     _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
-    st.session_state["dak_migr"] = 4
+    st.session_state["dak_migr"] = 5
     try:
         _persist()
     except Exception:  # noqa: BLE001
@@ -1882,7 +1884,8 @@ with tab_dak:
             _ex, _in = float(_o.get("Excl. btw") or 0), float(_o.get("Incl. btw") or 0)
             _hl.append({"Offerte": b, "Excl. btw": round(_ex), "Incl. btw": round(_in),
                         "€/m² incl.": round(_in / dak_opp) if dak_opp else 0,
-                        "Effectief btw": f"{(_in - _ex) / _ex * 100:.0f}%" if _ex > 0 and _in > 0 else "—"})
+                        "Effectief btw": f"{(_in - _ex) / _ex * 100:.0f}%" if _ex > 0 and _in > 0 else "—",
+                        "Isolatie": str(_o.get("Isolatie") or "—"), "Garantie": str(_o.get("Garantie") or "—")})
         _hldf = pd.DataFrame(_hl)
         st.dataframe(_hldf, use_container_width=True, hide_index=True,
                      column_config={"Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
@@ -1907,8 +1910,26 @@ with tab_dak:
             _sp = [p for p in _byb[b] if "stelpost" in str(p.get("Onderdeel") or "").lower()]
             if _sp:
                 _bullets.append(f"📌 **{b}** heeft {len(_sp)} **stelpost(en)** (optioneel — kan nog bijkomen).")
+        _gar = {b: str(_off_by.get(b, {}).get("Garantie") or "") for b in _detbedr}
+        if len({v for v in _gar.values() if v}) > 1:
+            _bullets.append("🛡️ **Garantie verschilt**: "
+                            + " · ".join(f"{b}: {_gar[b]}" for b in _detbedr if _gar[b]) + ".")
+        # frame: in de kern dezelfde klus; wie geeft het meeste kosteninzicht?
+        _granular = max(_detbedr, key=lambda b: sum(1 for p in _byb[b] if float(p.get("Prijs excl. btw") or 0) > 0))
+        _bullets.insert(0, f"🔁 De offertes dekken in de kern **dezelfde dakrenovatie** (zelfde dak/m², isolatie + "
+                        f"nieuwe pannen); ze gebruiken alleen andere benamingen. **{_granular}** geeft het meeste "
+                        "**kosteninzicht** (meer losse, geprijsde posten); de ander bundelt onder één prijs.")
         if _bullets:
             st.markdown("\n".join("- " + x for x in _bullets))
+        # ISDE-subsidie op dakisolatie (Rd ≥ 3,5 m²K/W, ≥ 20 m²) — geldt voor beide offertes
+        _isde1 = min(round(16.25 * dak_opp), 975) if dak_opp else 0
+        _isde2 = min(round(32.50 * dak_opp), 1950) if dak_opp else 0
+        st.info(f"🏷️ **ISDE-subsidie op de dakisolatie** — isolatie met **Rd ≥ 3,5 m²K/W** (en ≥ 20 m²) komt in "
+                f"aanmerking. Beide voldoen ruim: Westermeer **Rd 3,8**, Albers **Rc 3,89–4,11** (SF40BB, "
+                f"meldcode KA28563). Indicatie voor {dak_opp:.0f} m²: **± €{_isde1:.0f} terug** bij één "
+                f"isolatiemaatregel (≈ €16,25/m², max €975), of **tot €{_isde2:.0f}** bij twee maatregelen "
+                f"(≈ €32,50/m², max €1.950). Dit geldt voor **béide** offertes → het verlaagt je **netto** kosten, "
+                "maar verandert de onderlinge keuze nauwelijks. Laat de aannemer de ISDE-aanvraag ondersteunen.")
         st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
                    "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
                    "stelposten realistisch zijn.")
