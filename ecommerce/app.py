@@ -91,21 +91,21 @@ DAK_RENO_PANTYPE = {
 DAK_AFSPRAKEN_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Offerte-overleg", "Datum": "2026-06-11", "Tijd": "15:00",
      "Contactpersoon": "", "Telefoon": "040 304 14 75", "E-mail": "info@dakbedrijfeindhoven.nl",
-     "Status": "Gehad", "Notitie": "Offerte OFF-2026-0189 ontvangen (agenda: 'Dak offerte westerman')"},
+     "Status": "Offerte ontvangen", "Notitie": "Offerte OFF-2026-0189 ontvangen (agenda: 'Dak offerte westerman')"},
     {"Bedrijf": "Albers Dakbedekking", "Type": "Bezoek/inspectie", "Datum": "2026-06-12", "Tijd": "08:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gehad", "Notitie": "Uit agenda DePoorter"},
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek uitgevoerd", "Notitie": "Uit agenda DePoorter"},
     {"Bedrijf": "Dak & Timmerwerken Deluxe", "Type": "Bezoek/inspectie", "Datum": "2026-06-13", "Tijd": "12:30",
-     "Contactpersoon": "Giovanni", "Telefoon": "", "E-mail": "", "Status": "Gepland",
+     "Contactpersoon": "Giovanni", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland",
      "Notitie": "Giovanni belt of hij vóór 13:30 kan, anders volgende week"},
     {"Bedrijf": "Stipt Dakgroep", "Type": "Offerte-overleg", "Datum": "2026-06-15", "Tijd": "09:00",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Offerte (agenda DePoorter)"},
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Offerte (agenda DePoorter)"},
     {"Bedrijf": "Tony Pennings (klusbedrijf)", "Type": "Bezoek/inspectie", "Datum": "2026-06-16", "Tijd": "16:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Voor het dak, via Roy"},
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Voor het dak, via Roy"},
     {"Bedrijf": "Bonné Dakonderhoud", "Type": "Bezoek/inspectie", "Datum": "2026-06-18", "Tijd": "10:00",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Uit agenda DePoorter"},
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Uit agenda DePoorter"},
 ]
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
-DAK_AFSPR_STATUS = ["Gepland", "Gehad", "Geannuleerd"]
+DAK_AFSPR_STATUS = ["Bezoek gepland", "Bezoek uitgevoerd", "Wachten op offerte", "Offerte ontvangen", "Geannuleerd"]
 
 
 def _fetch_url(url, timeout=15):
@@ -162,7 +162,7 @@ def _ics_dak_afspraken(text, keyword="dak", today=None):
             s = (cur or {}).get("summary", "") if cur is not None else ""
             if cur is not None and keyword in s.lower():
                 typ = "Offerte-overleg" if "offerte" in s.lower() else "Bezoek/inspectie"
-                status = "Gehad" if cur.get("datum", "9999") < today else "Gepland"
+                status = "Bezoek uitgevoerd" if cur.get("datum", "9999") < today else "Bezoek gepland"
                 rows.append({"Bedrijf": s.strip()[:60], "Type": typ,
                              "Datum": cur.get("datum", ""), "Tijd": cur.get("tijd", ""),
                              "Contactpersoon": "", "Telefoon": "", "E-mail": "",
@@ -1204,7 +1204,7 @@ with tab_dak:
             st.error(f"Opslaan mislukt: {exc}")
     if _af_rows:
         _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
-        _komend = _afdf[_afdf["Status"] == "Gepland"]
+        _komend = _afdf[_afdf["Status"] == "Bezoek gepland"]
         if not _komend.empty:
             st.caption("📅 Gepland: " + " · ".join(
                 f"{r['Bedrijf']} {r.get('Datum') or ''} {r.get('Tijd') or ''}".strip()
