@@ -1327,20 +1327,56 @@ with tab_dak:
     if _af_rows:
         _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
         _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
+        _weekrijen = []  # plat overzicht voor de Excel-export
         if not _komend.empty:
+            from datetime import date as _date, timedelta as _td
             _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+            _mnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+            _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
 
             def _weekdag(d):
                 try:
-                    from datetime import date as _date
                     return _dagen[_date.fromisoformat(str(d)).weekday()]
                 except Exception:  # noqa: BLE001
                     return ""
+            # groepeer geplande bezoeken per ISO-week
+            _per_week = {}
+            for _r in _komend.to_dict("records"):
+                try:
+                    _dd = _date.fromisoformat(str(_r.get("Datum")))
+                except Exception:  # noqa: BLE001
+                    continue
+                _y, _w, _ = _dd.isocalendar()
+                _per_week.setdefault((_y, _w), []).append(
+                    (_dd, str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip()))
+            st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
+            for _key in sorted(_per_week):
+                _items = _per_week[_key]
+                _maandag = min(d for d, _, _ in _items)
+                _maandag = _maandag - _td(days=_maandag.weekday())
+                _zondag = _maandag + _td(days=6)
+                _grid = []
+                for _i in range(7):
+                    _day = _maandag + _td(days=_i)
+                    _appts = sorted((t, b) for d, t, b in _items if d == _day)
+                    _txt = " · ".join(f"{t} {b}".strip() for t, b in _appts) or "—"
+                    if _day.isoformat() in _conf_dat:
+                        _txt = "⚠️ " + _txt
+                    _row = {"Dag": _dagen[_i], "Datum": f"{_day.day} {_mnd[_day.month - 1]}", "Afspraken": _txt}
+                    _grid.append(_row)
+                    _weekrijen.append({"Week": _key[1], **_row})
+                st.caption(f"Week {_key[1]} · {_maandag.day} {_mnd[_maandag.month - 1]} – "
+                           f"{_zondag.day} {_mnd[_zondag.month - 1]} {_key[0]}")
+                st.dataframe(pd.DataFrame(_grid), use_container_width=True, hide_index=True)
+            if _conf_dat:
+                st.caption("⚠️ = dag met een planning-conflict (overlap of < 1 uur ertussen) — zie de check hierboven.")
             _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
-            st.markdown("**📅 Geplande bezoeken**")
-            st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
-                         use_container_width=True, hide_index=True)
+            with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
+                st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
+                             use_container_width=True, hide_index=True)
         _sheets = {"Afspraken": _afdf}
+        if _weekrijen:
+            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Week", "Dag", "Datum", "Afspraken"]]
         _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
                                      if _conflicten else
                                      pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
