@@ -19,12 +19,13 @@ PROFILE = {
 CONTENT = {
     "en": {
         "role": "Cost Engineer · Estimator · Manufacturing Engineer",
-        "available": "Available for a new role",
-        "headline": "I make the cost number trustworthy — so quotes win and margins hold.",
+        "available": "Available for a new challenge",
+        "headline": "I make the cost price a number you can build on — quotes that win, margins that hold.",
         "tagline": (
-            "Cost engineer in high-tech manufacturing. I turn engineering into defensible cost "
-            "prices, speed up quoting, and protect margin — working hand in hand with "
-            "engineering, purchasing, sales and business control."
+            "Experienced cost engineer in high-tech manufacturing. I turn engineering into "
+            "cost prices that stand up to scrutiny, make quoting faster and more "
+            "transparent, and protect margin — shoulder to shoulder with engineering, "
+            "purchasing, sales and business control."
         ),
         "cta_contact": "Get in touch",
         "cta_cv": "Download CV",
@@ -32,15 +33,18 @@ CONTENT = {
 
         "about_title": "About me",
         "about": (
-            "I'm a cost engineer who makes the number something the business can trust. I've spent "
-            "my career on the shop floor and in costing — at DAF Trucks, VDL ETG, Andritz, Wilting "
-            "and Wärtsilä — so I know where cost really sits and how to take it out without cutting "
-            "corners. I translate technical choices into clear cost impact, keep estimating fast "
-            "and transparent, and get engineering, purchasing, sales and business control onto the "
-            "same number. Lean Six Sigma Green Belt: hands-on, data-driven and pragmatic. Where it "
-            "helps, I build the tools (Power BI, SAP, Excel/VBA) that make calculations sharper. "
-            "I'm looking for a cost engineer or estimator role where reliable cost and healthy "
-            "margin truly matter."
+            "My career runs from the shop floor to the calculation office — DAF Trucks, "
+            "VDL ETG, Andritz, Wilting and Wärtsilä — so when I put a cost price on paper, "
+            "I know what sits behind every operation. That's the difference: I don't "
+            "estimate from a distance. I translate technical choices into clear cost "
+            "impact, keep quoting fast and transparent, and get engineering, purchasing, "
+            "sales and business control onto one and the same number — so discussions are "
+            "about decisions, not about whose figure is right. Where the tooling falls "
+            "short, I build it myself — data & dashboards (Power BI), automation & tools "
+            "(Python), SAP, Excel/VBA — so every calculation gets sharper than the last. "
+            "Lean Six Sigma Green Belt; hands-on, curious and pragmatic. I'm looking for a "
+            "cost engineer or estimator role where a reliable cost price genuinely moves "
+            "the business."
         ),
 
         "skills_title": "Core strengths",
@@ -54,31 +58,31 @@ CONTENT = {
 
         "highlights_title": "Impact",
         "highlights": [
-            {"metric": "Cost you can defend", "title": "Quote to post-calculation",
-             "text": "Defensible cost prices across development, customer and non-standard projects — so quotes hold and margins stick."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma",
-             "text": "Structurally better quality, lead time and cost through hands-on continuous improvement."},
-            {"metric": "5", "title": "Leading manufacturers",
-             "text": "Hands-on cost and manufacturing experience across DAF, VDL ETG, Andritz, Wilting and Wärtsilä."},
+            {"metric": "Numbers that hold", "title": "From first quote to post-calculation",
+             "text": "Cost prices that survive scrutiny — for development, customer and non-standard projects. Sales quotes with confidence, business control closes without surprises, and margin stays where it belongs."},
+            {"metric": "One shared number", "title": "Four departments, one cost price",
+             "text": "I get engineering, purchasing, sales and business control working from the same figure — fewer debates about the number, more decisions built on it."},
+            {"metric": "High-tech proven", "title": "DAF · VDL ETG · Andritz · Wilting · Wärtsilä",
+             "text": "Cost and manufacturing experience earned at leading manufacturers — I speak the language of the shop floor and the boardroom, and translate between the two."},
         ],
 
         "projects_title": "Selected work",
         "projects": [
             {
                 "title": "Pre/post calculation model — Wärtsilä",
-                "text": "Built with business control in Power BI to track budgeted vs. actual and surface deviations early — turning month-end surprises into signals you can act on.",
+                "text": "Built hand in hand with business control in Power BI: budgeted and actual cost side by side, with deviations visible while there is still time to act. Month-end surprises became early signals — and conversations about cost became calmer and sharper.",
                 "tags": ["Power BI", "Cost control", "SAP"],
                 "link": "",
             },
             {
                 "title": "Cost-Forge — estimating tool",
-                "text": "A self-built estimating tool: BOM import, routings, market data, surcharges, quote export (PDF/Excel) and management dashboards. Quoting that's faster and consistent.",
+                "text": "An estimating tool I designed and built myself: BOM import, routings, market data, surcharges, quote export (PDF/Excel) and management dashboards. The result: quoting that is faster, consistent from estimator to estimator, and easy to defend in front of a customer.",
                 "tags": ["Python", "Estimating", "Dashboards"],
                 "link": "",
             },
             {
                 "title": "Energy cost dashboard",
-                "text": "Turns raw energy/charging data into cost per car, monthly trends and day/night tariff insight, with live meter reads and Excel/PDF export.",
+                "text": "Because cost transparency is a habit, not a job title: a home-built dashboard that turns raw energy and charging data into cost per car, monthly trends and day/night tariff insight, with live meter readings and Excel/PDF export.",
                 "tags": ["Python", "Data", "Excel"],
                 "link": "",
             },
@@ -90,25 +94,28 @@ CONTENT = {
             {"period": "2019 – 2021", "org": "Wilting", "role": "Manufacturing Engineer"},
             {"period": "2017 – 2019", "org": "VDL ETG", "role": "Factory Engineer"},
             {"period": "2011 – 2017", "org": "Andritz Feed & Biofuel", "role": "Production Supervisor"},
-            {"period": "1987 – 2011", "org": "DAF Trucks", "role": "Production/Technical Engineer & Team Lead"},
+            {"period": "", "org": "DAF Trucks", "role": "Production/Technical Engineer & Team Lead"},
         ],
 
         "contact_title": "Let's talk",
         "contact_text": (
-            "Looking for someone who makes cost dependable and quoting faster? I'd be glad to talk "
-            "— drop me an email or connect on LinkedIn, and I'll get back to you quickly."
+            "Need someone who makes the cost price dependable, the quoting faster and the "
+            "margin conversation easier? I'd love to hear from you — send me an email or "
+            "connect on LinkedIn. I respond quickly, and I'm happy to walk you through "
+            "real examples of my work."
         ),
         "footer": "© 2026 Gerrit Düthler · Eindhoven",
     },
 
     "nl": {
         "role": "Cost Engineer · Calculator · Werkvoorbereider",
-        "available": "Beschikbaar voor een nieuwe rol",
-        "headline": "Ik maak de kostprijs betrouwbaar — zodat offertes scoren en marges kloppen.",
+        "available": "Beschikbaar voor een nieuwe uitdaging",
+        "headline": "Ik maak van de kostprijs een cijfer waar je op kunt bouwen — offertes die winnen, marges die staan.",
         "tagline": (
-            "Cost engineer in de high-tech maakindustrie. Ik vertaal techniek naar onderbouwde "
-            "kostprijzen, versnel het offertetraject en bewaak de marge — schouder aan schouder "
-            "met engineering, inkoop, verkoop en business control."
+            "Ervaren cost engineer in de high-tech maakindustrie. Ik vertaal techniek naar "
+            "kostprijzen die elke toets doorstaan, maak offreren sneller en transparanter, "
+            "en bescherm de marge — schouder aan schouder met engineering, inkoop, verkoop "
+            "en business control."
         ),
         "cta_contact": "Neem contact op",
         "cta_cv": "Download CV",
@@ -116,15 +123,18 @@ CONTENT = {
 
         "about_title": "Over mij",
         "about": (
-            "Ik ben een cost engineer die van de kostprijs een cijfer maakt waar de organisatie op "
-            "kan bouwen. Mijn loopbaan speelt zich af op de werkvloer én in de calculatie — bij DAF "
-            "Trucks, VDL ETG, Andritz, Wilting en Wärtsilä — dus ik weet waar de kosten echt zitten "
-            "en hoe je ze eruit haalt zonder bochten af te snijden. Ik vertaal technische keuzes "
-            "naar helder kosteneffect, houd calculeren snel en transparant, en krijg engineering, "
-            "inkoop, verkoop en business control op één lijn. Lean Six Sigma Green Belt: hands-on, "
-            "datagedreven en pragmatisch. Waar het helpt bouw ik zelf de tools (Power BI, SAP, "
-            "Excel/VBA) die calculaties scherper maken. Ik zoek een rol als cost engineer of "
-            "calculator waarin betrouwbare kosten en een gezonde marge er echt toe doen."
+            "Mijn loopbaan loopt van de werkvloer naar de calculatie — DAF Trucks, "
+            "VDL ETG, Andritz, Wilting en Wärtsilä — dus als ik een kostprijs op papier "
+            "zet, weet ik wat er achter elke bewerking zit. Dat is het verschil: ik "
+            "calculeer niet op afstand. Ik vertaal technische keuzes naar helder "
+            "kosteneffect, houd offreren snel en transparant, en krijg engineering, "
+            "inkoop, verkoop en business control op één en hetzelfde cijfer — zodat het "
+            "gesprek over beslissingen gaat, niet over wiens getal klopt. Waar de tooling "
+            "tekortschiet, bouw ik die zelf — data & dashboards (Power BI), automatisering "
+            "& tools (Python), SAP, Excel/VBA — zodat elke calculatie scherper wordt dan "
+            "de vorige. Lean Six Sigma Green Belt; hands-on, nieuwsgierig en pragmatisch. "
+            "Ik zoek een rol als cost engineer of calculator waar een betrouwbare "
+            "kostprijs het bedrijf echt vooruithelpt."
         ),
 
         "skills_title": "Kernkwaliteiten",
@@ -138,31 +148,31 @@ CONTENT = {
 
         "highlights_title": "Resultaten",
         "highlights": [
-            {"metric": "Onderbouwde kostprijs", "title": "Van offerte tot nacalculatie",
-             "text": "Betrouwbare kostprijzen voor ontwikkel-, klant- en niet-standaard projecten — zodat offertes kloppen en marges blijven staan."},
-            {"metric": "Green Belt", "title": "Lean Six Sigma",
-             "text": "Structureel betere kwaliteit, levertijd en kosten door hands-on continu verbeteren."},
-            {"metric": "5", "title": "Toonaangevende maakbedrijven",
-             "text": "Praktijkervaring in kosten en productie bij DAF, VDL ETG, Andritz, Wilting en Wärtsilä."},
+            {"metric": "Cijfers die staan", "title": "Van eerste offerte tot nacalculatie",
+             "text": "Kostprijzen die elke toets doorstaan — voor ontwikkel-, klant- en niet-standaard projecten. Verkoop offreert met vertrouwen, business control sluit af zonder verrassingen, en de marge blijft waar die hoort."},
+            {"metric": "Eén gedeeld cijfer", "title": "Vier afdelingen, één kostprijs",
+             "text": "Ik krijg engineering, inkoop, verkoop en business control aan het werk met hetzelfde getal — minder discussie over het cijfer, meer beslissingen die erop bouwen."},
+            {"metric": "High-tech bewezen", "title": "DAF · VDL ETG · Andritz · Wilting · Wärtsilä",
+             "text": "Kosten- en productie-ervaring opgedaan bij toonaangevende maakbedrijven — ik spreek de taal van de werkvloer én van de directiekamer, en vertaal tussen die twee."},
         ],
 
         "projects_title": "Geselecteerd werk",
         "projects": [
             {
                 "title": "Pre/post-calculatiemodel — Wärtsilä",
-                "text": "Met business control opgezet in Power BI om begroot vs. werkelijk te bewaken en afwijkingen vroeg te signaleren — verrassingen aan het eind van de maand werden signalen om op te sturen.",
+                "text": "Samen met business control gebouwd in Power BI: begrote en werkelijke kosten naast elkaar, met afwijkingen die zichtbaar worden zolang er nog tijd is om bij te sturen. Verrassingen aan het eind van de maand werden vroege signalen — en het gesprek over kosten werd rustiger en scherper.",
                 "tags": ["Power BI", "Kostenbeheersing", "SAP"],
                 "link": "",
             },
             {
                 "title": "Cost-Forge — calculatietool",
-                "text": "Zelf gebouwde calculatietool: BOM-import, routings, marktdata, toeslagen, offerte-export (PDF/Excel) en management-dashboards. Calculeren dat sneller en consistenter is.",
+                "text": "Een calculatietool die ik zelf ontwierp en bouwde: BOM-import, routings, marktdata, toeslagen, offerte-export (PDF/Excel) en management-dashboards. Het resultaat: offreren dat sneller gaat, consistent is van calculator tot calculator, en goed te verdedigen is tegenover de klant.",
                 "tags": ["Python", "Calculatie", "Dashboards"],
                 "link": "",
             },
             {
                 "title": "Laad-kostendashboard",
-                "text": "Maakt van ruwe energie-/laaddata kosten per auto, maandtrends en inzicht in dal/piek-tarief, met live meteruitlezing en Excel/PDF-export.",
+                "text": "Omdat kostentransparantie een gewoonte is, geen functietitel: een zelfgebouwd dashboard dat van ruwe energie- en laaddata kosten per auto, maandtrends en inzicht in dal/piek-tarief maakt, met live meteruitlezing en Excel/PDF-export.",
                 "tags": ["Python", "Data", "Excel"],
                 "link": "",
             },
@@ -174,13 +184,15 @@ CONTENT = {
             {"period": "2019 – 2021", "org": "Wilting", "role": "Manufacturing Engineer"},
             {"period": "2017 – 2019", "org": "VDL ETG", "role": "Factory Engineer"},
             {"period": "2011 – 2017", "org": "Andritz Feed & Biofuel", "role": "Supervisor productie"},
-            {"period": "1987 – 2011", "org": "DAF Trucks", "role": "Production/Technical Engineer & Teamleider"},
+            {"period": "", "org": "DAF Trucks", "role": "Production/Technical Engineer & Teamleider"},
         ],
 
         "contact_title": "Laten we praten",
         "contact_text": (
-            "Op zoek naar iemand die kosten betrouwbaar en offertes sneller maakt? Ik ga graag in "
-            "gesprek — mail me of connect op LinkedIn, ik reageer snel."
+            "Op zoek naar iemand die de kostprijs betrouwbaar maakt, het offreren versnelt "
+            "en het margegesprek makkelijker maakt? Ik hoor graag van je — stuur een mail "
+            "of connect op LinkedIn. Ik reageer snel, en laat je graag echte voorbeelden "
+            "van mijn werk zien."
         ),
         "footer": "© 2026 Gerrit Düthler · Eindhoven",
     },

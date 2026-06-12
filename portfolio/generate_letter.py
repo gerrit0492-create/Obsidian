@@ -80,27 +80,32 @@ def _default_core(company: str, role: str, hl: str, lang: str) -> list[str]:
     """The fallback body when no AI text is supplied — aligned to the role, no jargon list."""
     if lang == "en":
         return [
-            (f"With a career in high-tech manufacturing — DAF Trucks, VDL ETG, Andritz and "
-             f"Wärtsilä — I am applying with enthusiasm for the role of {role} at {company}. As "
-             f"a cost engineer I turn engineering into reliable cost prices and keep cost under "
-             f"control."),
-            (f"Your vacancy centres on {hl}, and that is exactly my track record. I make cost "
-             f"prices defensible from quote to post-calculation, keep estimating fast and "
-             f"transparent, and protect margin — bringing engineering, purchasing, sales and "
-             f"business control onto the same number."),
-            (f"I'd be glad to explain in a personal conversation how I can do the same for "
-             f"{company}. You can reach me at gerrit@duthler.info."),
+            (f"Cost engineering is my craft: I turn engineering into cost prices a business can "
+             f"act on. With a career in high-tech manufacturing — DAF Trucks, VDL ETG, Andritz "
+             f"and Wärtsilä — I am applying with genuine enthusiasm for the role of {role} at "
+             f"{company}."),
+            (f"Your vacancy centres on {hl}, and that is exactly where I am at my best. I make "
+             f"cost prices defensible from first quote to post-calculation, keep estimating fast "
+             f"and transparent, and protect margin — bringing engineering, purchasing, sales and "
+             f"business control onto one and the same number. Where it helps, I build the tools "
+             f"that sharpen the calculation myself."),
+            (f"I would gladly show you in a personal conversation what that looks like in "
+             f"practice — and what it could mean for {company}. You can reach me at "
+             f"gerrit@duthler.info."),
         ]
     return [
-        (f"Met een loopbaan in de high-tech maakindustrie — DAF Trucks, VDL ETG, Andritz en "
-         f"Wärtsilä — solliciteer ik met enthousiasme naar de functie van {role} bij {company}. "
-         f"Als cost engineer vertaal ik techniek naar betrouwbare kostprijzen en houd ik kosten "
-         f"beheersbaar."),
-        (f"Uw vacature draait om {hl}, en dat is precies mijn trackrecord. Ik maak kostprijzen "
-         f"onderbouwd van offerte tot nacalculatie, houd calculeren snel en transparant, en "
-         f"bewaak de marge — met engineering, inkoop, verkoop en business control op één lijn."),
-        (f"Graag licht ik in een persoonlijk gesprek toe hoe ik dat ook voor {company} doe. "
-         f"U kunt mij bereiken via gerrit@duthler.info."),
+        (f"Cost engineering is mijn vak: ik vertaal techniek naar kostprijzen waar een bedrijf "
+         f"op kan sturen. Met een loopbaan in de high-tech maakindustrie — DAF Trucks, VDL ETG, "
+         f"Andritz en Wärtsilä — solliciteer ik met veel enthousiasme naar de functie van {role} "
+         f"bij {company}."),
+        (f"Uw vacature draait om {hl}, en daar ben ik op mijn best. Ik maak kostprijzen "
+         f"onderbouwd van eerste offerte tot nacalculatie, houd calculeren snel en transparant, "
+         f"en bewaak de marge — met engineering, inkoop, verkoop en business control op één en "
+         f"hetzelfde cijfer. Waar het helpt, bouw ik zelf de tools die de calculatie scherper "
+         f"maken."),
+        (f"In een persoonlijk gesprek laat ik u graag zien hoe dat er in de praktijk uitziet — "
+         f"en wat het voor {company} kan betekenen. U kunt mij bereiken via "
+         f"gerrit@duthler.info."),
     ]
 
 
