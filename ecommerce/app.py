@@ -1057,38 +1057,82 @@ with tab_dak:
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
 
-    with st.expander("📄 Offerte Dakbedrijf Westermeer — volledige uitsplitsing + marktprijzen", expanded=True):
-        st.dataframe(
-            pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
-            column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
-        tt = st.columns(3)
-        tt[0].metric("Subtotaal excl. btw", eur(DAK_SUBTOTAAL))
-        tt[1].metric("Btw 21%", eur(DAK_BTW))
-        tt[2].metric("Totaal incl. btw", eur(DAK_TOTAAL), f"≈ €{DAK_TOTAAL / 60:.0f}/m² alles-in")
-        st.caption("ℹ️ €336/m² is **alles incl. btw** (incl. loodwerk + vogelwering). De **dakrenovatie "
-                   "zelf** = €15.000 ÷ 60 m² = **€250/m² excl. btw** (≈ €302/m² incl.) — dát is de eerlijke "
-                   "vergelijking met de marktprijs per m².")
-        st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
-                   "vogelwering €15–35/m geïnstalleerd (Joslaan/Montaflex), loodslab €85–300/m² (Gevelpro). "
-                   "Betaling: 50% bij aanvang, 50% binnen 7 dagen na oplevering · uitvoering max. 3 werkdagen.")
-        from pathlib import Path as _P
-        _fn = "Offerte-Westermeer-OFF-2026-0189.pdf"
-        _cands = [_P(__file__).parent.parent / "vault" / "attachments" / _fn,
-                  _P.cwd() / "vault" / "attachments" / _fn]
-        _pdf_path = next((p for p in _cands if p.exists()), None)
-        if _pdf_path:
-            _bytes = _pdf_path.read_bytes()
-            st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
-                               file_name=_fn, mime="application/pdf")
-            if st.checkbox("👁️ Offerte-tekst hier tonen", key="dak_show_pdf"):
-                _txt = ai.extract_pdf_text(_bytes, maxpages=12)
-                if _txt.strip():
-                    st.text_area("Offerte-tekst (uit de PDF)", _txt, height=420)
-                else:
-                    st.info("Tekst uitlezen lukte niet — download de PDF met de knop hierboven.")
+    with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
+        _off = st.session_state.get("dakofferte", DAK_DEFAULT)
+        _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
+        if not _bedrijven:
+            st.info("Nog geen offertes — voeg er een toe via ⬆️ upload of ➕ handmatig.")
         else:
-            st.info("De originele offerte is hier nog niet geladen — **reboot** de app "
-                    "(Manage app → Reboot) zodat het repo-bestand wordt opgehaald.")
+            _sel = st.selectbox("Kies een offerte om uit te werken", _bedrijven, key="dak_uitwerk_sel")
+            _orow = next((o for o in _off if str(o.get("Bedrijf") or "").strip() == _sel), {})
+            _posten = [p for p in st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)
+                       if str(p.get("Bedrijf") or "").strip().lower() == _sel.lower()]
+            if _posten:
+                _pdf = pd.DataFrame([{"Onderdeel": str(p.get("Onderdeel", "")),
+                                      "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0)} for p in _posten])
+                _sub = float(_pdf["Prijs excl. btw"].sum())
+                st.dataframe(_pdf, use_container_width=True, hide_index=True,
+                             column_config={"Prijs excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                                            "Onderdeel": st.column_config.TextColumn(width="large")})
+            else:
+                _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0}])
+                _sub = float(_orow.get("Excl. btw") or 0)
+                st.warning("Nog geen **detailposten** voor deze offerte. Voeg ze toe in **‘Posten vergelijken’** "
+                           "(bv. *dakpannen type 1*, *dakpannen type 2*, *regenpijpen vervangen*, *loodwerk*, "
+                           "*isolatie*) — dan splitst de offerte zich hier vanzelf uit. "
+                           f"Nu reken ik met het offertetotaal ({eur(_sub)} excl. btw).")
+            _btw = round(_sub * 0.21, 2)
+            _tot_incl = round(_sub + _btw, 2)
+            if not _posten and float(_orow.get("Incl. btw") or 0) > 0:
+                _tot_incl = float(_orow["Incl. btw"])
+                _btw = round(_tot_incl - _sub, 2)
+            _m2 = _tot_incl / dak_opp if dak_opp else 0.0
+            tt = st.columns(3)
+            tt[0].metric("Subtotaal excl. btw", eur(_sub))
+            tt[1].metric("Btw 21%", eur(_btw))
+            tt[2].metric("Totaal incl. btw", eur(_tot_incl), f"≈ €{_m2:.0f}/m² alles-in")
+            if _m2 <= 0:
+                st.caption("Vul bedragen in om de €/m²-toets te tonen.")
+            elif _m2 <= DAK_MARKT_HI:
+                st.success(f"🟢 €{_m2:.0f}/m² incl. btw — **marktconform** "
+                           f"(NL-indicatie €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+            elif _m2 <= DAK_MARKT_HI * 1.25:
+                st.warning(f"🟡 €{_m2:.0f}/m² incl. btw — **aan de hoge kant** "
+                           f"(markt €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+            else:
+                st.error(f"🔴 €{_m2:.0f}/m² incl. btw — **fors boven markt** "
+                         f"(€{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+            st.caption("Alles-in €/m² is incl. loodwerk + vogelwering e.d. De **dakrenovatie zelf** "
+                       "vergelijk je het eerlijkst los — zie de should-cost hieronder.")
+
+            if _sel == "Dakbedrijf Westermeer":
+                st.markdown("**Markt per onderdeel (Westermeer):**")
+                st.dataframe(pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
+                             column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
+                st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
+                           "vogelwering €15–35/m geïnstalleerd, loodslab €85–300/m² (Gevelpro). "
+                           "Betaling 50/50 · uitvoering max. 3 werkdagen.")
+                from pathlib import Path as _P
+                _fn = "Offerte-Westermeer-OFF-2026-0189.pdf"
+                _cands = [_P(__file__).parent.parent / "vault" / "attachments" / _fn,
+                          _P.cwd() / "vault" / "attachments" / _fn]
+                _pdf_path = next((p for p in _cands if p.exists()), None)
+                if _pdf_path:
+                    _bytes = _pdf_path.read_bytes()
+                    st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
+                                       file_name=_fn, mime="application/pdf")
+                    if st.checkbox("👁️ Offerte-tekst hier tonen", key="dak_show_pdf"):
+                        _txt = ai.extract_pdf_text(_bytes, maxpages=12)
+                        st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
+                                     height=420)
+
+            _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", "Btw 21%", "Totaal incl. btw", "€/m² incl."],
+                                   "Bedrag": [_sub, _btw, _tot_incl, round(_m2, 0)]})
+            st.download_button("⬇️ Download uitwerking (Excel)",
+                               m.df_to_excel_bytes({"Posten": _pdf, "Samenvatting": _samen}),
+                               file_name=f"offerte_uitwerking_{_sel[:20].replace(' ', '_')}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               key="dak_uitwerk_xlsx")
 
     with st.expander("🧮 Should-cost dakrenovatie — wat zou het dak mógen kosten?", expanded=False):
         st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
