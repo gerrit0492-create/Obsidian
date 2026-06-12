@@ -898,13 +898,14 @@ with tab_dak:
                 st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-price (~€{_shi:.0f}/m²).")
         st.caption("Directe kosten = materiaal + arbeid. **AK** dekt werkvoorbereiding, projectleiding, "
                    "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
-                   "should-*price* van die je met een offerte mag vergelijken. Ter controle: een standaard "
-                   "betonpannendak + isolatie kost all-in ≈ €110–160/m² excl. btw (Werkspot/Homedeal); "
-                   "keramische pannen liggen dáárboven. De BTW-regel rekent met 21% (gelijk aan de offerte); "
-                   "valt de **isolatie-arbeid** onder het 9%-tarief (woning > 2 jr) dan ligt de incl.-prijs "
-                   "iets lager. Pannen-materiaal volgt het gekozen **pantype**: betonpan ≈ €26–36/m² incl., "
-                   "keramisch ≈ €35–75/m² incl. (bron: prijsoverzicht; consumentenprijs, should-cost rekent "
-                   "op inkoop dus onderkant lager). Loodwerk + vogelwering apart. Indicatie, geen offerte.")
+                   "should-*price* van die je met een offerte mag vergelijken. Marktonderzoek 2025/26: een "
+                   "pannendak volledig vernieuwen **incl. isolatie** kost ≈ €125–300/m² (consument; Oranje "
+                   "Dakbeheer, Homedeal, Kosten-Dakdekker); puur **herdekken zonder isolatie** ligt lager "
+                   "(60 m²: betonpan ≈ €50–58, keramisch ≈ €67–92/m²). Kostenverdeling herdekken: pannen "
+                   "35–40%, leggen 30–35%, tengels/panlatten 10–15%, steiger 5–10% (Kosten-Dakdekker). "
+                   "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
+                   "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
+                   "vogelwering apart. Indicatie, geen offerte.")
         st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
                            m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
                            file_name="dakrenovatie_shouldcost.xlsx",
