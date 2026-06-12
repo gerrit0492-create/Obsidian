@@ -87,11 +87,22 @@ DAK_RENO_PANTYPE = {
     "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
 }
 
-# Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — vooringevuld met Westermeer.
+# Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — gesynchroniseerd met de DePoorter-agenda.
 DAK_AFSPRAKEN_DEFAULT = [
-    {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Contact", "Datum": "2026-06-11", "Tijd": "",
+    {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Offerte-overleg", "Datum": "2026-06-11", "Tijd": "15:00",
      "Contactpersoon": "", "Telefoon": "040 304 14 75", "E-mail": "info@dakbedrijfeindhoven.nl",
-     "Status": "Gehad", "Notitie": "Offerte OFF-2026-0189 ontvangen"},
+     "Status": "Gehad", "Notitie": "Offerte OFF-2026-0189 ontvangen (agenda: 'Dak offerte westerman')"},
+    {"Bedrijf": "Albers Dakbedekking", "Type": "Bezoek/inspectie", "Datum": "2026-06-12", "Tijd": "08:30",
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gehad", "Notitie": "Uit agenda DePoorter"},
+    {"Bedrijf": "Dak & Timmerwerken Deluxe", "Type": "Bezoek/inspectie", "Datum": "2026-06-13", "Tijd": "12:30",
+     "Contactpersoon": "Giovanni", "Telefoon": "", "E-mail": "", "Status": "Gepland",
+     "Notitie": "Giovanni belt of hij vóór 13:30 kan, anders volgende week"},
+    {"Bedrijf": "Stipt Dakgroep", "Type": "Offerte-overleg", "Datum": "2026-06-15", "Tijd": "09:00",
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Offerte (agenda DePoorter)"},
+    {"Bedrijf": "Tony Pennings (klusbedrijf)", "Type": "Bezoek/inspectie", "Datum": "2026-06-16", "Tijd": "16:30",
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Voor het dak, via Roy"},
+    {"Bedrijf": "Bonné Dakonderhoud", "Type": "Bezoek/inspectie", "Datum": "2026-06-18", "Tijd": "10:00",
+     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Gepland", "Notitie": "Uit agenda DePoorter"},
 ]
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
 DAK_AFSPR_STATUS = ["Gepland", "Gehad", "Geannuleerd"]
