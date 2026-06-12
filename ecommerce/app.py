@@ -1656,19 +1656,48 @@ with tab_dak:
                        + ", ".join(sorted(set(_auto_added))) + ". Upload hun PDF voor detailposten.")
         else:
             st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
-        # Scope-check alleen over detailposten van offertes die detail hébben (minstens 2 nodig).
+        # Verschillen tussen offertes — per post de prijs per aanbieder, Δ-spreiding en scope.
         _detb = sorted({str(p["Bedrijf"]).strip() for p in _auto if str(p["Onderdeel"]) != _TOTREGEL})
+        _sheets_p = {"Posten-matrix": _disp.reset_index()}
         if len(_detb) >= 2:
-            _sub = _pm.reindex(columns=_detb).drop(index=_TOTREGEL, errors="ignore")
-            _ontbreekt = [idx for idx in _sub.index if not _sub.loc[idx].notna().all()]
-            if _ontbreekt:
-                st.warning("⚠️ **Scope-verschil** — niet in alle offertes-met-detail: " + ", ".join(_ontbreekt)
-                           + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
-                           "het vergelijken (een lagere offerte kan posten missen).")
+            _cmp = _pm.reindex(columns=_detb).drop(index=_TOTREGEL, errors="ignore")
+            _vrows, _scopegaps = [], []
+            for _ond in _cmp.index:
+                _vals = _cmp.loc[_ond]
+                _have = _vals.dropna()
+                _mist = [b for b in _detb if pd.isna(_vals.get(b))]
+                _lo = float(_have.min()) if len(_have) else 0.0
+                _hi = float(_have.max()) if len(_have) else 0.0
+                _row = {"Onderdeel": _ond}
+                _row.update({b: (round(float(_vals[b]), 0) if not pd.isna(_vals.get(b)) else None) for b in _detb})
+                _row["Δ verschil"] = round(_hi - _lo, 0)
+                _row["Scope"] = "✅ in alle" if not _mist else "⚠️ alleen " + ", ".join(
+                    b for b in _detb if b not in _mist)
+                _vrows.append(_row)
+                if _mist:
+                    _scopegaps.append(f"**{_ond}**: alleen bij " + ", ".join(b for b in _detb if b not in _mist)
+                                      + " (ontbreekt bij " + ", ".join(_mist) + ")")
+            _cmpdf = pd.DataFrame(_vrows)
+            st.markdown("**🔬 Verschillen tussen offertes** — per post: prijs, Δ-verschil en scope")
+            st.dataframe(_cmpdf, use_container_width=True, hide_index=True,
+                         column_config={**{b: st.column_config.NumberColumn(format="€%.0f") for b in _detb},
+                                        "Δ verschil": st.column_config.NumberColumn(format="€%.0f"),
+                                        "Onderdeel": st.column_config.TextColumn(width="large")})
+            _sheets_p["Verschillen"] = _cmpdf
+            _top = sorted([r for r in _vrows if r["Δ verschil"]], key=lambda r: r["Δ verschil"], reverse=True)[:3]
+            if _top:
+                st.markdown("Grootste prijsverschillen: " + " · ".join(
+                    f"{r['Onderdeel']} (Δ {eur(r['Δ verschil'])})" for r in _top))
+            if _scopegaps:
+                st.warning("⚠️ **Scope-verschil** — niet elke offerte bevat dezelfde posten:\n"
+                           + "\n".join(f"- {g}" for g in _scopegaps))
             else:
                 st.success("✅ Alle offertes-met-detail bevatten dezelfde posten — eerlijke vergelijking.")
-        st.download_button("⬇️ Download posten-matrix (Excel)",
-                           m.df_to_excel_bytes({"Posten-matrix": _disp.reset_index()}),
+        else:
+            st.caption("Voeg bij **minstens twee** offertes detailposten toe (bv. *steiger*, *pannen*, *lood*, "
+                       "*regenpijpen vervangen*) om hier de verschillen post-voor-post te zien.")
+        st.download_button("⬇️ Download posten-vergelijking (Excel)",
+                           m.df_to_excel_bytes(_sheets_p),
                            file_name="dakrenovatie_posten.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="dak_posten_xlsx")
