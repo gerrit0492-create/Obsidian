@@ -91,6 +91,33 @@ def _dak_dedup(offertes):
     return out
 
 
+def _dak_shouldcost_posten(opp):
+    """Onafhankelijke should-cost baseline per scope-onderdeel (excl. btw), geschaald naar het dakoppervlak.
+
+    Complete bottom-up raming (NL midmarkt, 60 m² referentie) die álle scope-onderdelen dekt die in de
+    ontvangen offertes voorkomen — zodat je elke offerte tegen een eerlijke 'zou-moeten'-prijs kunt leggen.
+    """
+    r = max(float(opp or 60), 1.0) / 60.0
+    items = [  # (Onderdeel, prijs @60 m², btw %, schaalt mee met oppervlak)
+        ("Steiger + materieel + pannenlift", 1400, 21, False),
+        ("Sloop + afvoer + container", 1000, 21, True),
+        ("Isolatie materiaal (Rd ≥ 3,5)", 1300, 21, True),
+        ("Isolatie aanbrengen (arbeid)", 700, 9, True),
+        ("Tengels + panlatten", 900, 21, True),
+        ("Dakpannen (beton, midmarkt)", 1500, 21, True),
+        ("Dakpannen leggen / montage", 1400, 21, True),
+        ("Nokvorsten + ruiters", 700, 21, False),
+        ("Kant-/gevelpannen", 500, 21, False),
+        ("Zinken bakgoot + gootbeugels", 1300, 21, False),
+        ("Loodaansluiting dakkapel (10 m)", 750, 21, False),
+        ("Vogelwering + dakvoet (12 m)", 350, 21, False),
+        ("Panhaken / stormklemmen", 250, 21, False),
+    ]
+    return [{"Bedrijf": "Should-cost (baseline)", "Onderdeel": _n,
+             "Prijs excl. btw": float(round(_p * (r if _s else 1.0))), "Btw %": _b}
+            for _n, _p, _b, _s in items]
+
+
 def _dak_attachments_dir():
     """Map waar de originele offerte-PDF's staan (Westermeer-regel: altijd terugvindbaar)."""
     from pathlib import Path
@@ -1921,9 +1948,11 @@ with tab_dak:
                            key="dak_posten_xlsx")
 
     # ---- Insightful scope comparison to help pick the right quote ----
-    _detbedr = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
-    if len(_detbedr) >= 2:
+    _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
+    if _detbedr_real:
         st.markdown("#### 📊 Vergelijking & advies — welke offerte?")
+        st.caption("Naast de offertes staat een **should-cost baseline**: een onafhankelijke, complete "
+                   "bottom-up raming per onderdeel — zo zie je hoever elke offerte boven het 'zou-moeten' zit.")
         _CATS = [
             ("Steiger & toegang", ("steiger", "pannenlift", "kraan", "hoogwerker")),
             ("Sloop & afvoer", ("sloop", "verwijder", "afvoer", "container", "opruim", "bouwafval")),
@@ -1945,7 +1974,10 @@ with tab_dak:
                 if any(k in n for k in _kws):
                     return _c
             return "Overig"
-        _byb = {b: [p for p in _prows if str(p.get("Bedrijf") or "").strip() == b] for b in _detbedr}
+        _SC = "Should-cost (baseline)"
+        _byb = {b: [p for p in _prows if str(p.get("Bedrijf") or "").strip() == b] for b in _detbedr_real}
+        _byb[_SC] = _dak_shouldcost_posten(dak_opp)
+        _detbedr = _detbedr_real + [_SC]
         _assign = {b: {} for b in _detbedr}
         for b in _detbedr:
             for p in _byb[b]:
@@ -1998,6 +2030,10 @@ with tab_dak:
                         st.markdown(f"- *{b}*: {_nm} — **{_ps}**")
 
         _off_by = {str(o.get("Bedrijf") or "").strip(): o for o in st.session_state.get("dakofferte", [])}
+        _scx = sum(float(p["Prijs excl. btw"]) for p in _byb[_SC])
+        _scb = sum(float(p["Prijs excl. btw"]) * p["Btw %"] / 100 for p in _byb[_SC])
+        _off_by[_SC] = {"Bedrijf": _SC, "Excl. btw": round(_scx), "Incl. btw": round(_scx + _scb),
+                        "Isolatie": "Rd ≥ 3,5 (norm)", "Garantie": "—"}
         _hl = []
         for b in _detbedr:
             _o = _off_by.get(b, {})
@@ -2080,15 +2116,21 @@ with tab_dak:
         st.dataframe(_normdf, use_container_width=True, hide_index=True,
                      column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
                                     ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
-        _vld = [n for n in _norm if n["Gelijke scope"] > 0]
+        _scnet = next((n["Netto"] for n in _norm if n["Offerte"] == _SC), 0)
+        _vld = [n for n in _norm if n["Gelijke scope"] > 0 and n["Offerte"] != _SC]
         if len(_vld) >= 2:
             _wc = min(_vld, key=lambda n: n["Netto"])
             _we = max(_vld, key=lambda n: n["Netto"])
-            st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat met wat de ander er firm voor "
-                       f"rekent) en ná ISDE is **{_wc['Offerte']}** het voordeligst: **€{_wc['Netto']:.0f}** netto "
-                       f"vs €{_we['Netto']:.0f} — verschil **€{_we['Netto'] - _wc['Netto']:.0f}**.")
-        st.caption("Ontbrekende scope wordt bijgeschat met de firm-prijs van de andere offerte(s); stelposten "
-                   "tellen niet mee. Zo vergelijk je appels met appels i.p.v. ongelijke scope.")
+            st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat) en ná ISDE is **{_wc['Offerte']}** "
+                       f"het voordeligst: **€{_wc['Netto']:.0f}** netto vs €{_we['Netto']:.0f} — verschil "
+                       f"**€{_we['Netto'] - _wc['Netto']:.0f}**.")
+        if _scnet > 0 and _vld:
+            _gaps = " · ".join(f"{n['Offerte']}: +€{n['Netto'] - _scnet:.0f} ({(n['Netto'] - _scnet) / _scnet * 100:.0f}%)"
+                               for n in _vld)
+            st.markdown(f"📐 **Boven de should-cost** (€{_scnet:.0f} netto baseline): {_gaps}.")
+        st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
+                   "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
+                   "niet mee). Zo vergelijk je appels met appels.")
 
         _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
                                     "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
@@ -2114,8 +2156,8 @@ with tab_dak:
             _cdb.caption(f"PDF-rapport tijdelijk niet beschikbaar: {_exc}")
 
         st.markdown("#### 🏆 Stap 6 — Kies je aannemer")
-        _cur = next((b for b in _detbedr if str(_off_by.get(b, {}).get("Status") or "") == "Gekozen"), "—")
-        _opts = ["—"] + _detbedr
+        _cur = next((b for b in _detbedr_real if str(_off_by.get(b, {}).get("Status") or "") == "Gekozen"), "—")
+        _opts = ["—"] + _detbedr_real
         _kz = st.selectbox("Welke offerte kies je?", _opts,
                            index=_opts.index(_cur) if _cur in _opts else 0, key="dak_kies")
         if _kz != "—":
