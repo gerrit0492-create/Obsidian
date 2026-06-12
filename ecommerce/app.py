@@ -71,7 +71,7 @@ DAK_RENO_SHOULDCOST = [
     {"Onderdeel": "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)", "Laag": 3.0, "Hoog": 6.0},
     {"Onderdeel": "Isolatie Rd 3,8 — materiaal + aanbrengen", "Laag": 20.0, "Hoog": 30.0},
     {"Onderdeel": "Nieuwe tengels + panlatten — materiaal + arbeid", "Laag": 8.0, "Hoog": 13.0},
-    {"Onderdeel": "Keramische betonpannen (antraciet) — materiaal", "Laag": 16.0, "Hoog": 26.0},
+    {"Onderdeel": "Keramische pannen (antraciet) — materiaal", "Laag": 24.0, "Hoog": 42.0},
     {"Onderdeel": "Pannen leggen — arbeid", "Laag": 16.0, "Hoog": 24.0},
     {"Onderdeel": "Nok-/kantpannen (droge nok/vorst), hulpstukken, bevestiging", "Laag": 6.0, "Hoog": 10.0},
     {"Onderdeel": "Dakrandafwerking — boeiboord/windveer, daktrim", "Laag": 3.0, "Hoog": 6.0},
@@ -888,13 +888,13 @@ with tab_dak:
                 st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-price (~€{_shi:.0f}/m²).")
         st.caption("Directe kosten = materiaal + arbeid. **AK** dekt werkvoorbereiding, projectleiding, "
                    "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
-                   "should-*price* van die je met een offerte mag vergelijken. Ter controle: een hellend "
-                   "pannendak + isolatie kost all-in ≈ €110–160/m² excl. btw (Werkspot/Homedeal, 2025/2026). "
-                   "De BTW-regel rekent met 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder "
-                   "het 9%-tarief (woning > 2 jr) dan ligt de incl.-prijs iets lager. Pannen-materiaal is "
-                   "geënt op de richtprijs antraciet betonpan ≈ €26–36/m² incl. btw (consumentenprijs; de "
-                   "should-cost rekent op inkoop, dus de onderkant ligt lager). Loodwerk + vogelwering apart. "
-                   "Indicatie, geen offerte.")
+                   "should-*price* van die je met een offerte mag vergelijken. Ter controle: een standaard "
+                   "betonpannendak + isolatie kost all-in ≈ €110–160/m² excl. btw (Werkspot/Homedeal); "
+                   "keramische pannen (zoals hier) liggen dáárboven. De BTW-regel rekent met 21% (gelijk aan "
+                   "de offerte); valt de **isolatie-arbeid** onder het 9%-tarief (woning > 2 jr) dan ligt de "
+                   "incl.-prijs iets lager. Pannen-materiaal is geënt op keramisch ≈ €35–75/m² incl. btw "
+                   "(consumentenprijs; de should-cost rekent op inkoop, dus de onderkant ligt lager). "
+                   "Loodwerk + vogelwering apart. Indicatie, geen offerte.")
         st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
                            m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
                            file_name="dakrenovatie_shouldcost.xlsx",
