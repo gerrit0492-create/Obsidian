@@ -152,13 +152,9 @@ def _afspraak_conflicten(rows, min_gap_min=DAK_AFSPR_GAP_MIN):
     return waarschuwingen
 
 
-def _maand_kalender_html(jaar, maand, per_dag, conf_dat):
-    """HTML-maandkalender (ma–zo); afspraken gekleurd per status, conflictdagen rood."""
-    import calendar
+def _maand_kalender_cel(jaar, maand, daynum, weekdagidx, per_dag, conf_dat):
+    """HTML voor één kalendercel (dagnummer + gekleurde afspraak-chips per status)."""
     from datetime import date
-    dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
-    mnd = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus",
-           "september", "oktober", "november", "december"]
     kleur = {"Bezoek gepland": ("#e1ecff", "#2d6cdf"),
              "Bezoek uitgevoerd": ("#e3f5e9", "#1e8449"),
              "Offerte ontvangen": ("#fdf2dc", "#d68910"),
@@ -167,46 +163,48 @@ def _maand_kalender_html(jaar, maand, per_dag, conf_dat):
 
     def esc(s):
         return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    cel = ("border:1px solid #d0d4d8;vertical-align:top;width:14.28%;height:62px;"
-           "padding:2px 3px;font-size:11px;line-height:1.25;")
-    html = ['<table style="border-collapse:collapse;width:100%;table-layout:fixed;'
-            'font-family:sans-serif;margin-bottom:10px;">',
-            f'<caption style="text-align:left;font-weight:600;padding:4px 0;">'
-            f'📅 {mnd[maand - 1]} {jaar}</caption>', '<tr>',
-            *[f'<th style="border:1px solid #d0d4d8;background:#2c3e50;color:#fff;'
-              f'font-size:11px;padding:3px;">{d}</th>' for d in dagen], '</tr>']
+    if daynum == 0:
+        return "<div style='min-height:58px;'></div>"
+    iso = date(jaar, maand, daynum).isoformat()
+    appts = per_dag.get(iso, [])
+    statuses = [a[2] for a in appts]
+    if iso in conf_dat:
+        bg = "#fdecec"
+    elif "Bezoek gepland" in statuses:
+        bg = "#eef4fd"
+    elif weekdagidx >= 5:
+        bg = "#f6f7f8"
+    else:
+        bg = "#ffffff"
+    parts = [f"<div style='text-align:right;font-size:10px;color:#8a9099;'>{daynum}</div>"]
+    for t, b, sstat in appts:
+        bgc, brc = kleur.get(sstat, ("#eef2f5", "#8a9099"))
+        mark = "⚠️ " if iso in conf_dat else ""
+        strike = "text-decoration:line-through;" if sstat == "Geannuleerd" else ""
+        label = (f"{t} " if t else "") + esc(b)
+        parts.append(f"<div style='background:{bgc};border-left:3px solid {brc};border-radius:3px;"
+                     f"margin-top:2px;padding:0 3px;font-size:10px;line-height:1.3;{strike}"
+                     f"overflow:hidden;' title='{esc(sstat)}: {label}'>{mark}{label}</div>")
+    return (f"<div style='min-height:58px;background:{bg};border:1px solid #e2e6ea;"
+            f"border-radius:4px;padding:2px 3px;'>" + "".join(parts) + "</div>")
+
+
+def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
+    """Teken een maandkalender (ma–zo) met st.columns — elke week is een aparte rij."""
+    import calendar
+    dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+    mnd = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus",
+           "september", "oktober", "november", "december"]
+    st.markdown(f"**📅 {mnd[maand - 1]} {jaar}**")
+    _hc = st.columns(7)
+    for _i, _d in enumerate(dagen):
+        _hc[_i].markdown(f"<div style='text-align:center;font-size:11px;font-weight:600;"
+                         f"color:#8a9099;'>{_d}</div>", unsafe_allow_html=True)
     for week in calendar.Calendar(firstweekday=0).monthdayscalendar(jaar, maand):
-        html.append('<tr>')
-        for i, daynum in enumerate(week):
-            if daynum == 0:
-                html.append(f'<td style="{cel}background:#f6f7f8;"></td>')
-                continue
-            iso = date(jaar, maand, daynum).isoformat()
-            appts = per_dag.get(iso, [])
-            statuses = [a[2] for a in appts]
-            if iso in conf_dat:
-                bg = "#fdecec"
-            elif "Bezoek gepland" in statuses:
-                bg = "#eef4fd"
-            elif appts:
-                bg = "#ffffff"
-            elif i >= 5:
-                bg = "#f6f7f8"
-            else:
-                bg = "#ffffff"
-            inner = f'<div style="text-align:right;color:#8a9099;">{daynum}</div>'
-            for t, b, sstat in appts:
-                bgc, brc = kleur.get(sstat, ("#eef2f5", "#8a9099"))
-                mark = "⚠️ " if iso in conf_dat else ""
-                strike = "text-decoration:line-through;" if sstat == "Geannuleerd" else ""
-                label = (f"{t} " if t else "") + esc(b)
-                inner += (f'<div style="background:{bgc};border:1px solid {brc};border-left:3px solid {brc};'
-                          f'border-radius:3px;margin-top:1px;padding:0 3px;{strike}white-space:nowrap;'
-                          f'overflow:hidden;text-overflow:ellipsis;" title="{esc(sstat)}: {label}">{mark}{label}</div>')
-            html.append(f'<td style="{cel}background:{bg};">{inner}</td>')
-        html.append('</tr>')
-    html.append('</table>')
-    return "".join(html)
+        _wc = st.columns(7)
+        for _i, _daynum in enumerate(week):
+            _wc[_i].markdown(_maand_kalender_cel(jaar, maand, _daynum, _i, per_dag, conf_dat),
+                             unsafe_allow_html=True)
 
 
 def _afspraken_pdf_bytes(rows, conflicten=None):
@@ -1483,7 +1481,7 @@ with tab_dak:
                     continue
             st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
             for _jr, _mn in sorted(_planmaanden):
-                st.markdown(_maand_kalender_html(_jr, _mn, _per_dag, _conf_dat), unsafe_allow_html=True)
+                _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
             _legenda = "Kleur per status: 🟦 gepland · 🟩 uitgevoerd · 🟧 offerte ontvangen/wachten · ⬜ geannuleerd"
             if _conf_dat:
                 _legenda += " · 🟥 / ⚠️ planning-conflict (overlap of < 1 uur ertussen)"
