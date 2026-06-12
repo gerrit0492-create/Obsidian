@@ -1343,8 +1343,9 @@ with tab_dak:
                            key="dak_afspr_pdf")
 
     st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
-    st.caption("Voer per offerte de posten in (Bedrijf · Onderdeel · Prijs excl. btw). Een lege cel = "
-               "die post zit **niet** in die offerte — zo zie je scope-verschillen meteen.")
+    st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
+               "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
+               "in de tabel kan, maar hoeft niet. Een lege cel = die post zit niet in die offerte.")
     _pe = st.data_editor(
         pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)), num_rows="dynamic",
         use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
@@ -1362,20 +1363,47 @@ with tab_dak:
         except Exception as exc:  # noqa: BLE001
             st.error(f"Opslaan mislukt: {exc}")
 
-    if _prows:
-        _pm = pd.DataFrame(_prows).pivot_table(
+    # Automatisch aanvullen: elke offerte uit de offertetabel zonder eigen posten krijgt een totaalregel.
+    _TOTREGEL = "Totaal offerte (excl. btw)"
+    _auto = list(_prows)
+    _met_posten = {str(r.get("Bedrijf") or "").strip() for r in _prows}
+    _auto_added = []
+    for _o in st.session_state.get("dakofferte", []):
+        _b = str(_o.get("Bedrijf") or "").strip()
+        try:
+            _ex = float(_o.get("Excl. btw") or 0)
+        except Exception:  # noqa: BLE001
+            _ex = 0.0
+        if _b and _b not in _met_posten and _ex > 0:
+            _auto.append({"Bedrijf": _b, "Onderdeel": _TOTREGEL, "Prijs excl. btw": _ex})
+            _auto_added.append(_b)
+    if _auto:
+        _pm = pd.DataFrame(_auto).pivot_table(
             index="Onderdeel", columns="Bedrijf", values="Prijs excl. btw", aggfunc="sum")
-        _ontbreekt = [idx for idx in _pm.index if not _pm.loc[idx].notna().all()]
         _disp = _pm.round(0).copy()
         _disp.loc["── Totaal (excl. btw) ──"] = _pm.sum()
         st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True)
-        st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
-        if _ontbreekt:
-            st.warning("⚠️ **Scope-verschil** — niet in alle offertes: " + ", ".join(_ontbreekt)
-                       + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
-                       "het vergelijken (een lagere offerte kan posten missen).")
+        if _auto_added:
+            st.caption("🔄 Automatisch aangevuld uit de offertetabel (totaalregel): "
+                       + ", ".join(sorted(set(_auto_added))) + ". Upload hun PDF voor detailposten.")
         else:
-            st.success("✅ Alle offertes bevatten dezelfde posten — eerlijke vergelijking.")
+            st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
+        # Scope-check alleen over detailposten van offertes die detail hébben (minstens 2 nodig).
+        _detb = sorted({str(p["Bedrijf"]).strip() for p in _auto if str(p["Onderdeel"]) != _TOTREGEL})
+        if len(_detb) >= 2:
+            _sub = _pm.reindex(columns=_detb).drop(index=_TOTREGEL, errors="ignore")
+            _ontbreekt = [idx for idx in _sub.index if not _sub.loc[idx].notna().all()]
+            if _ontbreekt:
+                st.warning("⚠️ **Scope-verschil** — niet in alle offertes-met-detail: " + ", ".join(_ontbreekt)
+                           + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
+                           "het vergelijken (een lagere offerte kan posten missen).")
+            else:
+                st.success("✅ Alle offertes-met-detail bevatten dezelfde posten — eerlijke vergelijking.")
+        st.download_button("⬇️ Download posten-matrix (Excel)",
+                           m.df_to_excel_bytes({"Posten-matrix": _disp.reset_index()}),
+                           file_name="dakrenovatie_posten.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           key="dak_posten_xlsx")
 
     st.markdown("#### 📋 Advies — is dit marktconform?")
     st.markdown(
