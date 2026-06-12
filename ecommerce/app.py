@@ -108,6 +108,77 @@ DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-o
 DAK_AFSPR_STATUS = ["Gepland", "Gehad", "Geannuleerd"]
 
 
+def _fetch_url(url, timeout=15):
+    """Download tekst van een URL (stdlib, geen extra dependency)."""
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        return resp.read().decode("utf-8", "replace")
+
+
+def _ics_unfold(text):
+    """Splits een iCal-bestand in regels en plak gevouwen vervolgregels weer aan elkaar."""
+    out = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        if line[:1] in (" ", "\t") and out:
+            out[-1] += line[1:]
+        else:
+            out.append(line)
+    return out
+
+
+def _ics_dt(val, key):
+    """DTSTART-waarde -> ('YYYY-MM-DD', 'HH:MM'); zet UTC om naar Europe/Amsterdam."""
+    from datetime import datetime, timezone
+    try:
+        from zoneinfo import ZoneInfo
+        ams = ZoneInfo("Europe/Amsterdam")
+    except Exception:  # noqa: BLE001
+        ams = None
+    v = val.strip()
+    if "VALUE=DATE" in key.upper() or ("T" not in v and len(v) == 8):
+        return f"{v[0:4]}-{v[4:6]}-{v[6:8]}", ""
+    try:
+        if v.endswith("Z"):
+            dt = datetime.strptime(v[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+            if ams:
+                dt = dt.astimezone(ams)
+        else:
+            dt = datetime.strptime(v[:15], "%Y%m%dT%H%M%S")
+        return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M")
+    except ValueError:
+        return "", ""
+
+
+def _ics_dak_afspraken(text, keyword="dak", today=None):
+    """Haal uit een iCal-tekst de afspraken waarvan de titel het trefwoord bevat."""
+    from datetime import date
+    today = today or date.today().isoformat()
+    rows, cur = [], None
+    for line in _ics_unfold(text):
+        if line == "BEGIN:VEVENT":
+            cur = {}
+        elif line == "END:VEVENT":
+            s = (cur or {}).get("summary", "") if cur is not None else ""
+            if cur is not None and keyword in s.lower():
+                typ = "Offerte-overleg" if "offerte" in s.lower() else "Bezoek/inspectie"
+                status = "Gehad" if cur.get("datum", "9999") < today else "Gepland"
+                rows.append({"Bedrijf": s.strip()[:60], "Type": typ,
+                             "Datum": cur.get("datum", ""), "Tijd": cur.get("tijd", ""),
+                             "Contactpersoon": "", "Telefoon": "", "E-mail": "",
+                             "Status": status, "Notitie": "Uit Google Agenda"})
+            cur = None
+        elif cur is not None and ":" in line:
+            key, val = line.split(":", 1)
+            name = key.split(";", 1)[0].upper()
+            if name == "SUMMARY":
+                cur["summary"] = val
+            elif name == "DTSTART":
+                cur["datum"], cur["tijd"] = _ics_dt(val, key)
+    rows.sort(key=lambda r: (r["Datum"], r["Tijd"]))
+    return rows
+
+
 @st.cache_data
 def _startgids_bytes(niche, producten_json):
     import json
@@ -1089,6 +1160,42 @@ with tab_dak:
                     st.rerun()
                 else:
                     st.warning("Vul minimaal het bedrijf in.")
+    with st.expander("📅 Importeer uit Google Agenda (iCal) — niets overtypen", expanded=False):
+        st.caption("Plak het **'Geheime adres in iCal-indeling'** van je agenda (Google Agenda → "
+                   "Instellingen → kies je agenda → *Privé-adres in iCal-indeling*). Of zet 'm in "
+                   "`secrets.toml` als `dak_ical_url`. Ik haal alle afspraken op waarvan de titel het "
+                   "trefwoord bevat en zet ze automatisch in de log — bestaande tijdsloten sla ik over.")
+        try:
+            _ical_default = st.secrets.get("dak_ical_url", "")
+        except Exception:  # noqa: BLE001
+            _ical_default = ""
+        _ical = st.text_input("iCal-URL", value=st.session_state.get("dak_ical_url", _ical_default),
+                              type="password", key="dak_ical_in",
+                              help="Geheime iCal-link; wordt alleen in deze sessie bewaard (niet in de Gist).")
+        _kw = st.text_input("Filter op trefwoord in de titel", value="dak", key="dak_ical_kw")
+        if st.button("⬇️ Ophalen uit agenda", key="dak_ical_fetch"):
+            st.session_state["dak_ical_url"] = _ical
+            if not _ical.strip():
+                st.warning("Vul eerst de iCal-URL in.")
+            else:
+                try:
+                    _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower())
+                    _have = {(r.get("Datum"), r.get("Tijd")) for r in st.session_state.get("dak_afspraken", [])}
+                    _added = [r for r in _new if (r["Datum"], r["Tijd"]) not in _have]
+                    st.session_state.setdefault("dak_afspraken", [])
+                    st.session_state["dak_afspraken"].extend(_added)
+                    if _added:
+                        try:
+                            _persist()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        st.success(f"{len(_added)} afspraak(en) uit de agenda toegevoegd "
+                                   f"({len(_new)} gevonden, rest stond er al).")
+                        st.rerun()
+                    else:
+                        st.info(f"{len(_new)} dak-afspraak(en) gevonden — allemaal al in de log.")
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Ophalen mislukt: {exc}")
     if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
         try:
             _persist()
