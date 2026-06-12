@@ -76,9 +76,9 @@ DAK_SUBTOTAAL, DAK_BTW, DAK_TOTAAL = 16680.0, 3502.80, 20182.80
 
 # Posten per offerte (lang formaat) — voor de onderlinge vergelijking met scope-verschillen.
 DAK_POSTEN_DEFAULT = [
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Dakrenovatie (incl. isolatie + afvoer 3,5 m³)", "Prijs excl. btw": 15000.0},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Loodwerk dakkapel", "Prijs excl. btw": 900.0},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Dakrenovatie (incl. isolatie + afvoer 3,5 m³)", "Prijs excl. btw": 15000.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Loodwerk dakkapel", "Prijs excl. btw": 900.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering", "Prijs excl. btw": 780.0, "Btw %": 21},
 ]
 
 # Should-cost (bottom-up) voor een hellend pannendak vervangen INCL. isolatie — NL 2025/2026,
@@ -1068,34 +1068,47 @@ with tab_dak:
             _posten = [p for p in st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)
                        if str(p.get("Bedrijf") or "").strip().lower() == _sel.lower()]
             if _posten:
-                _pdf = pd.DataFrame([{"Onderdeel": str(p.get("Onderdeel", "")),
-                                      "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0)} for p in _posten])
+                _rows_u = []
+                for _p in _posten:
+                    _pr = float(_p.get("Prijs excl. btw") or 0)
+                    _pct = int(float(_p.get("Btw %") or 21))
+                    _rows_u.append({"Onderdeel": str(_p.get("Onderdeel", "")), "Prijs excl. btw": _pr,
+                                    "Btw %": _pct, "Btw €": round(_pr * _pct / 100, 2)})
+                _pdf = pd.DataFrame(_rows_u)
                 _sub = float(_pdf["Prijs excl. btw"].sum())
+                _btw = round(float(_pdf["Btw €"].sum()), 2)
+                _tot_incl = round(_sub + _btw, 2)
                 st.dataframe(_pdf, use_container_width=True, hide_index=True,
                              column_config={"Prijs excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                                            "Btw €": st.column_config.NumberColumn(format="€%.0f"),
+                                            "Btw %": st.column_config.NumberColumn(format="%d%%"),
                                             "Onderdeel": st.column_config.TextColumn(width="large")})
+                _b21 = float(_pdf.loc[_pdf["Btw %"] == 21, "Btw €"].sum())
+                _b9 = float(_pdf.loc[_pdf["Btw %"] == 9, "Btw €"].sum())
+                if _b21 and _b9:
+                    st.caption(f"Btw-opbouw: {eur(_b21)} @ 21% + {eur(_b9)} @ 9% = {eur(_btw)} totaal.")
             else:
-                _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0}])
+                _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0,
+                                      "Btw %": 21, "Btw €": 0.0}])
                 _sub = float(_orow.get("Excl. btw") or 0)
                 _incl_st = float(_orow.get("Incl. btw") or 0)
                 if _sub <= 0 and _incl_st > 0:        # alleen incl bekend → excl eruit afleiden
                     _sub = round(_incl_st / 1.21, 2)
+                _tot_incl = _incl_st if _incl_st > 0 else round(_sub * 1.21, 2)
+                _btw = round(_tot_incl - _sub, 2)
                 st.warning("Nog geen **detailposten** voor deze offerte. Voeg ze toe in **‘Posten vergelijken’** "
                            "(bv. *dakpannen type 1*, *dakpannen type 2*, *regenpijpen vervangen*, *loodwerk*, "
-                           "*isolatie*) — dan splitst de offerte zich hier vanzelf uit. "
+                           "*isolatie*) met hun **btw% (9 of 21)** — dan splitst de offerte zich hier vanzelf uit. "
                            f"Nu reken ik met het offertetotaal ({eur(_sub)} excl. btw).")
-            _btw = round(_sub * 0.21, 2)
-            _tot_incl = round(_sub + _btw, 2)
-            _incl_st = float(_orow.get("Incl. btw") or 0)
-            if _incl_st > 0 and abs(_incl_st - _tot_incl) > 1.0:
-                st.warning(f"⚠️ De offerte vermeldt **{eur(_incl_st)} incl.** bij **{eur(_sub)} excl.** — dat is "
-                           f"geen 21% btw (excl × 1,21 = {eur(_tot_incl)}). Controleer welk bedrag klopt en "
-                           "corrigeer het in **‘Offertes vergelijken’** (knop *herbereken* daar).")
+            _eff = (_btw / _sub * 100) if _sub > 0 else 0.0
             _m2 = _tot_incl / dak_opp if dak_opp else 0.0
             tt = st.columns(3)
             tt[0].metric("Subtotaal excl. btw", eur(_sub))
-            tt[1].metric("Btw 21%", eur(_btw))
+            tt[1].metric(f"Btw ({_eff:.0f}%)", eur(_btw))
             tt[2].metric("Totaal incl. btw", eur(_tot_incl), f"≈ €{_m2:.0f}/m² alles-in")
+            if _sub > 0 and not (8.5 <= _eff <= 21.5):
+                st.warning(f"⚠️ Effectief btw-tarief is **{_eff:.0f}%** — buiten 9–21%. Waarschijnlijk staat een "
+                           "excl- of incl-bedrag fout; corrigeer het in **‘Offertes vergelijken’**.")
             if _m2 <= 0:
                 st.caption("Vul bedragen in om de €/m²-toets te tonen.")
             elif _m2 <= DAK_MARKT_HI:
@@ -1131,7 +1144,7 @@ with tab_dak:
                         st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
                                      height=420)
 
-            _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", "Btw 21%", "Totaal incl. btw", "€/m² incl."],
+            _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", f"Btw ({_eff:.0f}%)", "Totaal incl. btw", "€/m² incl."],
                                    "Bedrag": [_sub, _btw, _tot_incl, round(_m2, 0)]})
             st.download_button("⬇️ Download uitwerking (Excel)",
                                m.df_to_excel_bytes({"Posten": _pdf, "Samenvatting": _samen}),
@@ -1335,13 +1348,16 @@ with tab_dak:
             except Exception:  # noqa: BLE001
                 pass
             st.rerun()
-    _btw_mis = [str(r.get("Bedrijf") or "") for r in _dak_rows
-                if float(r.get("Excl. btw") or 0) > 0 and float(r.get("Incl. btw") or 0) > 0
-                and abs(float(r["Incl. btw"]) - float(r["Excl. btw"]) * 1.21) > 1.0]
+    _btw_mis = []
+    for r in _dak_rows:
+        _e = float(r.get("Excl. btw") or 0)
+        _i = float(r.get("Incl. btw") or 0)
+        if _e > 0 and _i > 0 and not (8.5 <= (_i - _e) / _e * 100 <= 21.5):
+            _btw_mis.append(str(r.get("Bedrijf") or ""))
     if _btw_mis:
-        st.warning("⚠️ **Btw-controle** — incl ≠ excl × 1,21 bij: " + ", ".join(_btw_mis)
-                   + ". Meestal las de PDF-import één bedrag fout. Corrigeer het juiste bedrag in de tabel, "
-                   "of herbereken incl uit excl:")
+        st.warning("⚠️ **Btw-controle** — effectief tarief buiten 9–21% bij: " + ", ".join(_btw_mis)
+                   + ". Waarschijnlijk las de PDF-import excl of incl fout (een mix van 9% en 21% is prima). "
+                   "Corrigeer het juiste bedrag in de tabel, of — als **alles 21%** is — herbereken incl:")
         if st.button("🔁 Incl. btw = excl × 1,21 herberekenen", key="dak_btw_fix"):
             for _r in st.session_state["dakofferte"]:
                 _e = float(_r.get("Excl. btw") or 0)
@@ -1586,15 +1602,25 @@ with tab_dak:
     st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
                "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
                "in de tabel kan, maar hoeft niet. Een lege cel = die post zit niet in die offerte.")
+    _pin = pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT))
+    _pin["Btw %"] = _pin["Btw %"].fillna(21).astype(int) if "Btw %" in _pin.columns else 21
     _pe = st.data_editor(
-        pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)), num_rows="dynamic",
+        _pin, num_rows="dynamic",
         use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
         column_config={
             "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+            "Btw %": st.column_config.SelectboxColumn(options=[21, 9], default=21,
+                                                      help="9% (arbeid/isolatie) of 21% (materiaal)"),
             "Onderdeel": st.column_config.TextColumn(width="large"),
         })
-    _prows = [r for r in _pe.to_dict("records")
-              if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip()]
+    _prows = []
+    for r in _pe.to_dict("records"):
+        if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip():
+            try:
+                r["Btw %"] = int(float(r.get("Btw %") or 21))
+            except Exception:  # noqa: BLE001
+                r["Btw %"] = 21
+            _prows.append(r)
     st.session_state["dak_posten"] = _prows
     if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
         try:
