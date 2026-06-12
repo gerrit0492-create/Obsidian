@@ -1325,887 +1325,913 @@ with tab_dak:
             "ISDE-subsidie en **appels-met-appels** netto. Download het rapport (Excel/PDF met grafieken).\n"
             "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
 
-    with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
-        _off = st.session_state.get("dakofferte", DAK_DEFAULT)
-        _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
-        if not _bedrijven:
-            st.info("Nog geen offertes — voeg er een toe via ⬆️ upload of ➕ handmatig.")
-        else:
-            _sel = st.selectbox("Kies een offerte om uit te werken", _bedrijven, key="dak_uitwerk_sel")
-            _orow = next((o for o in _off if str(o.get("Bedrijf") or "").strip() == _sel), {})
-            _posten = [p for p in st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)
-                       if str(p.get("Bedrijf") or "").strip().lower() == _sel.lower()]
-            if _posten:
-                _rows_u = []
-                for _p in _posten:
-                    _pr = float(_p.get("Prijs excl. btw") or 0)
-                    _pct = int(float(_p.get("Btw %") or 21))
-                    _rows_u.append({"Onderdeel": str(_p.get("Onderdeel", "")), "Prijs excl. btw": _pr,
-                                    "Btw %": _pct, "Btw €": round(_pr * _pct / 100, 2)})
-                _pdf = pd.DataFrame(_rows_u)
-                _sub = float(_pdf["Prijs excl. btw"].sum())
-                _btw = round(float(_pdf["Btw €"].sum()), 2)
-                _tot_incl = round(_sub + _btw, 2)
-                st.dataframe(_pdf, use_container_width=True, hide_index=True,
-                             column_config={"Prijs excl. btw": st.column_config.NumberColumn(format="€%.0f"),
-                                            "Btw €": st.column_config.NumberColumn(format="€%.0f"),
-                                            "Btw %": st.column_config.NumberColumn(format="%d%%"),
-                                            "Onderdeel": st.column_config.TextColumn(width="large")})
-                _b21 = float(_pdf.loc[_pdf["Btw %"] == 21, "Btw €"].sum())
-                _b9 = float(_pdf.loc[_pdf["Btw %"] == 9, "Btw €"].sum())
-                if _b21 and _b9:
-                    st.caption(f"Btw-opbouw: {eur(_b21)} @ 21% + {eur(_b9)} @ 9% = {eur(_btw)} totaal.")
+    _stage = st.tabs(["🔎 Aannemers & afspraken", "📥 Offertes", "⚖️ Vergelijken · advies · kiezen"])
+    with _stage[1]:
+        with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
+            _off = st.session_state.get("dakofferte", DAK_DEFAULT)
+            _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
+            if not _bedrijven:
+                st.info("Nog geen offertes — voeg er een toe via ⬆️ upload of ➕ handmatig.")
             else:
-                _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0,
-                                      "Btw %": 21, "Btw €": 0.0}])
-                _sub = float(_orow.get("Excl. btw") or 0)
-                _incl_st = float(_orow.get("Incl. btw") or 0)
-                if _sub <= 0 and _incl_st > 0:        # alleen incl bekend → excl eruit afleiden
-                    _sub = round(_incl_st / 1.21, 2)
-                _tot_incl = _incl_st if _incl_st > 0 else round(_sub * 1.21, 2)
-                _btw = round(_tot_incl - _sub, 2)
-                st.warning("Nog geen **detailposten** voor deze offerte. Voeg ze toe in **‘Posten vergelijken’** "
-                           "(bv. *dakpannen type 1*, *dakpannen type 2*, *regenpijpen vervangen*, *loodwerk*, "
-                           "*isolatie*) met hun **btw% (9 of 21)** — dan splitst de offerte zich hier vanzelf uit. "
-                           f"Nu reken ik met het offertetotaal ({eur(_sub)} excl. btw).")
-            _eff = (_btw / _sub * 100) if _sub > 0 else 0.0
-            _m2 = _tot_incl / dak_opp if dak_opp else 0.0
-            tt = st.columns(3)
-            tt[0].metric("Subtotaal excl. btw", eur(_sub))
-            tt[1].metric(f"Btw ({_eff:.0f}%)", eur(_btw))
-            tt[2].metric("Totaal incl. btw", eur(_tot_incl), f"≈ €{_m2:.0f}/m² alles-in")
-            if _sub > 0 and not (8.5 <= _eff <= 21.5):
-                st.warning(f"⚠️ Effectief btw-tarief is **{_eff:.0f}%** — buiten 9–21%. Waarschijnlijk staat een "
-                           "excl- of incl-bedrag fout; corrigeer het in **‘Offertes vergelijken’**.")
-            if _m2 <= 0:
-                st.caption("Vul bedragen in om de €/m²-toets te tonen.")
-            elif _m2 <= DAK_MARKT_HI:
-                st.success(f"🟢 €{_m2:.0f}/m² incl. btw — **marktconform** "
-                           f"(NL-indicatie €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
-            elif _m2 <= DAK_MARKT_HI * 1.25:
-                st.warning(f"🟡 €{_m2:.0f}/m² incl. btw — **aan de hoge kant** "
-                           f"(markt €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
-            else:
-                st.error(f"🔴 €{_m2:.0f}/m² incl. btw — **fors boven markt** "
-                         f"(€{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
-            st.caption("Alles-in €/m² is incl. loodwerk + vogelwering e.d. De **dakrenovatie zelf** "
-                       "vergelijk je het eerlijkst los — zie de should-cost hieronder.")
+                _sel = st.selectbox("Kies een offerte om uit te werken", _bedrijven, key="dak_uitwerk_sel")
+                _orow = next((o for o in _off if str(o.get("Bedrijf") or "").strip() == _sel), {})
+                _posten = [p for p in st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT)
+                           if str(p.get("Bedrijf") or "").strip().lower() == _sel.lower()]
+                if _posten:
+                    _rows_u = []
+                    for _p in _posten:
+                        _pr = float(_p.get("Prijs excl. btw") or 0)
+                        _pct = int(float(_p.get("Btw %") or 21))
+                        _rows_u.append({"Onderdeel": str(_p.get("Onderdeel", "")), "Prijs excl. btw": _pr,
+                                        "Btw %": _pct, "Btw €": round(_pr * _pct / 100, 2)})
+                    _pdf = pd.DataFrame(_rows_u)
+                    _sub = float(_pdf["Prijs excl. btw"].sum())
+                    _btw = round(float(_pdf["Btw €"].sum()), 2)
+                    _tot_incl = round(_sub + _btw, 2)
+                    st.dataframe(_pdf, use_container_width=True, hide_index=True,
+                                 column_config={"Prijs excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                                                "Btw €": st.column_config.NumberColumn(format="€%.0f"),
+                                                "Btw %": st.column_config.NumberColumn(format="%d%%"),
+                                                "Onderdeel": st.column_config.TextColumn(width="large")})
+                    _b21 = float(_pdf.loc[_pdf["Btw %"] == 21, "Btw €"].sum())
+                    _b9 = float(_pdf.loc[_pdf["Btw %"] == 9, "Btw €"].sum())
+                    if _b21 and _b9:
+                        st.caption(f"Btw-opbouw: {eur(_b21)} @ 21% + {eur(_b9)} @ 9% = {eur(_btw)} totaal.")
+                else:
+                    _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0,
+                                          "Btw %": 21, "Btw €": 0.0}])
+                    _sub = float(_orow.get("Excl. btw") or 0)
+                    _incl_st = float(_orow.get("Incl. btw") or 0)
+                    if _sub <= 0 and _incl_st > 0:        # alleen incl bekend → excl eruit afleiden
+                        _sub = round(_incl_st / 1.21, 2)
+                    _tot_incl = _incl_st if _incl_st > 0 else round(_sub * 1.21, 2)
+                    _btw = round(_tot_incl - _sub, 2)
+                    st.warning("Nog geen **detailposten** voor deze offerte. Voeg ze toe in **‘Posten vergelijken’** "
+                               "(bv. *dakpannen type 1*, *dakpannen type 2*, *regenpijpen vervangen*, *loodwerk*, "
+                               "*isolatie*) met hun **btw% (9 of 21)** — dan splitst de offerte zich hier vanzelf uit. "
+                               f"Nu reken ik met het offertetotaal ({eur(_sub)} excl. btw).")
+                _eff = (_btw / _sub * 100) if _sub > 0 else 0.0
+                _m2 = _tot_incl / dak_opp if dak_opp else 0.0
+                tt = st.columns(3)
+                tt[0].metric("Subtotaal excl. btw", eur(_sub))
+                tt[1].metric(f"Btw ({_eff:.0f}%)", eur(_btw))
+                tt[2].metric("Totaal incl. btw", eur(_tot_incl), f"≈ €{_m2:.0f}/m² alles-in")
+                if _sub > 0 and not (8.5 <= _eff <= 21.5):
+                    st.warning(f"⚠️ Effectief btw-tarief is **{_eff:.0f}%** — buiten 9–21%. Waarschijnlijk staat een "
+                               "excl- of incl-bedrag fout; corrigeer het in **‘Offertes vergelijken’**.")
+                if _m2 <= 0:
+                    st.caption("Vul bedragen in om de €/m²-toets te tonen.")
+                elif _m2 <= DAK_MARKT_HI:
+                    st.success(f"🟢 €{_m2:.0f}/m² incl. btw — **marktconform** "
+                               f"(NL-indicatie €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+                elif _m2 <= DAK_MARKT_HI * 1.25:
+                    st.warning(f"🟡 €{_m2:.0f}/m² incl. btw — **aan de hoge kant** "
+                               f"(markt €{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+                else:
+                    st.error(f"🔴 €{_m2:.0f}/m² incl. btw — **fors boven markt** "
+                             f"(€{DAK_MARKT_LO:.0f}–{DAK_MARKT_HI:.0f}/m²).")
+                st.caption("Alles-in €/m² is incl. loodwerk + vogelwering e.d. De **dakrenovatie zelf** "
+                           "vergelijk je het eerlijkst los — zie de should-cost hieronder.")
 
-            if _sel == "Dakbedrijf Westermeer":
-                st.markdown("**Markt per onderdeel (Westermeer):**")
-                st.dataframe(pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
-                             column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
-                st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
-                           "vogelwering €15–35/m geïnstalleerd, loodslab €85–300/m² (Gevelpro). "
-                           "Betaling 50/50 · uitvoering max. 3 werkdagen.")
+                if _sel == "Dakbedrijf Westermeer":
+                    st.markdown("**Markt per onderdeel (Westermeer):**")
+                    st.dataframe(pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
+                                 column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
+                    st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
+                               "vogelwering €15–35/m geïnstalleerd, loodslab €85–300/m² (Gevelpro). "
+                               "Betaling 50/50 · uitvoering max. 3 werkdagen.")
 
-            # Westermeer-regel voor élke offerte: originele PDF altijd terugvindbaar.
-            _pdf_path = _offerte_pdf_path(_orow)
-            if _pdf_path:
-                _bytes = _pdf_path.read_bytes()
-                st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
-                                   file_name=_pdf_path.name, mime="application/pdf",
-                                   key=f"dak_pdf_dl_{_sel}")
-                if st.checkbox("👁️ Offerte-tekst hier tonen", key=f"dak_show_pdf_{_sel}"):
-                    _txt = ai.extract_pdf_text(_bytes, maxpages=12)
-                    st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
-                                 height=420, key=f"dak_pdf_txt_{_sel}")
-            else:
-                st.caption("ℹ️ Geen originele PDF gevonden voor deze offerte. Upload 'm bij "
-                           "**⬆️ Offerte uploaden** — dan wordt-ie bewaard en hier terugvindbaar.")
+                # Westermeer-regel voor élke offerte: originele PDF altijd terugvindbaar.
+                _pdf_path = _offerte_pdf_path(_orow)
+                if _pdf_path:
+                    _bytes = _pdf_path.read_bytes()
+                    st.download_button("📄 Originele offerte (PDF) downloaden", _bytes,
+                                       file_name=_pdf_path.name, mime="application/pdf",
+                                       key=f"dak_pdf_dl_{_sel}")
+                    if st.checkbox("👁️ Offerte-tekst hier tonen", key=f"dak_show_pdf_{_sel}"):
+                        _txt = ai.extract_pdf_text(_bytes, maxpages=12)
+                        st.text_area("Offerte-tekst (uit de PDF)", _txt or "Tekst uitlezen lukte niet.",
+                                     height=420, key=f"dak_pdf_txt_{_sel}")
+                else:
+                    st.caption("ℹ️ Geen originele PDF gevonden voor deze offerte. Upload 'm bij "
+                               "**⬆️ Offerte uploaden** — dan wordt-ie bewaard en hier terugvindbaar.")
 
-            _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", f"Btw ({_eff:.0f}%)", "Totaal incl. btw", "€/m² incl."],
-                                   "Bedrag": [_sub, _btw, _tot_incl, round(_m2, 0)]})
-            st.download_button("⬇️ Download uitwerking (Excel)",
-                               m.df_to_excel_bytes({"Posten": _pdf, "Samenvatting": _samen}),
-                               file_name=f"offerte_uitwerking_{_sel[:20].replace(' ', '_')}.xlsx",
+                _samen = pd.DataFrame({"Post": ["Subtotaal excl. btw", f"Btw ({_eff:.0f}%)", "Totaal incl. btw", "€/m² incl."],
+                                       "Bedrag": [_sub, _btw, _tot_incl, round(_m2, 0)]})
+                st.download_button("⬇️ Download uitwerking (Excel)",
+                                   m.df_to_excel_bytes({"Posten": _pdf, "Samenvatting": _samen}),
+                                   file_name=f"offerte_uitwerking_{_sel[:20].replace(' ', '_')}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="dak_uitwerk_xlsx")
+
+    with _stage[2]:
+        with st.expander("🧮 Should-cost dakrenovatie — wat zou het dak mógen kosten?", expanded=False):
+            st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
+                       "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
+                       "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
+            _pt = st.selectbox("Pantype (volgt de offerte)", list(DAK_RENO_PANTYPE), key="dak_pantype")
+            _plo, _phi = DAK_RENO_PANTYPE[_pt]
+            _rows = list(DAK_RENO_SHOULDCOST)
+            _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
+            _rows.insert(_ix, {"Onderdeel": f"{_pt} pannen — materiaal", "Laag": _plo, "Hoog": _phi})
+            _rb = pd.DataFrame(_rows)
+            _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
+            st.dataframe(_rb, use_container_width=True, hide_index=True,
+                         column_config={"Laag": st.column_config.NumberColumn("Laag (€/m²)", format="€%.0f"),
+                                        "Hoog": st.column_config.NumberColumn("Hoog (€/m²)", format="€%.0f")})
+            # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico.
+            _ak_lo, _ak_hi = _dlo * DAK_RENO_AK, _dhi * DAK_RENO_AK
+            _wr_lo, _wr_hi = (_dlo + _ak_lo) * DAK_RENO_WR, (_dhi + _ak_hi) * DAK_RENO_WR
+            _slo, _shi = _dlo + _ak_lo + _wr_lo, _dhi + _ak_hi + _wr_hi  # should-price excl. btw €/m²
+            _btw_lo, _btw_hi = _slo * DAK_RENO_BTW, _shi * DAK_RENO_BTW
+            _silo, _sihi = _slo + _btw_lo, _shi + _btw_hi  # should-price incl. btw €/m²
+            _opb = pd.DataFrame([
+                {"Opbouw": "Directe kosten (materiaal + arbeid)", "Laag (€/m²)": _dlo, "Hoog (€/m²)": _dhi},
+                {"Opbouw": f"+ Algemene kosten ({DAK_RENO_AK * 100:.0f}%)", "Laag (€/m²)": _ak_lo, "Hoog (€/m²)": _ak_hi},
+                {"Opbouw": f"+ Winst & risico ({DAK_RENO_WR * 100:.0f}%)", "Laag (€/m²)": _wr_lo, "Hoog (€/m²)": _wr_hi},
+                {"Opbouw": "= Should-price excl. btw", "Laag (€/m²)": _slo, "Hoog (€/m²)": _shi},
+                {"Opbouw": f"+ BTW ({DAK_RENO_BTW * 100:.0f}%)", "Laag (€/m²)": _btw_lo, "Hoog (€/m²)": _btw_hi},
+                {"Opbouw": "= Should-price incl. btw", "Laag (€/m²)": _silo, "Hoog (€/m²)": _sihi},
+            ])
+            st.dataframe(_opb, use_container_width=True, hide_index=True,
+                         column_config={"Laag (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
+                                        "Hoog (€/m²)": st.column_config.NumberColumn(format="€%.0f")})
+            rc = st.columns(2)
+            rc[0].metric("Should-price excl. btw", f"€{_slo:.0f}–€{_shi:.0f}/m²")
+            rc[1].metric("Should-price incl. btw", f"€{_silo:.0f}–€{_sihi:.0f}/m²")
+            st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw → "
+                       f"**{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw**.")
+            _wm_m2 = 15000.0 / dak_opp  # dakrenovatie-deel van Westermeer (zonder lood/vogelwering)
+            _wm_v = ("🟢 marktconform" if _wm_m2 <= _shi
+                     else "🟡 aan de hoge kant" if _wm_m2 <= _shi * 1.25 else "🔴 fors boven should-price")
+            st.markdown(f"**Westermeer dakrenovatie:** {eur(15000.0)} excl. = **€{_wm_m2:.0f}/m²** → {_wm_v} "
+                        f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
+            _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
+                                 0.0, 1_000_000.0, 0.0, 250.0, key="dak_reno_quote")
+            if _q > 0:
+                _qm2 = _q / dak_opp
+                if _qm2 < _slo:
+                    st.success(f"🟢 €{_qm2:.0f}/m² ligt **onder** de should-price — scherp (check specs en garantie).")
+                elif _qm2 <= _shi:
+                    st.success(f"🟢 €{_qm2:.0f}/m² is **marktconform**.")
+                elif _qm2 <= _shi * 1.25:
+                    st.warning(f"🟡 €{_qm2:.0f}/m² ligt **aan de hoge kant** — onderhandel of vraag uitsplitsing.")
+                else:
+                    st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-price (~€{_shi:.0f}/m²).")
+            st.caption("Directe kosten = materiaal + arbeid. **AK** dekt werkvoorbereiding, projectleiding, "
+                       "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
+                       "should-*price* van die je met een offerte mag vergelijken. Marktonderzoek 2025/26: een "
+                       "pannendak volledig vernieuwen **incl. isolatie** kost ≈ €125–300/m² (consument; Oranje "
+                       "Dakbeheer, Homedeal, Kosten-Dakdekker); puur **herdekken zonder isolatie** ligt lager "
+                       "(60 m²: betonpan ≈ €50–58, keramisch ≈ €67–92/m²). Kostenverdeling herdekken: pannen "
+                       "35–40%, leggen 30–35%, tengels/panlatten 10–15%, steiger 5–10% (Kosten-Dakdekker). "
+                       "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
+                       "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
+                       "vogelwering apart. Indicatie, geen offerte.")
+            st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
+                               m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
+                               file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               key="dak_uitwerk_xlsx")
+                               key="dak_reno_xlsx")
 
-    with st.expander("🧮 Should-cost dakrenovatie — wat zou het dak mógen kosten?", expanded=False):
-        st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
-                   "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
-                   "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
-        _pt = st.selectbox("Pantype (volgt de offerte)", list(DAK_RENO_PANTYPE), key="dak_pantype")
-        _plo, _phi = DAK_RENO_PANTYPE[_pt]
-        _rows = list(DAK_RENO_SHOULDCOST)
-        _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
-        _rows.insert(_ix, {"Onderdeel": f"{_pt} pannen — materiaal", "Laag": _plo, "Hoog": _phi})
-        _rb = pd.DataFrame(_rows)
-        _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
-        st.dataframe(_rb, use_container_width=True, hide_index=True,
-                     column_config={"Laag": st.column_config.NumberColumn("Laag (€/m²)", format="€%.0f"),
-                                    "Hoog": st.column_config.NumberColumn("Hoog (€/m²)", format="€%.0f")})
-        # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico.
-        _ak_lo, _ak_hi = _dlo * DAK_RENO_AK, _dhi * DAK_RENO_AK
-        _wr_lo, _wr_hi = (_dlo + _ak_lo) * DAK_RENO_WR, (_dhi + _ak_hi) * DAK_RENO_WR
-        _slo, _shi = _dlo + _ak_lo + _wr_lo, _dhi + _ak_hi + _wr_hi  # should-price excl. btw €/m²
-        _btw_lo, _btw_hi = _slo * DAK_RENO_BTW, _shi * DAK_RENO_BTW
-        _silo, _sihi = _slo + _btw_lo, _shi + _btw_hi  # should-price incl. btw €/m²
-        _opb = pd.DataFrame([
-            {"Opbouw": "Directe kosten (materiaal + arbeid)", "Laag (€/m²)": _dlo, "Hoog (€/m²)": _dhi},
-            {"Opbouw": f"+ Algemene kosten ({DAK_RENO_AK * 100:.0f}%)", "Laag (€/m²)": _ak_lo, "Hoog (€/m²)": _ak_hi},
-            {"Opbouw": f"+ Winst & risico ({DAK_RENO_WR * 100:.0f}%)", "Laag (€/m²)": _wr_lo, "Hoog (€/m²)": _wr_hi},
-            {"Opbouw": "= Should-price excl. btw", "Laag (€/m²)": _slo, "Hoog (€/m²)": _shi},
-            {"Opbouw": f"+ BTW ({DAK_RENO_BTW * 100:.0f}%)", "Laag (€/m²)": _btw_lo, "Hoog (€/m²)": _btw_hi},
-            {"Opbouw": "= Should-price incl. btw", "Laag (€/m²)": _silo, "Hoog (€/m²)": _sihi},
-        ])
-        st.dataframe(_opb, use_container_width=True, hide_index=True,
-                     column_config={"Laag (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
-                                    "Hoog (€/m²)": st.column_config.NumberColumn(format="€%.0f")})
-        rc = st.columns(2)
-        rc[0].metric("Should-price excl. btw", f"€{_slo:.0f}–€{_shi:.0f}/m²")
-        rc[1].metric("Should-price incl. btw", f"€{_silo:.0f}–€{_sihi:.0f}/m²")
-        st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw → "
-                   f"**{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw**.")
-        _wm_m2 = 15000.0 / dak_opp  # dakrenovatie-deel van Westermeer (zonder lood/vogelwering)
-        _wm_v = ("🟢 marktconform" if _wm_m2 <= _shi
-                 else "🟡 aan de hoge kant" if _wm_m2 <= _shi * 1.25 else "🔴 fors boven should-price")
-        st.markdown(f"**Westermeer dakrenovatie:** {eur(15000.0)} excl. = **€{_wm_m2:.0f}/m²** → {_wm_v} "
-                    f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
-        _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
-                             0.0, 1_000_000.0, 0.0, 250.0, key="dak_reno_quote")
-        if _q > 0:
-            _qm2 = _q / dak_opp
-            if _qm2 < _slo:
-                st.success(f"🟢 €{_qm2:.0f}/m² ligt **onder** de should-price — scherp (check specs en garantie).")
-            elif _qm2 <= _shi:
-                st.success(f"🟢 €{_qm2:.0f}/m² is **marktconform**.")
-            elif _qm2 <= _shi * 1.25:
-                st.warning(f"🟡 €{_qm2:.0f}/m² ligt **aan de hoge kant** — onderhandel of vraag uitsplitsing.")
-            else:
-                st.error(f"🔴 €{_qm2:.0f}/m² ligt **fors boven** de should-price (~€{_shi:.0f}/m²).")
-        st.caption("Directe kosten = materiaal + arbeid. **AK** dekt werkvoorbereiding, projectleiding, "
-                   "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
-                   "should-*price* van die je met een offerte mag vergelijken. Marktonderzoek 2025/26: een "
-                   "pannendak volledig vernieuwen **incl. isolatie** kost ≈ €125–300/m² (consument; Oranje "
-                   "Dakbeheer, Homedeal, Kosten-Dakdekker); puur **herdekken zonder isolatie** ligt lager "
-                   "(60 m²: betonpan ≈ €50–58, keramisch ≈ €67–92/m²). Kostenverdeling herdekken: pannen "
-                   "35–40%, leggen 30–35%, tengels/panlatten 10–15%, steiger 5–10% (Kosten-Dakdekker). "
-                   "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
-                   "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
-                   "vogelwering apart. Indicatie, geen offerte.")
-        st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                           m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
-                           file_name="dakrenovatie_shouldcost.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           key="dak_reno_xlsx")
-
-    if st.session_state.get("dak_flash"):
-        _lvl, _msg = st.session_state.pop("dak_flash")
-        getattr(st, _lvl, st.info)(_msg)
-    with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
-        _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
-        if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
-            if not ai.available():
-                st.warning("Automatisch uitlezen vereist een LLM-key (Groq). Voeg anders handmatig toe.")
-            else:
-                with st.spinner("PDF uitlezen + posten herkennen…"):
-                    _pdf_bytes = _up.read()
-                    _txt = ai.extract_pdf_text(_pdf_bytes)
-                    _od = ai.parse_offerte(_txt) if _txt else None
-                _ok = bool(_od and str(_od.get("bedrijf") or "").strip())
-                _new_posten = []
-                if not _ok:
-                    # uitlezen mislukt — tóch toevoegen (op bestandsnaam) zodat de offerte niet verdwijnt
-                    _bn = (getattr(_up, "name", "") or "Onbekende offerte").rsplit(".", 1)[0].strip() \
-                        or "Onbekende offerte"
-                    _row = {"Bedrijf": _bn, "Offertenr.": "", "Datum": "", "Geldig t/m": "",
-                            "Excl. btw": 0.0, "Incl. btw": 0.0, "Status": "Ontvangen",
-                            "Notities": "automatisch uitlezen mislukt — vul bedragen handmatig aan"}
+        if st.session_state.get("dak_flash"):
+            _lvl, _msg = st.session_state.pop("dak_flash")
+            getattr(st, _lvl, st.info)(_msg)
+    with _stage[1]:
+        with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
+            _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
+            if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
+                if not ai.available():
+                    st.warning("Automatisch uitlezen vereist een LLM-key (Groq). Voeg anders handmatig toe.")
                 else:
-                    _bn = str(_od["bedrijf"]).strip()
-                    _row = {"Bedrijf": _bn, "Offertenr.": _od.get("offertenummer", ""),
-                            "Datum": _od.get("datum", ""), "Geldig t/m": _od.get("geldig", ""),
-                            "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
-                            "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
-                            "Status": "Ontvangen", "Notities": "automatisch uit PDF"}
-                    for _p in _od.get("posten", []):
-                        try:
-                            _pr = float(_p.get("prijs_excl", 0) or 0)
-                        except Exception:  # noqa: BLE001
-                            _pr = 0.0
-                        if str(_p.get("onderdeel") or "").strip():
-                            _new_posten.append({"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
-                                                "Prijs excl. btw": _pr})
-                # dezelfde offerte (zelfde offertenummer/bedrijf) bijwerken i.p.v. dubbel toevoegen
-                _lst = st.session_state["dakofferte"]
-                _key = _dak_offerte_key(_row)
-                _hit = next((i for i, r in enumerate(_lst) if _dak_offerte_key(r) == _key), None)
-                if _hit is None:
-                    _lst.append(_row)
-                else:
-                    _lst[_hit] = _row
-                # posten van dit bedrijf vervangen, zodat her-upload geen dubbele posten geeft
-                st.session_state["dak_posten"] = [
-                    p for p in st.session_state.get("dak_posten", [])
-                    if str(p.get("Bedrijf") or "").strip().lower() != _bn.lower()] + _new_posten
-                # Westermeer-regel: bewaar de geüploade PDF zodat de offerte altijd terugvindbaar is
-                try:
-                    _adir = _dak_attachments_dir()
-                    if _adir is not None:
-                        _safe = "".join(c for c in _bn if c.isalnum() or c in " -_").strip().replace(" ", "-")
-                        _nr2 = str(_row.get("Offertenr.") or "").strip() or "offerte"
-                        (_adir / f"Offerte-{_safe}-{_nr2}.pdf").write_bytes(_pdf_bytes)
-                except Exception:  # noqa: BLE001
-                    pass
-                _verb = "bijgewerkt" if _hit is not None else "toegevoegd"
-                if _ok:
-                    st.session_state["dak_flash"] = (
-                        "success", f"Offerte van {_bn} {_verb} met {len(_new_posten)} posten — "
-                        "zie de tabel en posten-matrix.")
-                else:
-                    st.session_state["dak_flash"] = (
-                        "warning", f"Kon '{_bn}' niet automatisch uitlezen — als lege regel {_verb}, "
-                        "vul de bedragen handmatig aan in de tabel.")
-                try:
-                    _persist()
-                except Exception as _exc:  # noqa: BLE001
-                    st.session_state["dak_flash"] = (
-                        "warning", f"Toegevoegd, maar opslaan in Gist mislukte: {_exc}")
-                st.rerun()
-        st.caption("De posten/totalen worden automatisch uit de PDF gehaald (met je Groq-key). "
-                   "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
-
-    with st.expander("➕ Nieuwe offerte handmatig toevoegen", expanded=False):
-        with st.form("dak_add", clear_on_submit=True):
-            af = st.columns(2)
-            _b = af[0].text_input("Bedrijf *")
-            _nr = af[1].text_input("Offertenummer")
-            af2 = st.columns(2)
-            _datum = af2[0].text_input("Datum (jjjj-mm-dd)")
-            _geldig = af2[1].text_input("Geldig t/m")
-            af3 = st.columns(2)
-            _excl = af3[0].number_input("Bedrag excl. btw (€)", 0.0, 1_000_000.0, 0.0, 100.0)
-            _incl = af3[1].number_input("Bedrag incl. btw (€) — 0 = excl × 1,21", 0.0, 1_000_000.0, 0.0, 100.0)
-            _status = st.selectbox("Status", ["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"])
-            _notes = st.text_input("Notities")
-            if st.form_submit_button("Toevoegen", type="primary"):
-                if _b.strip():
-                    st.session_state["dakofferte"].append({
-                        "Bedrijf": _b.strip(), "Offertenr.": _nr, "Datum": _datum, "Geldig t/m": _geldig,
-                        "Excl. btw": _excl, "Incl. btw": _incl or round(_excl * 1.21, 2),
-                        "Status": _status, "Notities": _notes})
+                    with st.spinner("PDF uitlezen + posten herkennen…"):
+                        _pdf_bytes = _up.read()
+                        _txt = ai.extract_pdf_text(_pdf_bytes)
+                        _od = ai.parse_offerte(_txt) if _txt else None
+                    _ok = bool(_od and str(_od.get("bedrijf") or "").strip())
+                    _new_posten = []
+                    if not _ok:
+                        # uitlezen mislukt — tóch toevoegen (op bestandsnaam) zodat de offerte niet verdwijnt
+                        _bn = (getattr(_up, "name", "") or "Onbekende offerte").rsplit(".", 1)[0].strip() \
+                            or "Onbekende offerte"
+                        _row = {"Bedrijf": _bn, "Offertenr.": "", "Datum": "", "Geldig t/m": "",
+                                "Excl. btw": 0.0, "Incl. btw": 0.0, "Status": "Ontvangen",
+                                "Notities": "automatisch uitlezen mislukt — vul bedragen handmatig aan"}
+                    else:
+                        _bn = str(_od["bedrijf"]).strip()
+                        _row = {"Bedrijf": _bn, "Offertenr.": _od.get("offertenummer", ""),
+                                "Datum": _od.get("datum", ""), "Geldig t/m": _od.get("geldig", ""),
+                                "Excl. btw": float(_od.get("totaal_excl", 0) or 0),
+                                "Incl. btw": float(_od.get("totaal_incl", 0) or 0),
+                                "Status": "Ontvangen", "Notities": "automatisch uit PDF"}
+                        for _p in _od.get("posten", []):
+                            try:
+                                _pr = float(_p.get("prijs_excl", 0) or 0)
+                            except Exception:  # noqa: BLE001
+                                _pr = 0.0
+                            if str(_p.get("onderdeel") or "").strip():
+                                _new_posten.append({"Bedrijf": _bn, "Onderdeel": str(_p["onderdeel"]).strip(),
+                                                    "Prijs excl. btw": _pr})
+                    # dezelfde offerte (zelfde offertenummer/bedrijf) bijwerken i.p.v. dubbel toevoegen
+                    _lst = st.session_state["dakofferte"]
+                    _key = _dak_offerte_key(_row)
+                    _hit = next((i for i, r in enumerate(_lst) if _dak_offerte_key(r) == _key), None)
+                    if _hit is None:
+                        _lst.append(_row)
+                    else:
+                        _lst[_hit] = _row
+                    # posten van dit bedrijf vervangen, zodat her-upload geen dubbele posten geeft
+                    st.session_state["dak_posten"] = [
+                        p for p in st.session_state.get("dak_posten", [])
+                        if str(p.get("Bedrijf") or "").strip().lower() != _bn.lower()] + _new_posten
+                    # Westermeer-regel: bewaar de geüploade PDF zodat de offerte altijd terugvindbaar is
                     try:
-                        _persist()
+                        _adir = _dak_attachments_dir()
+                        if _adir is not None:
+                            _safe = "".join(c for c in _bn if c.isalnum() or c in " -_").strip().replace(" ", "-")
+                            _nr2 = str(_row.get("Offertenr.") or "").strip() or "offerte"
+                            (_adir / f"Offerte-{_safe}-{_nr2}.pdf").write_bytes(_pdf_bytes)
                     except Exception:  # noqa: BLE001
                         pass
-                    st.rerun()
-                else:
-                    st.warning("Vul minimaal het bedrijf in.")
-
-    st.markdown("#### Offertes vergelijken")
-    st.caption("Of bewerk hieronder rechtstreeks in de tabel (rij toevoegen met +).")
-    _dak_edit = st.data_editor(
-        pd.DataFrame(st.session_state.get("dakofferte", DAK_DEFAULT)), num_rows="dynamic",
-        use_container_width=True, key=f"dak_oe_{len(st.session_state.get('dakofferte', []))}",
-        column_config={
-            "Excl. btw": st.column_config.NumberColumn(format="€%.2f"),
-            "Incl. btw": st.column_config.NumberColumn(format="€%.2f"),
-            "Status": st.column_config.SelectboxColumn(
-                options=["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"]),
-        })
-    _dak_rows = [r for r in _dak_edit.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-    st.session_state["dakofferte"] = _dak_rows
-    st.caption(f"📄 {len(_dak_rows)} offerte(s) in beheer"
-               + (": " + ", ".join(str(r["Bedrijf"]) for r in _dak_rows) if _dak_rows else "."))
-    _dak_uniek = _dak_dedup(_dak_rows)
-    if len(_dak_uniek) < len(_dak_rows):
-        st.warning(f"⚠️ {len(_dak_rows) - len(_dak_uniek)} dubbele offerte(s) gevonden "
-                   "(zelfde offertenummer/bedrijf).")
-        if st.button("🧹 Dubbele offertes opruimen (laatste behouden)", key="dak_dedup_btn"):
-            st.session_state["dakofferte"] = _dak_uniek
-            _keep = {str(r.get("Bedrijf") or "").strip().lower() for r in _dak_uniek}
-            _seen, _pd = set(), []
-            for _p in st.session_state.get("dak_posten", []):
-                _pk = (str(_p.get("Bedrijf") or "").strip().lower(), str(_p.get("Onderdeel") or "").strip().lower())
-                if _pk not in _seen:
-                    _seen.add(_pk)
-                    _pd.append(_p)
-            st.session_state["dak_posten"] = _pd
-            try:
-                _persist()
-            except Exception:  # noqa: BLE001
-                pass
-            st.rerun()
-    _btw_mis = []
-    for r in _dak_rows:
-        _e = float(r.get("Excl. btw") or 0)
-        _i = float(r.get("Incl. btw") or 0)
-        if _e > 0 and _i > 0 and not (8.5 <= (_i - _e) / _e * 100 <= 21.5):
-            _btw_mis.append(str(r.get("Bedrijf") or ""))
-    if _btw_mis:
-        st.warning("⚠️ **Btw-controle** — effectief tarief buiten 9–21% bij: " + ", ".join(_btw_mis)
-                   + ". Waarschijnlijk las de PDF-import excl of incl fout (een mix van 9% en 21% is prima). "
-                   "Corrigeer het juiste bedrag in de tabel, of — als **alles 21%** is — herbereken incl:")
-        if st.button("🔁 Incl. btw = excl × 1,21 herberekenen", key="dak_btw_fix"):
-            for _r in st.session_state["dakofferte"]:
-                _e = float(_r.get("Excl. btw") or 0)
-                if _e > 0 and abs(float(_r.get("Incl. btw") or 0) - _e * 1.21) > 1.0:
-                    _r["Incl. btw"] = round(_e * 1.21, 2)
-            try:
-                _persist()
-            except Exception:  # noqa: BLE001
-                pass
-            st.rerun()
-    if store.enabled() and st.button("💾 Offertes bewaren in Gist", key="dak_save"):
-        try:
-            _persist()
-            st.success("Opgeslagen.")
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Opslaan mislukt: {exc}")
-
-    def _dak_oordeel(v):
-        if v <= DAK_MARKT_HI:
-            return "🟢 marktconform"
-        return "🟡 aan de hoge kant" if v <= DAK_MARKT_HI * 1.25 else "🔴 fors boven markt"
-
-    if _dak_rows:
-        _dv = pd.DataFrame(_dak_rows)
-        _dv["€/m² incl."] = (_dv["Incl. btw"] / dak_opp).round(0)
-        _dv["Oordeel"] = _dv["€/m² incl."].apply(_dak_oordeel)
-        _dv = _dv.sort_values("Incl. btw").reset_index(drop=True)
-        st.dataframe(
-            _dv[["Bedrijf", "Offertenr.", "Geldig t/m", "Excl. btw", "Incl. btw", "€/m² incl.",
-                 "Oordeel", "Status", "Notities"]],
-            use_container_width=True, hide_index=True,
-            column_config={
-                "Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
-                "Incl. btw": st.column_config.NumberColumn(format="€%.0f"),
-                "€/m² incl.": st.column_config.NumberColumn(format="€%.0f"),
-            })
-        st.bar_chart(_dv[["Bedrijf", "€/m² incl."]].set_index("Bedrijf"), use_container_width=True)
-        st.download_button("⬇️ Download vergelijking (Excel)",
-                           m.df_to_excel_bytes({"Offertes": _dv}),
-                           file_name="dakrenovatie_offertes.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    st.markdown("#### 📇 Contacten & afspraken")
-    st.caption("Leg per bedrijf de contactgegevens en afspraken vast — datum, tijd, type en status. "
-               "Rij toevoegen met +, of gebruik het formulier eronder.")
-    from datetime import date as _date_af
-    _vanaf = st.date_input("Toon afspraken vanaf", value=_date_af(2026, 6, 1), key="dak_afspr_vanaf",
-                           format="DD-MM-YYYY")
-    _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
-    _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
-    _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
-    _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
-    _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
-    _af = st.data_editor(
-        pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
-        use_container_width=True,
-        key=f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}",
-        column_config={
-            "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
-            "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
-            "Tijd": st.column_config.TextColumn(help="uu:mm"),
-            "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
-            "Notitie": st.column_config.TextColumn(width="large"),
-        })
-    _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-    st.session_state["dak_afspraken"] = _verborgen + _af_rows
-    if _verborgen:
-        st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
-                   "(blijven wel bewaard).")
-    _conflicten = _afspraak_conflicten(_af_rows)
-    if _conflicten:
-        st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
-                   + "\n".join(f"- {c}" for c in _conflicten))
-    elif _af_rows:
-        st.caption("✅ Planning-check: nergens overlap — overal minstens een uur tussen afspraken op dezelfde dag.")
-    with st.expander("➕ Afspraak / contact toevoegen", expanded=False):
-        with st.form("dak_afspr_add", clear_on_submit=True):
-            gf = st.columns(2)
-            _ab = gf[0].text_input("Bedrijf *")
-            _atype = gf[1].selectbox("Type", DAK_AFSPR_TYPES)
-            gf2 = st.columns(2)
-            _adatum = gf2[0].text_input("Datum (jjjj-mm-dd)")
-            _atijd = gf2[1].text_input("Tijd (uu:mm)")
-            gf3 = st.columns(2)
-            _acp = gf3[0].text_input("Contactpersoon")
-            _atel = gf3[1].text_input("Telefoon")
-            gf4 = st.columns(2)
-            _amail = gf4[0].text_input("E-mail")
-            _astatus = gf4[1].selectbox("Status", DAK_AFSPR_STATUS)
-            _anote = st.text_input("Notitie")
-            if st.form_submit_button("Toevoegen", type="primary"):
-                if _ab.strip():
-                    st.session_state["dak_afspraken"].append({
-                        "Bedrijf": _ab.strip(), "Type": _atype, "Datum": _adatum, "Tijd": _atijd,
-                        "Contactpersoon": _acp, "Telefoon": _atel, "E-mail": _amail,
-                        "Status": _astatus, "Notitie": _anote})
+                    _verb = "bijgewerkt" if _hit is not None else "toegevoegd"
+                    if _ok:
+                        st.session_state["dak_flash"] = (
+                            "success", f"Offerte van {_bn} {_verb} met {len(_new_posten)} posten — "
+                            "zie de tabel en posten-matrix.")
+                    else:
+                        st.session_state["dak_flash"] = (
+                            "warning", f"Kon '{_bn}' niet automatisch uitlezen — als lege regel {_verb}, "
+                            "vul de bedragen handmatig aan in de tabel.")
                     try:
                         _persist()
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception as _exc:  # noqa: BLE001
+                        st.session_state["dak_flash"] = (
+                            "warning", f"Toegevoegd, maar opslaan in Gist mislukte: {_exc}")
                     st.rerun()
-                else:
-                    st.warning("Vul minimaal het bedrijf in.")
-    with st.expander("📅 Importeer uit Google Agenda (iCal) — niets overtypen", expanded=False):
-        st.caption("Plak het **'Geheime adres in iCal-indeling'** van je agenda (Google Agenda → "
-                   "Instellingen → kies je agenda → *Privé-adres in iCal-indeling*). Of zet 'm in "
-                   "`secrets.toml` als `dak_ical_url`. Ik haal alle afspraken op waarvan de titel het "
-                   "trefwoord bevat en zet ze automatisch in de log — bestaande tijdsloten sla ik over.")
-        try:
-            _ical_default = st.secrets.get("dak_ical_url", "")
-        except Exception:  # noqa: BLE001
-            _ical_default = ""
-        _ical = st.text_input("iCal-URL", value=st.session_state.get("dak_ical_url", _ical_default),
-                              type="password", key="dak_ical_in",
-                              help="Geheime iCal-link; wordt alleen in deze sessie bewaard (niet in de Gist).")
-        _kw = st.text_input("Filter op trefwoord in de titel", value="dak", key="dak_ical_kw")
-        if st.button("⬇️ Ophalen uit agenda", key="dak_ical_fetch"):
-            st.session_state["dak_ical_url"] = _ical
-            if not _ical.strip():
-                st.warning("Vul eerst de iCal-URL in.")
-            else:
-                try:
-                    _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
-                                              min_datum=_vanaf_s)
-                    _have = {(r.get("Datum"), r.get("Tijd")) for r in st.session_state.get("dak_afspraken", [])}
-                    _added = [r for r in _new if (r["Datum"], r["Tijd"]) not in _have]
-                    st.session_state.setdefault("dak_afspraken", [])
-                    st.session_state["dak_afspraken"].extend(_added)
-                    if _added:
+            st.caption("De posten/totalen worden automatisch uit de PDF gehaald (met je Groq-key). "
+                       "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
+
+    with _stage[1]:
+        with st.expander("➕ Nieuwe offerte handmatig toevoegen", expanded=False):
+            with st.form("dak_add", clear_on_submit=True):
+                af = st.columns(2)
+                _b = af[0].text_input("Bedrijf *")
+                _nr = af[1].text_input("Offertenummer")
+                af2 = st.columns(2)
+                _datum = af2[0].text_input("Datum (jjjj-mm-dd)")
+                _geldig = af2[1].text_input("Geldig t/m")
+                af3 = st.columns(2)
+                _excl = af3[0].number_input("Bedrag excl. btw (€)", 0.0, 1_000_000.0, 0.0, 100.0)
+                _incl = af3[1].number_input("Bedrag incl. btw (€) — 0 = excl × 1,21", 0.0, 1_000_000.0, 0.0, 100.0)
+                _status = st.selectbox("Status", ["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"])
+                _notes = st.text_input("Notities")
+                if st.form_submit_button("Toevoegen", type="primary"):
+                    if _b.strip():
+                        st.session_state["dakofferte"].append({
+                            "Bedrijf": _b.strip(), "Offertenr.": _nr, "Datum": _datum, "Geldig t/m": _geldig,
+                            "Excl. btw": _excl, "Incl. btw": _incl or round(_excl * 1.21, 2),
+                            "Status": _status, "Notities": _notes})
                         try:
                             _persist()
                         except Exception:  # noqa: BLE001
                             pass
-                        st.success(f"{len(_added)} afspraak(en) uit de agenda toegevoegd "
-                                   f"({len(_new)} gevonden, rest stond er al).")
                         st.rerun()
                     else:
-                        st.info(f"{len(_new)} dak-afspraak(en) gevonden — allemaal al in de log.")
-                except Exception as exc:  # noqa: BLE001
-                    st.error(f"Ophalen mislukt: {exc}")
-    if st.button("↪️ Fases bijwerken (na bezoek → wachten op offerte)", key="dak_afspr_bump",
-                 help="Zet een langsgeweest 'Bezoek gepland' (datum voorbij) op 'Bezoek uitgevoerd', "
-                      "en 'Bezoek uitgevoerd' door naar 'Wachten op offerte'. Eén fase per klik."):
-        from datetime import date as _date
-        _vandaag = _date.today().isoformat()
-        _bump = 0
-        for _r in st.session_state.get("dak_afspraken", []):
-            _s = str(_r.get("Status") or "")
-            if _s == "Bezoek gepland" and str(_r.get("Datum") or "9999") < _vandaag:
-                _r["Status"] = "Bezoek uitgevoerd"
-                _bump += 1
-            elif _s == "Bezoek uitgevoerd":
-                _r["Status"] = "Wachten op offerte"
-                _bump += 1
-        if _bump:
-            st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
-            try:
-                _persist()
-            except Exception:  # noqa: BLE001
-                pass
-            st.success(f"{_bump} afspra(a)k(en) een fase doorgezet.")
-            st.rerun()
-        else:
-            st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
-    if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
-        try:
-            _persist()
-            st.success("Opgeslagen.")
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Opslaan mislukt: {exc}")
-    if _af_rows:
-        _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
-        _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
-        _weekrijen = []  # plat overzicht voor de Excel-export
-        if not _komend.empty:
-            from datetime import date as _date
-            _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
-            _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
+                        st.warning("Vul minimaal het bedrijf in.")
 
-            def _weekdag(d):
-                try:
-                    return _dagen[_date.fromisoformat(str(d)).weekday()]
-                except Exception:  # noqa: BLE001
-                    return ""
-            # alle zichtbare afspraken per dag (voor kleur per status); maanden uit de geplande bezoeken
-            _per_dag = {}
-            for _r in _afdf.to_dict("records"):
-                try:
-                    _dd = _date.fromisoformat(str(_r.get("Datum")))
-                except Exception:  # noqa: BLE001
-                    continue
-                _per_dag.setdefault(_dd.isoformat(), []).append(
-                    (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip(),
-                     str(_r.get("Status") or "").strip()))
-            for _iso in _per_dag:
-                _per_dag[_iso].sort()
-            _planmaanden = set()
-            for _x in _komend["Datum"]:
-                try:
-                    _pm = _date.fromisoformat(str(_x))
-                    _planmaanden.add((_pm.year, _pm.month))
-                except Exception:  # noqa: BLE001
-                    continue
-            st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
-            for _jr, _mn in sorted(_planmaanden):
-                _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
-            _legenda = "Kleur per status: 🟦 gepland · 🟩 uitgevoerd · 🟧 offerte ontvangen/wachten · ⬜ geannuleerd"
-            if _conf_dat:
-                _legenda += " · 🟥 / ⚠️ planning-conflict (overlap of < 1 uur ertussen)"
-            st.caption(_legenda)
-            # platte rijen (alleen plan-maanden) voor de Excel-export
-            for _iso in sorted(_per_dag):
-                _dd = _date.fromisoformat(_iso)
-                if (_dd.year, _dd.month) not in _planmaanden:
-                    continue
-                for _t, _b, _sstat in _per_dag[_iso]:
-                    _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
-                                       "Bedrijf": _b, "Status": _sstat,
-                                       "Let op": "conflict" if _iso in _conf_dat else ""})
-            _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
-            with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
-                st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
-                             use_container_width=True, hide_index=True)
-        _sheets = {"Afspraken": _afdf}
-        if _weekrijen:
-            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Status", "Let op"]]
-        _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
-                                     if _conflicten else
-                                     pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
-                                                                      "tussen afspraken op dezelfde dag."]}))
-        st.download_button("⬇️ Download contacten & afspraken (Excel)",
-                           m.df_to_excel_bytes(_sheets),
-                           file_name="dakrenovatie_afspraken.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           key="dak_afspr_xlsx")
-        st.download_button("🖨️ Print / PDF — contacten & afspraken",
-                           _afspraken_pdf_bytes(_af_rows, _conflicten),
-                           file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
-                           key="dak_afspr_pdf")
-
-    st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
-    st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
-               "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
-               "in de tabel kan, maar hoeft niet. Een lege cel = die post zit niet in die offerte.")
-    _pin = pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT))
-    _pin["Btw %"] = _pin["Btw %"].fillna(21).astype(int) if "Btw %" in _pin.columns else 21
-    _pe = st.data_editor(
-        _pin, num_rows="dynamic",
-        use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
-        column_config={
-            "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
-            "Btw %": st.column_config.SelectboxColumn(options=[21, 9], default=21,
-                                                      help="9% (arbeid/isolatie) of 21% (materiaal)"),
-            "Onderdeel": st.column_config.TextColumn(width="large"),
-        })
-    _prows = []
-    for r in _pe.to_dict("records"):
-        if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip():
-            try:
-                r["Btw %"] = int(float(r.get("Btw %") or 21))
-            except Exception:  # noqa: BLE001
-                r["Btw %"] = 21
-            _prows.append(r)
-    st.session_state["dak_posten"] = _prows
-    if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
-        try:
-            _persist()
-            st.success("Opgeslagen.")
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Opslaan mislukt: {exc}")
-
-    # Automatisch aanvullen: elke offerte uit de offertetabel zonder eigen posten krijgt een totaalregel.
-    _TOTREGEL = "Totaal offerte (excl. btw)"
-    _auto = list(_prows)
-    _met_posten = {str(r.get("Bedrijf") or "").strip() for r in _prows}
-    _auto_added = []
-    for _o in st.session_state.get("dakofferte", []):
-        _b = str(_o.get("Bedrijf") or "").strip()
-        if str(_o.get("Status") or "") == "Afgewezen":
-            continue  # afgewezen / oude offertes niet meenemen in de vergelijking
-        try:
-            _ex = float(_o.get("Excl. btw") or 0)
-        except Exception:  # noqa: BLE001
-            _ex = 0.0
-        if _b and _b not in _met_posten and _ex > 0:
-            _auto.append({"Bedrijf": _b, "Onderdeel": _TOTREGEL, "Prijs excl. btw": _ex})
-            _auto_added.append(_b)
-    if _auto:
-        _pm = pd.DataFrame(_auto).pivot_table(
-            index="Onderdeel", columns="Bedrijf", values="Prijs excl. btw", aggfunc="sum")
-        _disp = _pm.round(0).copy()
-        _disp.loc["── Totaal (excl. btw) ──"] = _pm.sum()
-        st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True)
-        if _auto_added:
-            st.caption("🔄 Automatisch aangevuld uit de offertetabel (totaalregel): "
-                       + ", ".join(sorted(set(_auto_added))) + ". Upload hun PDF voor detailposten.")
-        else:
-            st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
-        # Scope-check alleen over detailposten van offertes die detail hébben (minstens 2 nodig).
-        _detb = sorted({str(p["Bedrijf"]).strip() for p in _auto if str(p["Onderdeel"]) != _TOTREGEL})
-        if len(_detb) >= 2:
-            _sub = _pm.reindex(columns=_detb).drop(index=_TOTREGEL, errors="ignore")
-            _ontbreekt = [idx for idx in _sub.index if not _sub.loc[idx].notna().all()]
-            if _ontbreekt:
-                st.warning("⚠️ **Scope-verschil** — niet in alle offertes-met-detail: " + ", ".join(_ontbreekt)
-                           + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
-                           "het vergelijken (een lagere offerte kan posten missen).")
-            else:
-                st.success("✅ Alle offertes-met-detail bevatten dezelfde posten — eerlijke vergelijking.")
-        st.download_button("⬇️ Download posten-matrix (Excel)",
-                           m.df_to_excel_bytes({"Posten-matrix": _disp.reset_index()}),
-                           file_name="dakrenovatie_posten.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           key="dak_posten_xlsx")
-
-    # ---- Insightful scope comparison to help pick the right quote ----
-    _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
-    if _detbedr_real:
-        st.markdown("#### 📊 Vergelijking & advies — welke offerte?")
-        st.caption("Naast de offertes staat een **should-cost baseline**: een onafhankelijke, complete "
-                   "bottom-up raming per onderdeel — zo zie je hoever elke offerte boven het 'zou-moeten' zit.")
-        _CATS = [
-            ("Steiger & toegang", ("steiger", "pannenlift", "kraan", "hoogwerker")),
-            ("Sloop & afvoer", ("sloop", "verwijder", "afvoer", "container", "opruim", "bouwafval")),
-            ("Isolatie", ("isolatie", "isolatiedeken", "folie", "sf40", "rd 3", "rc 3")),
-            ("Tengels & panlatten", ("tengel", "panlat")),
-            ("Dakpannen", ("betonpan", "keramische", "sneldek", "dakpan")),
-            ("Nok & vorst", ("nokvorst", "nok ", "vorst", "ruiter", "ondervorst")),
-            ("Kant-/gevelpannen", ("kantpan", "gevelpan")),
-            ("Goot & regenwater", ("bakgoot", "gootbeugel", "goot", "regenpijp", "hwa")),
-            ("Loodwerk", ("loodaansluiting", "bladlood", "kunstlood", "loodwerk")),
-            ("Vogelwering", ("vogelwer", "dakvoet")),
-            ("Bevestiging (panhaken/clips)", ("panhak", "vorstklem", "stormklem", "stormvast")),
-            ("Dakdoorvoer", ("doorvoer", "rookgas")),
-        ]
-
-        def _cat_of(name):
-            n = name.lower()
-            for _c, _kws in _CATS:
-                if any(k in n for k in _kws):
-                    return _c
-            return "Overig"
-        _SC = "Should-cost (baseline)"
-        _byb = {b: [p for p in _prows if str(p.get("Bedrijf") or "").strip() == b] for b in _detbedr_real}
-        _byb[_SC] = _dak_shouldcost_posten(dak_opp)
-        _detbedr = _detbedr_real + [_SC]
-        _assign = {b: {} for b in _detbedr}
-        for b in _detbedr:
-            for p in _byb[b]:
-                _assign[b].setdefault(_cat_of(str(p.get("Onderdeel") or "")), []).append(p)
-
-        def _cover(hits):
-            if not hits:
-                return "—"
-            if hits and all("stelpost" in str(p.get("Onderdeel") or "").lower() for p in hits) \
-                    and sum(float(p.get("Prijs excl. btw") or 0) for p in hits) == 0:
-                return "stelpost"
-            _pr = sum(float(p.get("Prijs excl. btw") or 0) for p in hits
-                      if "bundel" not in str(p.get("Onderdeel") or "").lower())
-            return f"€{_pr:.0f}" if _pr > 0 else "incl."
-        _vrows = []
-        for _cat, _ in _CATS:
-            _row = {"Scope": _cat}
-            for b in _detbedr:
-                _row[b] = _cover(_assign[b].get(_cat, []))
-            _vals = [_row[b] for b in _detbedr]
-            _row["Let op"] = "⚠️ niet bij allen" if ("—" in _vals and any(v != "—" for v in _vals)) else ""
-            _vrows.append(_row)
-        _cmpdf = pd.DataFrame(_vrows)
-        st.dataframe(_cmpdf, use_container_width=True, hide_index=True)
-        st.caption("Per scope-onderdeel: €-bedrag indien apart geprijsd · *incl.* = zit in een bundelprijs · "
-                   "*stelpost* = optie/nog niet vast · *—* = niet in deze offerte. ⚠️ = niet in elke offerte. "
-                   "Indicatief — gebundelde regels kunnen onder één kop vallen; zie het detail hieronder.")
-        with st.expander("🔍 Detail per scope-onderdeel — qty · type · kosten per offerte"):
-            for _cat, _ in _CATS:
-                if not any(_assign[b].get(_cat) for b in _detbedr):
-                    continue
-                st.markdown(f"**{_cat}**")
-                for b in _detbedr:
-                    _items = _assign[b].get(_cat, [])
-                    if not _items:
-                        st.markdown(f"- *{b}*: — niet geoffreerd")
-                        continue
-                    for _p in _items:
-                        _pr = float(_p.get("Prijs excl. btw") or 0)
-                        _nm = str(_p.get("Onderdeel") or "")
-                        _pct = int(float(_p.get("Btw %") or 21))
-                        if _pr > 0:
-                            _ps = f"€{_pr:.0f} excl. ({_pct}% btw)"
-                        elif "bundel" in _nm.lower():
-                            _ps = "bundelprijs €15.000"
-                        elif "stelpost" in _nm.lower():
-                            _ps = "stelpost (optie)"
-                        else:
-                            _ps = "incl. in bundel"
-                        st.markdown(f"- *{b}*: {_nm} — **{_ps}**")
-
-        _off_by = {str(o.get("Bedrijf") or "").strip(): o for o in st.session_state.get("dakofferte", [])}
-        _scx = sum(float(p["Prijs excl. btw"]) for p in _byb[_SC])
-        _scb = sum(float(p["Prijs excl. btw"]) * p["Btw %"] / 100 for p in _byb[_SC])
-        _sc_lcl_i = sum(float(p.get("LCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
-        _sc_ucl_i = sum(float(p.get("UCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
-        _off_by[_SC] = {"Bedrijf": _SC, "Excl. btw": round(_scx), "Incl. btw": round(_scx + _scb),
-                        "Isolatie": "Rd ≥ 3,5 (norm)", "Garantie": "—"}
-        st.info(f"📐 **Should-cost band (LCL–UCL):** €{_sc_lcl_i:.0f} – €{_sc_ucl_i:.0f} incl. btw "
-                f"(€{_sc_lcl_i / dak_opp:.0f} – €{_sc_ucl_i / dak_opp:.0f}/m²) · midpunt "
-                f"€{round(_scx + _scb):.0f}. LCL = efficiënt/scherp, UCL = bovengrens. Een offerte **boven de "
-                f"UCL** is duur; **binnen de band** is marktconform.")
-        _hl = []
-        for b in _detbedr:
-            _o = _off_by.get(b, {})
-            _ex, _in = float(_o.get("Excl. btw") or 0), float(_o.get("Incl. btw") or 0)
-            _hl.append({"Offerte": b, "Excl. btw": round(_ex), "Incl. btw": round(_in),
-                        "€/m² incl.": round(_in / dak_opp) if dak_opp else 0,
-                        "Effectief btw": f"{(_in - _ex) / _ex * 100:.0f}%" if _ex > 0 and _in > 0 else "—",
-                        "Isolatie": str(_o.get("Isolatie") or "—"), "Garantie": str(_o.get("Garantie") or "—")})
-        _hldf = pd.DataFrame(_hl)
-        st.dataframe(_hldf, use_container_width=True, hide_index=True,
-                     column_config={"Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
-                                    "Incl. btw": st.column_config.NumberColumn(format="€%.0f"),
-                                    "€/m² incl.": st.column_config.NumberColumn(format="€%.0f")})
-        _bullets = []
-        _valid = [h for h in _hl if h["Incl. btw"] > 0]
-        if len(_valid) >= 2:
-            _cheap = min(_valid, key=lambda h: h["Incl. btw"])
-            _exp = max(_valid, key=lambda h: h["Incl. btw"])
-            _gap = _exp["Incl. btw"] - _cheap["Incl. btw"]
-            _bullets.append(f"💶 **{_cheap['Offerte']}** is goedkoper — €{_gap:.0f} incl. minder dan "
-                            f"**{_exp['Offerte']}** (€{_cheap['Incl. btw']:.0f} vs €{_exp['Incl. btw']:.0f}).")
-        for b in _detbedr:
-            _mist = [r["Scope"] for r in _vrows if r[b] == "—" and any(r[x] != "—" for x in _detbedr)]
-            if _mist:
-                _bullets.append(f"⚠️ **{b}** mist t.o.v. de ander: " + ", ".join(_mist)
-                                + " — vraag aanvulling of reken de optie mee.")
-        for b in _detbedr:
-            if any(int(float(p.get("Btw %") or 21)) == 9 for p in _byb[b]):
-                _bullets.append(f"🧾 **{b}** rekent **9% btw** op de isolatie-arbeid (terecht; scheelt geld).")
-            _sp = [p for p in _byb[b] if "stelpost" in str(p.get("Onderdeel") or "").lower()]
-            if _sp:
-                _bullets.append(f"📌 **{b}** heeft {len(_sp)} **stelpost(en)** (optioneel — kan nog bijkomen).")
-        _gar = {b: str(_off_by.get(b, {}).get("Garantie") or "") for b in _detbedr}
-        if len({v for v in _gar.values() if v}) > 1:
-            _bullets.append("🛡️ **Garantie verschilt**: "
-                            + " · ".join(f"{b}: {_gar[b]}" for b in _detbedr if _gar[b]) + ".")
-        # frame: in de kern dezelfde klus; wie geeft het meeste kosteninzicht?
-        _granular = max(_detbedr, key=lambda b: sum(1 for p in _byb[b] if float(p.get("Prijs excl. btw") or 0) > 0))
-        _bullets.insert(0, f"🔁 De offertes dekken in de kern **dezelfde dakrenovatie** (zelfde dak/m², isolatie + "
-                        f"nieuwe pannen); ze gebruiken alleen andere benamingen. **{_granular}** geeft het meeste "
-                        "**kosteninzicht** (meer losse, geprijsde posten); de ander bundelt onder één prijs.")
-        if _bullets:
-            st.markdown("\n".join("- " + x for x in _bullets))
-        # ISDE-subsidie op dakisolatie (Rd ≥ 3,5 m²K/W, ≥ 20 m²) — geldt voor beide offertes
-        _isde1 = min(round(16.25 * dak_opp), 975) if dak_opp else 0
-        _isde2 = min(round(32.50 * dak_opp), 1950) if dak_opp else 0
-        st.info(f"🏷️ **ISDE-subsidie op de dakisolatie** — isolatie met **Rd ≥ 3,5 m²K/W** (en ≥ 20 m²) komt in "
-                f"aanmerking. Beide voldoen ruim: Westermeer **Rd 3,8**, Albers **Rc 3,89–4,11** (SF40BB, "
-                f"meldcode KA28563). Indicatie voor {dak_opp:.0f} m²: **± €{_isde1:.0f} terug** bij één "
-                f"isolatiemaatregel (≈ €16,25/m², max €975), of **tot €{_isde2:.0f}** bij twee maatregelen "
-                f"(≈ €32,50/m², max €1.950). Dit geldt voor **béide** offertes → het verlaagt je **netto** kosten, "
-                "maar verandert de onderlinge keuze nauwelijks. Laat de aannemer de ISDE-aanvraag ondersteunen.")
-        st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
-                   "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
-                   "stelposten realistisch zijn.")
-        # ---- Appels met appels: normaliseer elke offerte naar dezelfde (firm) scope ----
-        _cat_eur = {b: {c: sum(float(p.get("Prijs excl. btw") or 0) for p in items
-                               if "bundel" not in str(p.get("Onderdeel") or "").lower())
-                        for c, items in _assign[b].items()} for b in _detbedr}
-        _allcats = {c for b in _detbedr for c in _assign[b]}
-        _norm = []
-        for b in _detbedr:
-            _o = _off_by.get(b, {})
-            _qi = float(_o.get("Incl. btw") or 0)
-            _add, _added = 0.0, []
-            for _cat in sorted(_allcats):
-                if _cat in _assign[b]:
-                    continue  # offerte dekt deze scope al
-                _peer = [_cat_eur[p].get(_cat, 0) for p in _detbedr if p != b and _cat_eur[p].get(_cat, 0) > 0]
-                if _peer:
-                    _est = sum(_peer) / len(_peer)
-                    _add += _est
-                    _added.append(f"{_cat} (~€{_est:.0f})")
-            _ni = _qi + round(_add * 1.21)
-            _norm.append({"Offerte": b, "Zoals geoffreerd": round(_qi), "+ ontbrekende scope": round(_add * 1.21),
-                          "Gelijke scope": round(_ni), "− ISDE": _isde1, "Netto": round(_ni - _isde1),
-                          "Toegevoegd": ", ".join(_added) or "—"})
-        _normdf = pd.DataFrame(_norm)
-        st.markdown("**🍏 Appels met appels — zelfde scope, incl. btw, ná ISDE**")
-        st.dataframe(_normdf, use_container_width=True, hide_index=True,
-                     column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
-                                    ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
-        _scnet = next((n["Netto"] for n in _norm if n["Offerte"] == _SC), 0)
-        _vld = [n for n in _norm if n["Gelijke scope"] > 0 and n["Offerte"] != _SC]
-        if len(_vld) >= 2:
-            _wc = min(_vld, key=lambda n: n["Netto"])
-            _we = max(_vld, key=lambda n: n["Netto"])
-            st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat) en ná ISDE is **{_wc['Offerte']}** "
-                       f"het voordeligst: **€{_wc['Netto']:.0f}** netto vs €{_we['Netto']:.0f} — verschil "
-                       f"**€{_we['Netto'] - _wc['Netto']:.0f}**.")
-        if _vld:
-            _parts = []
-            for n in _vld:
-                _gs = n["Gelijke scope"]  # incl. btw, gelijke scope
-                if _gs <= _sc_ucl_i:
-                    _v = "🟢 binnen de band" if _gs >= _sc_lcl_i else "🔵 onder LCL (scherp)"
-                else:
-                    _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{(_gs - _sc_ucl_i) / _sc_ucl_i * 100:.0f}%)"
-                _parts.append(f"**{n['Offerte']}** {_v}")
-            st.markdown("📐 **Toets aan de should-cost band** (gelijke scope, incl. btw): " + " · ".join(_parts) + ".")
-        st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
-                   "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
-                   "niet mee). Zo vergelijk je appels met appels.")
-
-        _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
-                                    "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
-                                    "Btw %": int(float(p.get("Btw %") or 21))}
-                                   for b in _detbedr for p in _byb[b]])
-        _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
-                 "Posten": _posten_df,
-                 "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
-                                                + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
-                                                   f"€{_isde2:.0f} (2 maatregelen) voor {dak_opp:.0f} m²"]})}
-        _cda, _cdb = st.columns(2)
-        _cda.download_button("⬇️ Vergelijking — Excel", m.df_to_excel_bytes(_xlsx),
-                             file_name="dakrenovatie_vergelijking.xlsx",
-                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             key="dak_vergelijk_xlsx", use_container_width=True)
-        try:
-            _pdfb = _dak_vergelijking_pdf_bytes(_hl, _cmpdf, _posten_df, dak_opp, _isde1, _isde2, _bullets,
-                                                DAK_MARKT_LO, DAK_MARKT_HI, _normdf)
-            _cdb.download_button("🖨️ Vergelijking — PDF (met grafieken)", _pdfb,
-                                 file_name="dakrenovatie_vergelijking.pdf", mime="application/pdf",
-                                 key="dak_vergelijk_pdf", use_container_width=True)
-        except Exception as _exc:  # noqa: BLE001
-            _cdb.caption(f"PDF-rapport tijdelijk niet beschikbaar: {_exc}")
-
-        st.markdown("#### 🏆 Stap 6 — Kies je aannemer")
-        _cur = next((b for b in _detbedr_real if str(_off_by.get(b, {}).get("Status") or "") == "Gekozen"), "—")
-        _opts = ["—"] + _detbedr_real
-        _kz = st.selectbox("Welke offerte kies je?", _opts,
-                           index=_opts.index(_cur) if _cur in _opts else 0, key="dak_kies")
-        if _kz != "—":
-            for _o in st.session_state["dakofferte"]:
-                _b = str(_o.get("Bedrijf") or "").strip()
-                if _b == _kz:
-                    _o["Status"] = "Gekozen"
-                elif str(_o.get("Status") or "") == "Gekozen":
-                    _o["Status"] = "Vergeleken"
-            _ch = next((n for n in _norm if n["Offerte"] == _kz), None)
-            if _ch:
-                st.success(f"✅ Gekozen: **{_kz}** — netto bij gelijke scope, ná ISDE: **€{_ch['Netto']:.0f}** "
-                           f"(zoals geoffreerd €{_ch['Zoals geoffreerd']:.0f}).")
-            if st.button("💾 Keuze bewaren in Gist", key="dak_kies_save"):
+    with _stage[1]:
+        st.markdown("#### Offertes vergelijken")
+        st.caption("Of bewerk hieronder rechtstreeks in de tabel (rij toevoegen met +).")
+        _dak_edit = st.data_editor(
+            pd.DataFrame(st.session_state.get("dakofferte", DAK_DEFAULT)), num_rows="dynamic",
+            use_container_width=True, key=f"dak_oe_{len(st.session_state.get('dakofferte', []))}",
+            column_config={
+                "Excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+                "Incl. btw": st.column_config.NumberColumn(format="€%.2f"),
+                "Status": st.column_config.SelectboxColumn(
+                    options=["Aangevraagd", "Ontvangen", "Vergeleken", "Gekozen", "Afgewezen"]),
+            })
+        _dak_rows = [r for r in _dak_edit.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
+        st.session_state["dakofferte"] = _dak_rows
+        st.caption(f"📄 {len(_dak_rows)} offerte(s) in beheer"
+                   + (": " + ", ".join(str(r["Bedrijf"]) for r in _dak_rows) if _dak_rows else "."))
+        _dak_uniek = _dak_dedup(_dak_rows)
+        if len(_dak_uniek) < len(_dak_rows):
+            st.warning(f"⚠️ {len(_dak_rows) - len(_dak_uniek)} dubbele offerte(s) gevonden "
+                       "(zelfde offertenummer/bedrijf).")
+            if st.button("🧹 Dubbele offertes opruimen (laatste behouden)", key="dak_dedup_btn"):
+                st.session_state["dakofferte"] = _dak_uniek
+                _keep = {str(r.get("Bedrijf") or "").strip().lower() for r in _dak_uniek}
+                _seen, _pd = set(), []
+                for _p in st.session_state.get("dak_posten", []):
+                    _pk = (str(_p.get("Bedrijf") or "").strip().lower(), str(_p.get("Onderdeel") or "").strip().lower())
+                    if _pk not in _seen:
+                        _seen.add(_pk)
+                        _pd.append(_p)
+                st.session_state["dak_posten"] = _pd
                 try:
                     _persist()
-                    st.success("Keuze opgeslagen.")
-                except Exception as _exc2:  # noqa: BLE001
-                    st.error(f"Opslaan mislukt: {_exc2}")
+                except Exception:  # noqa: BLE001
+                    pass
+                st.rerun()
+        _btw_mis = []
+        for r in _dak_rows:
+            _e = float(r.get("Excl. btw") or 0)
+            _i = float(r.get("Incl. btw") or 0)
+            if _e > 0 and _i > 0 and not (8.5 <= (_i - _e) / _e * 100 <= 21.5):
+                _btw_mis.append(str(r.get("Bedrijf") or ""))
+        if _btw_mis:
+            st.warning("⚠️ **Btw-controle** — effectief tarief buiten 9–21% bij: " + ", ".join(_btw_mis)
+                       + ". Waarschijnlijk las de PDF-import excl of incl fout (een mix van 9% en 21% is prima). "
+                       "Corrigeer het juiste bedrag in de tabel, of — als **alles 21%** is — herbereken incl:")
+            if st.button("🔁 Incl. btw = excl × 1,21 herberekenen", key="dak_btw_fix"):
+                for _r in st.session_state["dakofferte"]:
+                    _e = float(_r.get("Excl. btw") or 0)
+                    if _e > 0 and abs(float(_r.get("Incl. btw") or 0) - _e * 1.21) > 1.0:
+                        _r["Incl. btw"] = round(_e * 1.21, 2)
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.rerun()
+        if store.enabled() and st.button("💾 Offertes bewaren in Gist", key="dak_save"):
+            try:
+                _persist()
+                st.success("Opgeslagen.")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Opslaan mislukt: {exc}")
 
-    st.markdown("#### 📋 Advies — is dit marktconform?")
-    st.markdown(
-        "- De offerte van Westermeer (~€250/m² **excl.** btw, ≈ €336/m² **incl.**) zit **fors boven** "
-        "de markt: een hellend pannendak vervangen *mét isolatie* kost in NL ~€110–€160/m² excl. btw "
-        "(≈ €180–€260/m² incl.).\n"
-        "- **Nuance:** kleine klus (60 m²) → hogere prijs/m²; keramische pannen + Rd 3,8 zitten aan de "
-        "betere kant — maar zelfs dan aan de hoge kant.\n"
-        "- **Vraag na / onderhandel:** is de **steiger** inbegrepen? Geldt het **9%-btw-tarief op de "
-        "isolatie-arbeid** (woning > 2 jaar)? Vraag een **uitsplitsing arbeid/materiaal** en de "
-        "**garantietermijn** schriftelijk.\n"
-        "- **Afvoer** zit inbegrepen (1× container **3,5 m³** naar erkend recyclingbedrijf) — passend "
-        "voor 60 m²; leg wel vast dat een **extra container geen meerwerk** is.\n"
-        "- **Doe:** vraag **minstens 2 extra offertes** met dezelfde scope en vergelijk hierboven op €/m².")
+        def _dak_oordeel(v):
+            if v <= DAK_MARKT_HI:
+                return "🟢 marktconform"
+            return "🟡 aan de hoge kant" if v <= DAK_MARKT_HI * 1.25 else "🔴 fors boven markt"
+
+        if _dak_rows:
+            _dv = pd.DataFrame(_dak_rows)
+            _dv["€/m² incl."] = (_dv["Incl. btw"] / dak_opp).round(0)
+            _dv["Oordeel"] = _dv["€/m² incl."].apply(_dak_oordeel)
+            _dv = _dv.sort_values("Incl. btw").reset_index(drop=True)
+            st.dataframe(
+                _dv[["Bedrijf", "Offertenr.", "Geldig t/m", "Excl. btw", "Incl. btw", "€/m² incl.",
+                     "Oordeel", "Status", "Notities"]],
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                    "Incl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                    "€/m² incl.": st.column_config.NumberColumn(format="€%.0f"),
+                })
+            st.bar_chart(_dv[["Bedrijf", "€/m² incl."]].set_index("Bedrijf"), use_container_width=True)
+            st.download_button("⬇️ Download vergelijking (Excel)",
+                               m.df_to_excel_bytes({"Offertes": _dv}),
+                               file_name="dakrenovatie_offertes.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    with _stage[0]:
+        st.markdown("#### 📇 Contacten & afspraken")
+        st.caption("Leg per bedrijf de contactgegevens en afspraken vast — datum, tijd, type en status. "
+                   "Rij toevoegen met +, of gebruik het formulier eronder.")
+        from datetime import date as _date_af
+        _vanaf = st.date_input("Toon afspraken vanaf", value=_date_af(2026, 6, 1), key="dak_afspr_vanaf",
+                               format="DD-MM-YYYY")
+        _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
+        _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
+        _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
+        _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
+        _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
+        _af = st.data_editor(
+            pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
+            use_container_width=True,
+            key=f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}",
+            column_config={
+                "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
+                "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
+                "Tijd": st.column_config.TextColumn(help="uu:mm"),
+                "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
+                "Notitie": st.column_config.TextColumn(width="large"),
+            })
+        _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
+        st.session_state["dak_afspraken"] = _verborgen + _af_rows
+        if _verborgen:
+            st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
+                       "(blijven wel bewaard).")
+        _conflicten = _afspraak_conflicten(_af_rows)
+        if _conflicten:
+            st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
+                       + "\n".join(f"- {c}" for c in _conflicten))
+        elif _af_rows:
+            st.caption("✅ Planning-check: nergens overlap — overal minstens een uur tussen afspraken op dezelfde dag.")
+        with st.expander("➕ Afspraak / contact toevoegen", expanded=False):
+            with st.form("dak_afspr_add", clear_on_submit=True):
+                gf = st.columns(2)
+                _ab = gf[0].text_input("Bedrijf *")
+                _atype = gf[1].selectbox("Type", DAK_AFSPR_TYPES)
+                gf2 = st.columns(2)
+                _adatum = gf2[0].text_input("Datum (jjjj-mm-dd)")
+                _atijd = gf2[1].text_input("Tijd (uu:mm)")
+                gf3 = st.columns(2)
+                _acp = gf3[0].text_input("Contactpersoon")
+                _atel = gf3[1].text_input("Telefoon")
+                gf4 = st.columns(2)
+                _amail = gf4[0].text_input("E-mail")
+                _astatus = gf4[1].selectbox("Status", DAK_AFSPR_STATUS)
+                _anote = st.text_input("Notitie")
+                if st.form_submit_button("Toevoegen", type="primary"):
+                    if _ab.strip():
+                        st.session_state["dak_afspraken"].append({
+                            "Bedrijf": _ab.strip(), "Type": _atype, "Datum": _adatum, "Tijd": _atijd,
+                            "Contactpersoon": _acp, "Telefoon": _atel, "E-mail": _amail,
+                            "Status": _astatus, "Notitie": _anote})
+                        try:
+                            _persist()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        st.rerun()
+                    else:
+                        st.warning("Vul minimaal het bedrijf in.")
+        with st.expander("📅 Importeer uit Google Agenda (iCal) — niets overtypen", expanded=False):
+            st.caption("Plak het **'Geheime adres in iCal-indeling'** van je agenda (Google Agenda → "
+                       "Instellingen → kies je agenda → *Privé-adres in iCal-indeling*). Of zet 'm in "
+                       "`secrets.toml` als `dak_ical_url`. Ik haal alle afspraken op waarvan de titel het "
+                       "trefwoord bevat en zet ze automatisch in de log — bestaande tijdsloten sla ik over.")
+            try:
+                _ical_default = st.secrets.get("dak_ical_url", "")
+            except Exception:  # noqa: BLE001
+                _ical_default = ""
+            _ical = st.text_input("iCal-URL", value=st.session_state.get("dak_ical_url", _ical_default),
+                                  type="password", key="dak_ical_in",
+                                  help="Geheime iCal-link; wordt alleen in deze sessie bewaard (niet in de Gist).")
+            _kw = st.text_input("Filter op trefwoord in de titel", value="dak", key="dak_ical_kw")
+            if st.button("⬇️ Ophalen uit agenda", key="dak_ical_fetch"):
+                st.session_state["dak_ical_url"] = _ical
+                if not _ical.strip():
+                    st.warning("Vul eerst de iCal-URL in.")
+                else:
+                    try:
+                        _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
+                                                  min_datum=_vanaf_s)
+                        _have = {(r.get("Datum"), r.get("Tijd")) for r in st.session_state.get("dak_afspraken", [])}
+                        _added = [r for r in _new if (r["Datum"], r["Tijd"]) not in _have]
+                        st.session_state.setdefault("dak_afspraken", [])
+                        st.session_state["dak_afspraken"].extend(_added)
+                        if _added:
+                            try:
+                                _persist()
+                            except Exception:  # noqa: BLE001
+                                pass
+                            st.success(f"{len(_added)} afspraak(en) uit de agenda toegevoegd "
+                                       f"({len(_new)} gevonden, rest stond er al).")
+                            st.rerun()
+                        else:
+                            st.info(f"{len(_new)} dak-afspraak(en) gevonden — allemaal al in de log.")
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(f"Ophalen mislukt: {exc}")
+        if st.button("↪️ Fases bijwerken (na bezoek → wachten op offerte)", key="dak_afspr_bump",
+                     help="Zet een langsgeweest 'Bezoek gepland' (datum voorbij) op 'Bezoek uitgevoerd', "
+                          "en 'Bezoek uitgevoerd' door naar 'Wachten op offerte'. Eén fase per klik."):
+            from datetime import date as _date
+            _vandaag = _date.today().isoformat()
+            _bump = 0
+            for _r in st.session_state.get("dak_afspraken", []):
+                _s = str(_r.get("Status") or "")
+                if _s == "Bezoek gepland" and str(_r.get("Datum") or "9999") < _vandaag:
+                    _r["Status"] = "Bezoek uitgevoerd"
+                    _bump += 1
+                elif _s == "Bezoek uitgevoerd":
+                    _r["Status"] = "Wachten op offerte"
+                    _bump += 1
+            if _bump:
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.success(f"{_bump} afspra(a)k(en) een fase doorgezet.")
+                st.rerun()
+            else:
+                st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
+        if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
+            try:
+                _persist()
+                st.success("Opgeslagen.")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Opslaan mislukt: {exc}")
+        if _af_rows:
+            _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
+            _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
+            _weekrijen = []  # plat overzicht voor de Excel-export
+            if not _komend.empty:
+                from datetime import date as _date
+                _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+                _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
+
+                def _weekdag(d):
+                    try:
+                        return _dagen[_date.fromisoformat(str(d)).weekday()]
+                    except Exception:  # noqa: BLE001
+                        return ""
+                # alle zichtbare afspraken per dag (voor kleur per status); maanden uit de geplande bezoeken
+                _per_dag = {}
+                for _r in _afdf.to_dict("records"):
+                    try:
+                        _dd = _date.fromisoformat(str(_r.get("Datum")))
+                    except Exception:  # noqa: BLE001
+                        continue
+                    _per_dag.setdefault(_dd.isoformat(), []).append(
+                        (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip(),
+                         str(_r.get("Status") or "").strip()))
+                for _iso in _per_dag:
+                    _per_dag[_iso].sort()
+                _planmaanden = set()
+                for _x in _komend["Datum"]:
+                    try:
+                        _pm = _date.fromisoformat(str(_x))
+                        _planmaanden.add((_pm.year, _pm.month))
+                    except Exception:  # noqa: BLE001
+                        continue
+                st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
+                for _jr, _mn in sorted(_planmaanden):
+                    _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
+                _legenda = "Kleur per status: 🟦 gepland · 🟩 uitgevoerd · 🟧 offerte ontvangen/wachten · ⬜ geannuleerd"
+                if _conf_dat:
+                    _legenda += " · 🟥 / ⚠️ planning-conflict (overlap of < 1 uur ertussen)"
+                st.caption(_legenda)
+                # platte rijen (alleen plan-maanden) voor de Excel-export
+                for _iso in sorted(_per_dag):
+                    _dd = _date.fromisoformat(_iso)
+                    if (_dd.year, _dd.month) not in _planmaanden:
+                        continue
+                    for _t, _b, _sstat in _per_dag[_iso]:
+                        _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
+                                           "Bedrijf": _b, "Status": _sstat,
+                                           "Let op": "conflict" if _iso in _conf_dat else ""})
+                _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
+                with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
+                    st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
+                                 use_container_width=True, hide_index=True)
+            _sheets = {"Afspraken": _afdf}
+            if _weekrijen:
+                _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Status", "Let op"]]
+            _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
+                                         if _conflicten else
+                                         pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
+                                                                          "tussen afspraken op dezelfde dag."]}))
+            st.download_button("⬇️ Download contacten & afspraken (Excel)",
+                               m.df_to_excel_bytes(_sheets),
+                               file_name="dakrenovatie_afspraken.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               key="dak_afspr_xlsx")
+            st.download_button("🖨️ Print / PDF — contacten & afspraken",
+                               _afspraken_pdf_bytes(_af_rows, _conflicten),
+                               file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
+                               key="dak_afspr_pdf")
+
+    with _stage[2]:
+        st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
+        st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
+                   "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
+                   "in de tabel kan, maar hoeft niet. Een lege cel = die post zit niet in die offerte.")
+        _pin = pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT))
+        _pin["Btw %"] = _pin["Btw %"].fillna(21).astype(int) if "Btw %" in _pin.columns else 21
+        _pe = st.data_editor(
+            _pin, num_rows="dynamic",
+            use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
+            column_config={
+                "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+                "Btw %": st.column_config.SelectboxColumn(options=[21, 9], default=21,
+                                                          help="9% (arbeid/isolatie) of 21% (materiaal)"),
+                "Onderdeel": st.column_config.TextColumn(width="large"),
+            })
+        _prows = []
+        for r in _pe.to_dict("records"):
+            if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip():
+                try:
+                    r["Btw %"] = int(float(r.get("Btw %") or 21))
+                except Exception:  # noqa: BLE001
+                    r["Btw %"] = 21
+                _prows.append(r)
+        st.session_state["dak_posten"] = _prows
+        if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
+            try:
+                _persist()
+                st.success("Opgeslagen.")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Opslaan mislukt: {exc}")
+
+        # Automatisch aanvullen: elke offerte uit de offertetabel zonder eigen posten krijgt een totaalregel.
+        _TOTREGEL = "Totaal offerte (excl. btw)"
+        _auto = list(_prows)
+        _met_posten = {str(r.get("Bedrijf") or "").strip() for r in _prows}
+        _auto_added = []
+        for _o in st.session_state.get("dakofferte", []):
+            _b = str(_o.get("Bedrijf") or "").strip()
+            if str(_o.get("Status") or "") == "Afgewezen":
+                continue  # afgewezen / oude offertes niet meenemen in de vergelijking
+            try:
+                _ex = float(_o.get("Excl. btw") or 0)
+            except Exception:  # noqa: BLE001
+                _ex = 0.0
+            if _b and _b not in _met_posten and _ex > 0:
+                _auto.append({"Bedrijf": _b, "Onderdeel": _TOTREGEL, "Prijs excl. btw": _ex})
+                _auto_added.append(_b)
+        if _auto:
+            _pm = pd.DataFrame(_auto).pivot_table(
+                index="Onderdeel", columns="Bedrijf", values="Prijs excl. btw", aggfunc="sum")
+            _disp = _pm.round(0).copy()
+            _disp.loc["── Totaal (excl. btw) ──"] = _pm.sum()
+            st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True)
+            if _auto_added:
+                st.caption("🔄 Automatisch aangevuld uit de offertetabel (totaalregel): "
+                           + ", ".join(sorted(set(_auto_added))) + ". Upload hun PDF voor detailposten.")
+            else:
+                st.caption("Lege cel = post zit niet in die offerte. Bedragen excl. btw.")
+            # Scope-check alleen over detailposten van offertes die detail hébben (minstens 2 nodig).
+            _detb = sorted({str(p["Bedrijf"]).strip() for p in _auto if str(p["Onderdeel"]) != _TOTREGEL})
+            if len(_detb) >= 2:
+                _sub = _pm.reindex(columns=_detb).drop(index=_TOTREGEL, errors="ignore")
+                _ontbreekt = [idx for idx in _sub.index if not _sub.loc[idx].notna().all()]
+                if _ontbreekt:
+                    st.warning("⚠️ **Scope-verschil** — niet in alle offertes-met-detail: " + ", ".join(_ontbreekt)
+                               + ". Vraag de aanbieders deze post toe te voegen, of houd er rekening mee bij "
+                               "het vergelijken (een lagere offerte kan posten missen).")
+                else:
+                    st.success("✅ Alle offertes-met-detail bevatten dezelfde posten — eerlijke vergelijking.")
+            st.download_button("⬇️ Download posten-matrix (Excel)",
+                               m.df_to_excel_bytes({"Posten-matrix": _disp.reset_index()}),
+                               file_name="dakrenovatie_posten.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               key="dak_posten_xlsx")
+
+        # ---- Insightful scope comparison to help pick the right quote ----
+        _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
+        if _detbedr_real:
+            st.markdown("#### 📊 Vergelijking & advies — welke offerte?")
+            st.caption("Naast de offertes staat een **should-cost baseline**: een onafhankelijke, complete "
+                       "bottom-up raming per onderdeel — zo zie je hoever elke offerte boven het 'zou-moeten' zit.")
+            _CATS = [
+                ("Steiger & toegang", ("steiger", "pannenlift", "kraan", "hoogwerker")),
+                ("Sloop & afvoer", ("sloop", "verwijder", "afvoer", "container", "opruim", "bouwafval")),
+                ("Isolatie", ("isolatiefolie", "isolatiedeken", "isolatie", "sf40", "rd 3", "rc 3")),
+                ("Tengels & panlatten", ("tengel", "panlat")),
+                ("Dakpannen", ("betonpan", "keramische", "sneldek", "dakpan")),
+                ("Nok & vorst", ("nokvorst", "nok ", "vorst", "ruiter", "ondervorst")),
+                ("Kant-/gevelpannen", ("kantpan", "gevelpan")),
+                ("Goot & regenwater", ("bakgoot", "gootbeugel", "goot", "regenpijp", "hwa")),
+                ("Loodwerk", ("loodaansluiting", "bladlood", "kunstlood", "loodwerk")),
+                ("Vogelwering", ("vogelwer", "dakvoet")),
+                ("Bevestiging (panhaken/clips)", ("panhak", "vorstklem", "stormklem", "stormvast")),
+                ("Dakdoorvoer", ("doorvoer", "rookgas")),
+            ]
+
+            def _cat_of(name):
+                n = name.lower()
+                for _c, _kws in _CATS:
+                    if any(k in n for k in _kws):
+                        return _c
+                return "Overig"
+            _SC = "Should-cost (baseline)"
+            _byb = {b: [p for p in _prows if str(p.get("Bedrijf") or "").strip() == b] for b in _detbedr_real}
+            _byb[_SC] = _dak_shouldcost_posten(dak_opp)
+            _detbedr = _detbedr_real + [_SC]
+            _assign = {b: {} for b in _detbedr}
+            for b in _detbedr:
+                for p in _byb[b]:
+                    _assign[b].setdefault(_cat_of(str(p.get("Onderdeel") or "")), []).append(p)
+
+            def _cover(hits):
+                if not hits:
+                    return "—"
+                if hits and all("stelpost" in str(p.get("Onderdeel") or "").lower() for p in hits) \
+                        and sum(float(p.get("Prijs excl. btw") or 0) for p in hits) == 0:
+                    return "stelpost"
+                _pr = sum(float(p.get("Prijs excl. btw") or 0) for p in hits
+                          if "bundel" not in str(p.get("Onderdeel") or "").lower())
+                return f"€{_pr:.0f}" if _pr > 0 else "incl."
+            _vrows = []
+            for _cat, _ in _CATS:
+                _row = {"Scope": _cat}
+                for b in _detbedr:
+                    _row[b] = _cover(_assign[b].get(_cat, []))
+                _vals = [_row[b] for b in _detbedr]
+                _row["Let op"] = "⚠️ niet bij allen" if ("—" in _vals and any(v != "—" for v in _vals)) else ""
+                _vrows.append(_row)
+            _cmpdf = pd.DataFrame(_vrows)
+            st.dataframe(_cmpdf, use_container_width=True, hide_index=True)
+            st.caption("Per scope-onderdeel: €-bedrag indien apart geprijsd · *incl.* = zit in een bundelprijs · "
+                       "*stelpost* = optie/nog niet vast · *—* = niet in deze offerte. ⚠️ = niet in elke offerte. "
+                       "Indicatief — gebundelde regels kunnen onder één kop vallen; zie het detail hieronder.")
+            # € per scope-onderdeel + totaal (numeriek, excl. btw)
+            _cats_all = [c for c, _ in _CATS] + (["Overig"] if any("Overig" in _assign[b] for b in _detbedr) else [])
+            _eurrows = []
+            for _cat in _cats_all:
+                _row = {"Scope": _cat}
+                for b in _detbedr:
+                    _row[b] = round(sum(float(p.get("Prijs excl. btw") or 0) for p in _assign[b].get(_cat, [])))
+                _eurrows.append(_row)
+            _totrow = {"Scope": "TOTAAL (excl. btw)"}
+            for b in _detbedr:
+                _totrow[b] = round(sum(float(p.get("Prijs excl. btw") or 0) for p in _byb[b]))
+            _eurrows.append(_totrow)
+            _eurdf = pd.DataFrame(_eurrows)
+            st.markdown("**€ per scope-onderdeel en totaal (excl. btw)**")
+            st.dataframe(_eurdf, use_container_width=True, hide_index=True,
+                         column_config={b: st.column_config.NumberColumn(format="€%.0f") for b in _detbedr})
+            st.caption("Bedragen excl. btw per onderdeel; €0 = inbegrepen in een bundel of niet apart geprijsd. "
+                       "Onderste rij = totaal per offerte. Westermeer bundelt het meeste onder de dakrenovatie-regel.")
+            with st.expander("🔍 Detail per scope-onderdeel — qty · type · kosten per offerte"):
+                for _cat, _ in _CATS:
+                    if not any(_assign[b].get(_cat) for b in _detbedr):
+                        continue
+                    st.markdown(f"**{_cat}**")
+                    for b in _detbedr:
+                        _items = _assign[b].get(_cat, [])
+                        if not _items:
+                            st.markdown(f"- *{b}*: — niet geoffreerd")
+                            continue
+                        for _p in _items:
+                            _pr = float(_p.get("Prijs excl. btw") or 0)
+                            _nm = str(_p.get("Onderdeel") or "")
+                            _pct = int(float(_p.get("Btw %") or 21))
+                            if _pr > 0:
+                                _ps = f"€{_pr:.0f} excl. ({_pct}% btw)"
+                            elif "bundel" in _nm.lower():
+                                _ps = "bundelprijs €15.000"
+                            elif "stelpost" in _nm.lower():
+                                _ps = "stelpost (optie)"
+                            else:
+                                _ps = "incl. in bundel"
+                            st.markdown(f"- *{b}*: {_nm} — **{_ps}**")
+
+            _off_by = {str(o.get("Bedrijf") or "").strip(): o for o in st.session_state.get("dakofferte", [])}
+            _scx = sum(float(p["Prijs excl. btw"]) for p in _byb[_SC])
+            _scb = sum(float(p["Prijs excl. btw"]) * p["Btw %"] / 100 for p in _byb[_SC])
+            _sc_lcl_i = sum(float(p.get("LCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
+            _sc_ucl_i = sum(float(p.get("UCL", 0)) * (1 + p["Btw %"] / 100) for p in _byb[_SC])
+            _off_by[_SC] = {"Bedrijf": _SC, "Excl. btw": round(_scx), "Incl. btw": round(_scx + _scb),
+                            "Isolatie": "Rd ≥ 3,5 (norm)", "Garantie": "—"}
+            st.info(f"📐 **Should-cost band (LCL–UCL):** €{_sc_lcl_i:.0f} – €{_sc_ucl_i:.0f} incl. btw "
+                    f"(€{_sc_lcl_i / dak_opp:.0f} – €{_sc_ucl_i / dak_opp:.0f}/m²) · midpunt "
+                    f"€{round(_scx + _scb):.0f}. LCL = efficiënt/scherp, UCL = bovengrens. Een offerte **boven de "
+                    f"UCL** is duur; **binnen de band** is marktconform.")
+            _hl = []
+            for b in _detbedr:
+                _o = _off_by.get(b, {})
+                _ex, _in = float(_o.get("Excl. btw") or 0), float(_o.get("Incl. btw") or 0)
+                _hl.append({"Offerte": b, "Excl. btw": round(_ex), "Incl. btw": round(_in),
+                            "€/m² incl.": round(_in / dak_opp) if dak_opp else 0,
+                            "Effectief btw": f"{(_in - _ex) / _ex * 100:.0f}%" if _ex > 0 and _in > 0 else "—",
+                            "Isolatie": str(_o.get("Isolatie") or "—"), "Garantie": str(_o.get("Garantie") or "—")})
+            _hldf = pd.DataFrame(_hl)
+            st.dataframe(_hldf, use_container_width=True, hide_index=True,
+                         column_config={"Excl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                                        "Incl. btw": st.column_config.NumberColumn(format="€%.0f"),
+                                        "€/m² incl.": st.column_config.NumberColumn(format="€%.0f")})
+            _bullets = []
+            _valid = [h for h in _hl if h["Incl. btw"] > 0]
+            if len(_valid) >= 2:
+                _cheap = min(_valid, key=lambda h: h["Incl. btw"])
+                _exp = max(_valid, key=lambda h: h["Incl. btw"])
+                _gap = _exp["Incl. btw"] - _cheap["Incl. btw"]
+                _bullets.append(f"💶 **{_cheap['Offerte']}** is goedkoper — €{_gap:.0f} incl. minder dan "
+                                f"**{_exp['Offerte']}** (€{_cheap['Incl. btw']:.0f} vs €{_exp['Incl. btw']:.0f}).")
+            for b in _detbedr:
+                _mist = [r["Scope"] for r in _vrows if r[b] == "—" and any(r[x] != "—" for x in _detbedr)]
+                if _mist:
+                    _bullets.append(f"⚠️ **{b}** mist t.o.v. de ander: " + ", ".join(_mist)
+                                    + " — vraag aanvulling of reken de optie mee.")
+            for b in _detbedr:
+                if any(int(float(p.get("Btw %") or 21)) == 9 for p in _byb[b]):
+                    _bullets.append(f"🧾 **{b}** rekent **9% btw** op de isolatie-arbeid (terecht; scheelt geld).")
+                _sp = [p for p in _byb[b] if "stelpost" in str(p.get("Onderdeel") or "").lower()]
+                if _sp:
+                    _bullets.append(f"📌 **{b}** heeft {len(_sp)} **stelpost(en)** (optioneel — kan nog bijkomen).")
+            _gar = {b: str(_off_by.get(b, {}).get("Garantie") or "") for b in _detbedr}
+            if len({v for v in _gar.values() if v}) > 1:
+                _bullets.append("🛡️ **Garantie verschilt**: "
+                                + " · ".join(f"{b}: {_gar[b]}" for b in _detbedr if _gar[b]) + ".")
+            # frame: in de kern dezelfde klus; wie geeft het meeste kosteninzicht?
+            _granular = max(_detbedr, key=lambda b: sum(1 for p in _byb[b] if float(p.get("Prijs excl. btw") or 0) > 0))
+            _bullets.insert(0, f"🔁 De offertes dekken in de kern **dezelfde dakrenovatie** (zelfde dak/m², isolatie + "
+                            f"nieuwe pannen); ze gebruiken alleen andere benamingen. **{_granular}** geeft het meeste "
+                            "**kosteninzicht** (meer losse, geprijsde posten); de ander bundelt onder één prijs.")
+            if _bullets:
+                st.markdown("\n".join("- " + x for x in _bullets))
+            # ISDE-subsidie op dakisolatie (Rd ≥ 3,5 m²K/W, ≥ 20 m²) — geldt voor beide offertes
+            _isde1 = min(round(16.25 * dak_opp), 975) if dak_opp else 0
+            _isde2 = min(round(32.50 * dak_opp), 1950) if dak_opp else 0
+            st.info(f"🏷️ **ISDE-subsidie op de dakisolatie** — isolatie met **Rd ≥ 3,5 m²K/W** (en ≥ 20 m²) komt in "
+                    f"aanmerking. Beide voldoen ruim: Westermeer **Rd 3,8**, Albers **Rc 3,89–4,11** (SF40BB, "
+                    f"meldcode KA28563). Indicatie voor {dak_opp:.0f} m²: **± €{_isde1:.0f} terug** bij één "
+                    f"isolatiemaatregel (≈ €16,25/m², max €975), of **tot €{_isde2:.0f}** bij twee maatregelen "
+                    f"(≈ €32,50/m², max €1.950). Dit geldt voor **béide** offertes → het verlaagt je **netto** kosten, "
+                    "maar verandert de onderlinge keuze nauwelijks. Laat de aannemer de ISDE-aanvraag ondersteunen.")
+            st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
+                       "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
+                       "stelposten realistisch zijn.")
+            # ---- Appels met appels: normaliseer elke offerte naar dezelfde (firm) scope ----
+            _cat_eur = {b: {c: sum(float(p.get("Prijs excl. btw") or 0) for p in items
+                                   if "bundel" not in str(p.get("Onderdeel") or "").lower())
+                            for c, items in _assign[b].items()} for b in _detbedr}
+            _allcats = {c for b in _detbedr for c in _assign[b]}
+            _norm = []
+            for b in _detbedr:
+                _o = _off_by.get(b, {})
+                _qi = float(_o.get("Incl. btw") or 0)
+                _add, _added = 0.0, []
+                for _cat in sorted(_allcats):
+                    if _cat in _assign[b]:
+                        continue  # offerte dekt deze scope al
+                    _peer = [_cat_eur[p].get(_cat, 0) for p in _detbedr if p != b and _cat_eur[p].get(_cat, 0) > 0]
+                    if _peer:
+                        _est = sum(_peer) / len(_peer)
+                        _add += _est
+                        _added.append(f"{_cat} (~€{_est:.0f})")
+                _ni = _qi + round(_add * 1.21)
+                _norm.append({"Offerte": b, "Zoals geoffreerd": round(_qi), "+ ontbrekende scope": round(_add * 1.21),
+                              "Gelijke scope": round(_ni), "− ISDE": _isde1, "Netto": round(_ni - _isde1),
+                              "Toegevoegd": ", ".join(_added) or "—"})
+            _normdf = pd.DataFrame(_norm)
+            st.markdown("**🍏 Appels met appels — zelfde scope, incl. btw, ná ISDE**")
+            st.dataframe(_normdf, use_container_width=True, hide_index=True,
+                         column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
+                                        ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
+            _scnet = next((n["Netto"] for n in _norm if n["Offerte"] == _SC), 0)
+            _vld = [n for n in _norm if n["Gelijke scope"] > 0 and n["Offerte"] != _SC]
+            if len(_vld) >= 2:
+                _wc = min(_vld, key=lambda n: n["Netto"])
+                _we = max(_vld, key=lambda n: n["Netto"])
+                st.success(f"➡️ Bij **gelijke scope** (ontbrekende posten bijgeschat) en ná ISDE is **{_wc['Offerte']}** "
+                           f"het voordeligst: **€{_wc['Netto']:.0f}** netto vs €{_we['Netto']:.0f} — verschil "
+                           f"**€{_we['Netto'] - _wc['Netto']:.0f}**.")
+            if _vld:
+                _parts = []
+                for n in _vld:
+                    _gs = n["Gelijke scope"]  # incl. btw, gelijke scope
+                    if _gs <= _sc_ucl_i:
+                        _v = "🟢 binnen de band" if _gs >= _sc_lcl_i else "🔵 onder LCL (scherp)"
+                    else:
+                        _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{(_gs - _sc_ucl_i) / _sc_ucl_i * 100:.0f}%)"
+                    _parts.append(f"**{n['Offerte']}** {_v}")
+                st.markdown("📐 **Toets aan de should-cost band** (gelijke scope, incl. btw): " + " · ".join(_parts) + ".")
+            st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
+                       "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
+                       "niet mee). Zo vergelijk je appels met appels.")
+
+            _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
+                                        "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
+                                        "Btw %": int(float(p.get("Btw %") or 21))}
+                                       for b in _detbedr for p in _byb[b]])
+            _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
+                     "Scope-€-matrix": _eurdf, "Posten": _posten_df,
+                     "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
+                                                    + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
+                                                       f"€{_isde2:.0f} (2 maatregelen) voor {dak_opp:.0f} m²"]})}
+            _cda, _cdb = st.columns(2)
+            _cda.download_button("⬇️ Vergelijking — Excel", m.df_to_excel_bytes(_xlsx),
+                                 file_name="dakrenovatie_vergelijking.xlsx",
+                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                 key="dak_vergelijk_xlsx", use_container_width=True)
+            try:
+                _pdfb = _dak_vergelijking_pdf_bytes(_hl, _cmpdf, _posten_df, dak_opp, _isde1, _isde2, _bullets,
+                                                    DAK_MARKT_LO, DAK_MARKT_HI, _normdf)
+                _cdb.download_button("🖨️ Vergelijking — PDF (met grafieken)", _pdfb,
+                                     file_name="dakrenovatie_vergelijking.pdf", mime="application/pdf",
+                                     key="dak_vergelijk_pdf", use_container_width=True)
+            except Exception as _exc:  # noqa: BLE001
+                _cdb.caption(f"PDF-rapport tijdelijk niet beschikbaar: {_exc}")
+
+            st.markdown("#### 🏆 Stap 6 — Kies je aannemer")
+            _cur = next((b for b in _detbedr_real if str(_off_by.get(b, {}).get("Status") or "") == "Gekozen"), "—")
+            _opts = ["—"] + _detbedr_real
+            _kz = st.selectbox("Welke offerte kies je?", _opts,
+                               index=_opts.index(_cur) if _cur in _opts else 0, key="dak_kies")
+            if _kz != "—":
+                for _o in st.session_state["dakofferte"]:
+                    _b = str(_o.get("Bedrijf") or "").strip()
+                    if _b == _kz:
+                        _o["Status"] = "Gekozen"
+                    elif str(_o.get("Status") or "") == "Gekozen":
+                        _o["Status"] = "Vergeleken"
+                _ch = next((n for n in _norm if n["Offerte"] == _kz), None)
+                if _ch:
+                    st.success(f"✅ Gekozen: **{_kz}** — netto bij gelijke scope, ná ISDE: **€{_ch['Netto']:.0f}** "
+                               f"(zoals geoffreerd €{_ch['Zoals geoffreerd']:.0f}).")
+                if st.button("💾 Keuze bewaren in Gist", key="dak_kies_save"):
+                    try:
+                        _persist()
+                        st.success("Keuze opgeslagen.")
+                    except Exception as _exc2:  # noqa: BLE001
+                        st.error(f"Opslaan mislukt: {_exc2}")
+
+        st.markdown("#### 📋 Advies — is dit marktconform?")
+        st.markdown(
+            "- De offerte van Westermeer (~€250/m² **excl.** btw, ≈ €336/m² **incl.**) zit **fors boven** "
+            "de markt: een hellend pannendak vervangen *mét isolatie* kost in NL ~€110–€160/m² excl. btw "
+            "(≈ €180–€260/m² incl.).\n"
+            "- **Nuance:** kleine klus (60 m²) → hogere prijs/m²; keramische pannen + Rd 3,8 zitten aan de "
+            "betere kant — maar zelfs dan aan de hoge kant.\n"
+            "- **Vraag na / onderhandel:** is de **steiger** inbegrepen? Geldt het **9%-btw-tarief op de "
+            "isolatie-arbeid** (woning > 2 jaar)? Vraag een **uitsplitsing arbeid/materiaal** en de "
+            "**garantietermijn** schriftelijk.\n"
+            "- **Afvoer** zit inbegrepen (1× container **3,5 m³** naar erkend recyclingbedrijf) — passend "
+            "voor 60 m²; leg wel vast dat een **extra container geen meerwerk** is.\n"
+            "- **Doe:** vraag **minstens 2 extra offertes** met dezelfde scope en vergelijk hierboven op €/m².")
