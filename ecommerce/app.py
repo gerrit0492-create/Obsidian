@@ -22,6 +22,36 @@ import ai
 import store
 
 st.set_page_config(page_title="E-commerce planner", page_icon="🛒", layout="wide")
+
+
+def _app_password():
+    import os
+    try:
+        if "APP_PASSWORD" in st.secrets:
+            return str(st.secrets["APP_PASSWORD"])
+    except Exception:  # noqa: BLE001
+        pass
+    return os.environ.get("APP_PASSWORD", "")
+
+
+def _require_login():
+    """Optioneel wachtwoord: actief zodra het secret APP_PASSWORD is gezet; anders blijft de app open."""
+    _pw = _app_password()
+    if not _pw or st.session_state.get("_authed"):
+        return
+    st.title("🔒 Beveiligd")
+    st.caption("Voer het wachtwoord in om verder te gaan.")
+    _in = st.text_input("Wachtwoord", type="password", key="_app_pw")
+    if st.button("Inloggen", type="primary"):
+        if _in == _pw:
+            st.session_state["_authed"] = True
+            st.rerun()
+        else:
+            st.error("Onjuist wachtwoord.")
+    st.stop()
+
+
+_require_login()
 _header = st.container()  # titel + caption worden gevuld zodra de actieve niche bekend is
 
 
