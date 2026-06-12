@@ -1077,15 +1077,20 @@ with tab_dak:
             else:
                 _pdf = pd.DataFrame([{"Onderdeel": "(geen detailposten)", "Prijs excl. btw": 0.0}])
                 _sub = float(_orow.get("Excl. btw") or 0)
+                _incl_st = float(_orow.get("Incl. btw") or 0)
+                if _sub <= 0 and _incl_st > 0:        # alleen incl bekend → excl eruit afleiden
+                    _sub = round(_incl_st / 1.21, 2)
                 st.warning("Nog geen **detailposten** voor deze offerte. Voeg ze toe in **‘Posten vergelijken’** "
                            "(bv. *dakpannen type 1*, *dakpannen type 2*, *regenpijpen vervangen*, *loodwerk*, "
                            "*isolatie*) — dan splitst de offerte zich hier vanzelf uit. "
                            f"Nu reken ik met het offertetotaal ({eur(_sub)} excl. btw).")
             _btw = round(_sub * 0.21, 2)
             _tot_incl = round(_sub + _btw, 2)
-            if not _posten and float(_orow.get("Incl. btw") or 0) > 0:
-                _tot_incl = float(_orow["Incl. btw"])
-                _btw = round(_tot_incl - _sub, 2)
+            _incl_st = float(_orow.get("Incl. btw") or 0)
+            if _incl_st > 0 and abs(_incl_st - _tot_incl) > 1.0:
+                st.warning(f"⚠️ De offerte vermeldt **{eur(_incl_st)} incl.** bij **{eur(_sub)} excl.** — dat is "
+                           f"geen 21% btw (excl × 1,21 = {eur(_tot_incl)}). Controleer welk bedrag klopt en "
+                           "corrigeer het in **‘Offertes vergelijken’** (knop *herbereken* daar).")
             _m2 = _tot_incl / dak_opp if dak_opp else 0.0
             tt = st.columns(3)
             tt[0].metric("Subtotaal excl. btw", eur(_sub))
@@ -1325,6 +1330,23 @@ with tab_dak:
                     _seen.add(_pk)
                     _pd.append(_p)
             st.session_state["dak_posten"] = _pd
+            try:
+                _persist()
+            except Exception:  # noqa: BLE001
+                pass
+            st.rerun()
+    _btw_mis = [str(r.get("Bedrijf") or "") for r in _dak_rows
+                if float(r.get("Excl. btw") or 0) > 0 and float(r.get("Incl. btw") or 0) > 0
+                and abs(float(r["Incl. btw"]) - float(r["Excl. btw"]) * 1.21) > 1.0]
+    if _btw_mis:
+        st.warning("⚠️ **Btw-controle** — incl ≠ excl × 1,21 bij: " + ", ".join(_btw_mis)
+                   + ". Meestal las de PDF-import één bedrag fout. Corrigeer het juiste bedrag in de tabel, "
+                   "of herbereken incl uit excl:")
+        if st.button("🔁 Incl. btw = excl × 1,21 herberekenen", key="dak_btw_fix"):
+            for _r in st.session_state["dakofferte"]:
+                _e = float(_r.get("Excl. btw") or 0)
+                if _e > 0 and abs(float(_r.get("Incl. btw") or 0) - _e * 1.21) > 1.0:
+                    _r["Incl. btw"] = round(_e * 1.21, 2)
             try:
                 _persist()
             except Exception:  # noqa: BLE001
