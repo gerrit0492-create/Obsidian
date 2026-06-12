@@ -71,7 +71,6 @@ DAK_RENO_SHOULDCOST = [
     {"Onderdeel": "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)", "Laag": 3.0, "Hoog": 6.0},
     {"Onderdeel": "Isolatie Rd 3,8 — materiaal + aanbrengen", "Laag": 20.0, "Hoog": 30.0},
     {"Onderdeel": "Nieuwe tengels + panlatten — materiaal + arbeid", "Laag": 8.0, "Hoog": 13.0},
-    {"Onderdeel": "Keramische pannen (antraciet) — materiaal", "Laag": 24.0, "Hoog": 42.0},
     {"Onderdeel": "Pannen leggen — arbeid", "Laag": 16.0, "Hoog": 24.0},
     {"Onderdeel": "Nok-/kantpannen (droge nok/vorst), hulpstukken, bevestiging", "Laag": 6.0, "Hoog": 10.0},
     {"Onderdeel": "Dakrandafwerking — boeiboord/windveer, daktrim", "Laag": 3.0, "Hoog": 6.0},
@@ -81,6 +80,12 @@ DAK_RENO_SHOULDCOST = [
 DAK_RENO_AK = 0.10   # algemene kosten / overhead (werkvoorbereiding, projectleiding, CAR, administratie)
 DAK_RENO_WR = 0.07   # winst & risico
 DAK_RENO_BTW = 0.21  # offerte rekent vlak 21%; isolatie-arbeid (woning > 2 jr) kan 9% zijn
+# Pannen-materiaal €/m² EXCL. btw per type (bron: prijsoverzicht, omgerekend van incl.) — kies per
+# offerte, want er komen offertes met zowel keramische als betonnen pannen.
+DAK_RENO_PANTYPE = {
+    "Keramisch (antraciet)": (26.0, 45.0),   # bron ≈ €35–75/m² incl.
+    "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
+}
 
 
 @st.cache_data
@@ -842,7 +847,12 @@ with tab_dak:
         st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
                    "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                    "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
-        _rb = pd.DataFrame(DAK_RENO_SHOULDCOST)
+        _pt = st.selectbox("Pantype (volgt de offerte)", list(DAK_RENO_PANTYPE), key="dak_pantype")
+        _plo, _phi = DAK_RENO_PANTYPE[_pt]
+        _rows = list(DAK_RENO_SHOULDCOST)
+        _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
+        _rows.insert(_ix, {"Onderdeel": f"{_pt} pannen — materiaal", "Laag": _plo, "Hoog": _phi})
+        _rb = pd.DataFrame(_rows)
         _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
         st.dataframe(_rb, use_container_width=True, hide_index=True,
                      column_config={"Laag": st.column_config.NumberColumn("Laag (€/m²)", format="€%.0f"),
@@ -890,11 +900,11 @@ with tab_dak:
                    "CAR-verzekering en administratie; **W&R** is winst + risico — samen maken ze er een "
                    "should-*price* van die je met een offerte mag vergelijken. Ter controle: een standaard "
                    "betonpannendak + isolatie kost all-in ≈ €110–160/m² excl. btw (Werkspot/Homedeal); "
-                   "keramische pannen (zoals hier) liggen dáárboven. De BTW-regel rekent met 21% (gelijk aan "
-                   "de offerte); valt de **isolatie-arbeid** onder het 9%-tarief (woning > 2 jr) dan ligt de "
-                   "incl.-prijs iets lager. Pannen-materiaal is geënt op keramisch ≈ €35–75/m² incl. btw "
-                   "(consumentenprijs; de should-cost rekent op inkoop, dus de onderkant ligt lager). "
-                   "Loodwerk + vogelwering apart. Indicatie, geen offerte.")
+                   "keramische pannen liggen dáárboven. De BTW-regel rekent met 21% (gelijk aan de offerte); "
+                   "valt de **isolatie-arbeid** onder het 9%-tarief (woning > 2 jr) dan ligt de incl.-prijs "
+                   "iets lager. Pannen-materiaal volgt het gekozen **pantype**: betonpan ≈ €26–36/m² incl., "
+                   "keramisch ≈ €35–75/m² incl. (bron: prijsoverzicht; consumentenprijs, should-cost rekent "
+                   "op inkoop dus onderkant lager). Loodwerk + vogelwering apart. Indicatie, geen offerte.")
         st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
                            m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
                            file_name="dakrenovatie_shouldcost.xlsx",
