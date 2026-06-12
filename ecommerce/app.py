@@ -133,6 +133,53 @@ def _afspraak_conflicten(rows, min_gap_min=DAK_AFSPR_GAP_MIN):
     return waarschuwingen
 
 
+def _maand_kalender_html(jaar, maand, per_dag, conf_dat):
+    """HTML-maandkalender (ma–zo) met gemarkeerde afspraakdagen (blauw) en conflicten (rood)."""
+    import calendar
+    from datetime import date
+    dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+    mnd = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus",
+           "september", "oktober", "november", "december"]
+
+    def esc(s):
+        return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    cel = ("border:1px solid #d0d4d8;vertical-align:top;width:14.28%;height:62px;"
+           "padding:2px 3px;font-size:11px;line-height:1.25;")
+    html = ['<table style="border-collapse:collapse;width:100%;table-layout:fixed;'
+            'font-family:sans-serif;margin-bottom:10px;">',
+            f'<caption style="text-align:left;font-weight:600;padding:4px 0;">'
+            f'📅 {mnd[maand - 1]} {jaar}</caption>', '<tr>',
+            *[f'<th style="border:1px solid #d0d4d8;background:#2c3e50;color:#fff;'
+              f'font-size:11px;padding:3px;">{d}</th>' for d in dagen], '</tr>']
+    for week in calendar.Calendar(firstweekday=0).monthdayscalendar(jaar, maand):
+        html.append('<tr>')
+        for i, daynum in enumerate(week):
+            if daynum == 0:
+                html.append(f'<td style="{cel}background:#f6f7f8;"></td>')
+                continue
+            iso = date(jaar, maand, daynum).isoformat()
+            appts = per_dag.get(iso, [])
+            if iso in conf_dat:
+                bg = "#fde8e8"
+            elif appts:
+                bg = "#e7f1fb"
+            elif i >= 5:
+                bg = "#f6f7f8"
+            else:
+                bg = "#ffffff"
+            inner = f'<div style="text-align:right;color:#8a9099;">{daynum}</div>'
+            for t, b in appts:
+                mark = "⚠️" if iso in conf_dat else "•"
+                label = (f"{t} " if t else "") + esc(b)
+                inner += (f'<div style="background:#fff;border:1px solid #cfd8e3;border-radius:3px;'
+                          f'margin-top:1px;padding:0 2px;white-space:nowrap;overflow:hidden;'
+                          f'text-overflow:ellipsis;" title="{label}">{mark} {label}</div>')
+            html.append(f'<td style="{cel}background:{bg};">{inner}</td>')
+        html.append('</tr>')
+    html.append('</table>')
+    return "".join(html)
+
+
 def _afspraken_pdf_bytes(rows, conflicten=None):
     """Printbare A4-PDF (liggend) van de contacten & afspraken."""
     import io
@@ -1329,9 +1376,8 @@ with tab_dak:
         _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
         _weekrijen = []  # plat overzicht voor de Excel-export
         if not _komend.empty:
-            from datetime import date as _date, timedelta as _td
+            from datetime import date as _date
             _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
-            _mnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
             _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
 
             def _weekdag(d):
@@ -1339,44 +1385,38 @@ with tab_dak:
                     return _dagen[_date.fromisoformat(str(d)).weekday()]
                 except Exception:  # noqa: BLE001
                     return ""
-            # groepeer geplande bezoeken per ISO-week
-            _per_week = {}
+            # groepeer geplande bezoeken per dag, render een maandkalender per maand
+            _per_dag = {}
             for _r in _komend.to_dict("records"):
                 try:
                     _dd = _date.fromisoformat(str(_r.get("Datum")))
                 except Exception:  # noqa: BLE001
                     continue
-                _y, _w, _ = _dd.isocalendar()
-                _per_week.setdefault((_y, _w), []).append(
-                    (_dd, str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip()))
+                _per_dag.setdefault(_dd.isoformat(), []).append(
+                    (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip()))
+            for _iso in _per_dag:
+                _per_dag[_iso].sort()
             st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
-            for _key in sorted(_per_week):
-                _items = _per_week[_key]
-                _maandag = min(d for d, _, _ in _items)
-                _maandag = _maandag - _td(days=_maandag.weekday())
-                _zondag = _maandag + _td(days=6)
-                _grid = []
-                for _i in range(7):
-                    _day = _maandag + _td(days=_i)
-                    _appts = sorted((t, b) for d, t, b in _items if d == _day)
-                    _txt = " · ".join(f"{t} {b}".strip() for t, b in _appts) or "—"
-                    if _day.isoformat() in _conf_dat:
-                        _txt = "⚠️ " + _txt
-                    _row = {"Dag": _dagen[_i], "Datum": f"{_day.day} {_mnd[_day.month - 1]}", "Afspraken": _txt}
-                    _grid.append(_row)
-                    _weekrijen.append({"Week": _key[1], **_row})
-                st.caption(f"Week {_key[1]} · {_maandag.day} {_mnd[_maandag.month - 1]} – "
-                           f"{_zondag.day} {_mnd[_zondag.month - 1]} {_key[0]}")
-                st.dataframe(pd.DataFrame(_grid), use_container_width=True, hide_index=True)
+            _maanden = sorted({(_date.fromisoformat(k).year, _date.fromisoformat(k).month) for k in _per_dag})
+            for _jr, _mn in _maanden:
+                st.markdown(_maand_kalender_html(_jr, _mn, _per_dag, _conf_dat), unsafe_allow_html=True)
+            _legenda = "🟦 = afspraak"
             if _conf_dat:
-                st.caption("⚠️ = dag met een planning-conflict (overlap of < 1 uur ertussen) — zie de check hierboven.")
+                _legenda += " · 🟥 / ⚠️ = planning-conflict (overlap of < 1 uur ertussen) — zie de check hierboven"
+            st.caption(_legenda)
+            # platte rijen voor de Excel-export
+            for _iso in sorted(_per_dag):
+                _dd = _date.fromisoformat(_iso)
+                for _t, _b in _per_dag[_iso]:
+                    _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
+                                       "Bedrijf": _b, "Let op": "conflict" if _iso in _conf_dat else ""})
             _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
             with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
                 st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
                              use_container_width=True, hide_index=True)
         _sheets = {"Afspraken": _afdf}
         if _weekrijen:
-            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Week", "Dag", "Datum", "Afspraken"]]
+            _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Let op"]]
         _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
                                      if _conflicten else
                                      pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
