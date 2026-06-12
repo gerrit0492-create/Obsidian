@@ -1276,6 +1276,22 @@ with tab_dak:
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
 
+    st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
+                "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
+    with st.expander("🧭 Werkwijze — wat doe je in elke stap?", expanded=False):
+        st.markdown(
+            "1. **Aannemers vinden** — zoek lokale dakdekkers (Werkspot, Trustoo, mond-tot-mond) en leg ze vast "
+            "onder **📇 Contacten & afspraken**.\n"
+            "2. **Uitnodigen / offerte aanvragen** — plan een inspectie/bezoek; zet de afspraak in de agenda "
+            "(of importeer via iCal). Status: *Aangevraagd*.\n"
+            "3. **Offerte ontvangen** — upload de PDF bij **⬆️ Offerte uploaden**: posten, bedragen en btw worden "
+            "uitgelezen, de **PDF wordt bewaard** (altijd terugvindbaar) en de offerte verschijnt overal. "
+            "*Elke nieuwe offerte krijgt automatisch exact dezelfde uitwerking* — uploaden, vergelijken, advies.\n"
+            "4. **Vergelijken** — **🔍 Posten vergelijken**: per post wie wat rekent en waar de scope verschilt.\n"
+            "5. **Inzichten & advies** — **📊 Vergelijking & advies**: €/m², markttoets, ontbrekende scope, "
+            "ISDE-subsidie en **appels-met-appels** netto. Download het rapport (Excel/PDF met grafieken).\n"
+            "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
+
     with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
         _off = st.session_state.get("dakofferte", DAK_DEFAULT)
         _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
@@ -2096,6 +2112,29 @@ with tab_dak:
                                  key="dak_vergelijk_pdf", use_container_width=True)
         except Exception as _exc:  # noqa: BLE001
             _cdb.caption(f"PDF-rapport tijdelijk niet beschikbaar: {_exc}")
+
+        st.markdown("#### 🏆 Stap 6 — Kies je aannemer")
+        _cur = next((b for b in _detbedr if str(_off_by.get(b, {}).get("Status") or "") == "Gekozen"), "—")
+        _opts = ["—"] + _detbedr
+        _kz = st.selectbox("Welke offerte kies je?", _opts,
+                           index=_opts.index(_cur) if _cur in _opts else 0, key="dak_kies")
+        if _kz != "—":
+            for _o in st.session_state["dakofferte"]:
+                _b = str(_o.get("Bedrijf") or "").strip()
+                if _b == _kz:
+                    _o["Status"] = "Gekozen"
+                elif str(_o.get("Status") or "") == "Gekozen":
+                    _o["Status"] = "Vergeleken"
+            _ch = next((n for n in _norm if n["Offerte"] == _kz), None)
+            if _ch:
+                st.success(f"✅ Gekozen: **{_kz}** — netto bij gelijke scope, ná ISDE: **€{_ch['Netto']:.0f}** "
+                           f"(zoals geoffreerd €{_ch['Zoals geoffreerd']:.0f}).")
+            if st.button("💾 Keuze bewaren in Gist", key="dak_kies_save"):
+                try:
+                    _persist()
+                    st.success("Keuze opgeslagen.")
+                except Exception as _exc2:  # noqa: BLE001
+                    st.error(f"Opslaan mislukt: {_exc2}")
 
     st.markdown("#### 📋 Advies — is dit marktconform?")
     st.markdown(
