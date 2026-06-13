@@ -578,6 +578,55 @@ def _bag3d_fc_text(x, y, d=6.0):
     return _fetch_url(url, timeout=30)
 
 
+def _earclip(ring_pts):
+    """Trianguleer een (mogelijk niet-convexe) 3D-polygoon via ear-clipping. Geeft lokale index-triples.
+
+    Voorkomt de 'rare lijnen' die een simpele waaier-triangulatie op niet-convexe dakvlakken oplevert.
+    """
+    n = len(ring_pts)
+    if n < 3:
+        return []
+    # vlaknormaal (Newell) → projecteer naar 2D op de dominante as
+    nx = ny = nz = 0.0
+    for i in range(n):
+        a, b = ring_pts[i], ring_pts[(i + 1) % n]
+        nx += (a[1] - b[1]) * (a[2] + b[2])
+        ny += (a[2] - b[2]) * (a[0] + b[0])
+        nz += (a[0] - b[0]) * (a[1] + b[1])
+    ax = max(range(3), key=lambda k: abs((nx, ny, nz)[k]))
+    drop = {0: (1, 2), 1: (0, 2), 2: (0, 1)}[ax]
+    p = [(pt[drop[0]], pt[drop[1]]) for pt in ring_pts]
+    idx = list(range(n))
+    if sum(p[i][0] * p[(i + 1) % n][1] - p[(i + 1) % n][0] * p[i][1] for i in range(n)) < 0:
+        idx.reverse()
+
+    def _in_tri(q, a, b, c):
+        d1 = (q[0] - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (q[1] - b[1])
+        d2 = (q[0] - c[0]) * (b[1] - c[1]) - (b[0] - c[0]) * (q[1] - c[1])
+        d3 = (q[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (q[1] - a[1])
+        return not (((d1 < 0) or (d2 < 0) or (d3 < 0)) and ((d1 > 0) or (d2 > 0) or (d3 > 0)))
+
+    tris, guard = [], 0
+    while len(idx) > 3 and guard < n * n + 5:
+        guard += 1
+        m = len(idx)
+        for ii in range(m):
+            i0, i1, i2 = idx[(ii - 1) % m], idx[ii], idx[(ii + 1) % m]
+            a, b, c = p[i0], p[i1], p[i2]
+            if (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) <= 0:
+                continue  # reflex/straight → geen oor
+            if any(j not in (i0, i1, i2) and _in_tri(p[j], a, b, c) for j in idx):
+                continue
+            tris.append((i0, i1, i2))
+            idx.pop(ii)
+            break
+        else:
+            break
+    if len(idx) == 3:
+        tris.append((idx[0], idx[1], idx[2]))
+    return tris
+
+
 def _bag3d_fig(text, x=None, y=None):
     """Bouw een Plotly-3D-figuur uit een 3D BAG-respons (FeatureCollection van CityJSONFeatures).
 
@@ -643,10 +692,10 @@ def _bag3d_fig(text, x=None, y=None):
     roof_tot = roof_sl = roof_fl = foot = 0.0
     foot_rings = []
 
-    def _fan(ring, off, bucket):
+    def _tri(ring, rv, off, bucket):
         if ring and len(ring) >= 3:
-            for t in range(1, len(ring) - 1):
-                bucket.append((ring[0] + off, ring[t] + off, ring[t + 1] + off))
+            for a, b, c in _earclip([rv[i] for i in ring]):
+                bucket.append((ring[a] + off, ring[b] + off, ring[c] + off))
 
     def _area_tilt(pts):
         """Oppervlak (m²) en helling (° t.o.v. horizontaal) van een 3D-polygoon (Newell)."""
@@ -688,7 +737,7 @@ def _bag3d_fig(text, x=None, y=None):
             for fi, face in enumerate(shell):
                 stype = _stype(svals[fi] if (svals and fi < len(svals)) else None)
                 ring = face[0] if face else []
-                _fan(ring, off, roof if stype == "RoofSurface" else other)
+                _tri(ring, rv, off, roof if stype == "RoofSurface" else other)
                 if len(ring) >= 3 and stype == "RoofSurface":
                     _a, _tilt = _area_tilt([rv[_i] for _i in ring])
                     roof_tot += _a
@@ -751,8 +800,8 @@ def _ring_contains(ring, px, py):
     return inside
 
 
-def _perceel_plan_fig(perceel_rings, house_rings, x=None, y=None):
-    """2D-plattegrond: perceel(en) + huis-footprint, op schaal (gelijke assen, RD-meters)."""
+def _perceel_plan_fig(perceel_rings, house_rings, x=None, y=None, extras=None):
+    """2D-plattegrond: perceel(en) + huis-footprint (+ bijgebouwen), op schaal (gelijke assen, RD-meters)."""
     fig = go.Figure()
     own = None
     if x is not None and y is not None:
@@ -775,6 +824,15 @@ def _perceel_plan_fig(perceel_rings, house_rings, x=None, y=None):
         ys = [p[1] for p in r] + [r[0][1]]
         fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", fillcolor="rgba(150,40,40,0.55)",
                                  line=dict(color="#7a2f2f", width=2), name="huis", showlegend=(k == 0),
+                                 hoverinfo="skip"))
+    for ex in (extras or []):
+        r = ex.get("ring") or []
+        if len(r) < 3:
+            continue
+        xs = [p[0] for p in r] + [r[0][0]]
+        ys = [p[1] for p in r] + [r[0][1]]
+        fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", fillcolor=ex.get("fill", "rgba(90,130,160,0.45)"),
+                                 line=dict(color=ex.get("line", "#3f6781"), width=2), name=ex.get("naam"),
                                  hoverinfo="skip"))
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
     fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=440, legend=dict(orientation="h"),
@@ -1824,9 +1882,44 @@ with tab_dak:
                 _cy = sum(p[1] for p in _all) / len(_all)
                 _perc_rings = [[(_cx - _mb / 2, _cy - _md / 2), (_cx + _mb / 2, _cy - _md / 2),
                                 (_cx + _mb / 2, _cy + _md / 2), (_cx - _mb / 2, _cy + _md / 2)]]
-            st.plotly_chart(_perceel_plan_fig(_perc_rings, _frings, _pxy[0], _pxy[1]), use_container_width=True)
-            st.caption("Huis-footprint = echt uit het 3D BAG. Perceel = Kadaster (knop) of je handmatige maten "
-                       "(rechthoek rond het huis). Op schaal in RD-meters.")
+            # Bijgebouwen tegen het huis tekenen (carport zit vast aan het huis, schuur evt. ook).
+            _all = [p for r in _frings for p in r]
+            _bb = (min(p[0] for p in _all), max(p[0] for p in _all),
+                   min(p[1] for p in _all), max(p[1] for p in _all))
+
+            _ix, _ax, _iy, _ay = _bb
+            _hcx, _hcy = (_ix + _ax) / 2, (_iy + _ay) / 2
+            _hw, _hd = (_ax - _ix), (_ay - _iy)
+
+            def _box(offx, offy, breedte, diepte):
+                cx, cy = _hcx + offx, _hcy + offy
+                return [(cx - breedte / 2, cy - diepte / 2), (cx + breedte / 2, cy - diepte / 2),
+                        (cx + breedte / 2, cy + diepte / 2), (cx - breedte / 2, cy + diepte / 2)]
+            _extras = []
+            st.caption("Plaats carport en schuur met de schuifjes (← links / → rechts en ↓ voor / ↑ achter, in "
+                       "meter t.o.v. het midden van het huis). Kijk naar de plattegrond en stel bij tot het klopt.")
+            st.markdown("**Carport** (zit vast aan het huis — bv. voorste-linkerhoek)")
+            _cc = st.columns(4)
+            _cp_br = _cc[0].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_cp_br")
+            _cp_di = _cc[1].number_input("Diepte (m)", 0.0, 50.0, 5.0, 0.1, key="dak_plan_cp_di")
+            _cp_x = _cc[2].number_input("← links / rechts → (m)", -60.0, 60.0, -round(_hw / 2 + 1.5, 1), 0.5, key="dak_plan_cp_x")
+            _cp_y = _cc[3].number_input("↓ voor / achter ↑ (m)", -60.0, 60.0, -round(_hd / 2, 1), 0.5, key="dak_plan_cp_y")
+            if _cp_br > 0 and _cp_di > 0:
+                _extras.append({"ring": _box(_cp_x, _cp_y, _cp_br, _cp_di), "naam": "carport",
+                                "fill": "rgba(90,130,160,0.45)", "line": "#3f6781"})
+            st.markdown("**Schuur** (bv. achter in de tuin, over de volle breedte)")
+            _sc = st.columns(4)
+            _sc_br = _sc[0].number_input("Breedte (m)", 0.0, 50.0, round(_hw, 1), 0.1, key="dak_plan_sc_br")
+            _sc_di = _sc[1].number_input("Diepte (m)", 0.0, 50.0, 0.0, 0.1, key="dak_plan_sc_di")
+            _sc_x = _sc[2].number_input("← links / rechts → (m)", -60.0, 60.0, 0.0, 0.5, key="dak_plan_sc_x")
+            _sc_y = _sc[3].number_input("↓ voor / achter ↑ (m)", -80.0, 80.0, round(_hd / 2 + 8.0, 1), 0.5, key="dak_plan_sc_y")
+            if _sc_br > 0 and _sc_di > 0:
+                _extras.append({"ring": _box(_sc_x, _sc_y, _sc_br, _sc_di), "naam": "schuur",
+                                "fill": "rgba(150,120,80,0.45)", "line": "#8a6d3b"})
+            st.plotly_chart(_perceel_plan_fig(_perc_rings, _frings, _pxy[0], _pxy[1], _extras),
+                            use_container_width=True)
+            st.caption("Huis-footprint = echt uit het 3D BAG. Perceel = Kadaster (knop) of handmatige maten. "
+                       "Carport/schuur plaats je vrij met de schuifjes. Op schaal in RD-meters.")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
