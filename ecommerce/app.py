@@ -547,101 +547,90 @@ def _fetch_url(url, timeout=15):
 
 
 @st.cache_data(show_spinner=False, ttl=86400)
-def _bag_panden(address):
-    """Adres → pand-id('s) via de PDOK-adressenservice (Locatieserver). Lijst van {naam, pandids}."""
+def _bag_geocode(address):
+    """Adres → lijst van {naam, x, y} (RD-coördinaten) via de PDOK-adressenservice (Locatieserver)."""
     import urllib.parse
-    base = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/"
     # Normaliseer: komma's weg, dubbele spaties weg, en een aan-elkaar-geplakt huisnummer losmaken
     # ("Compiegnehof11" → "Compiegnehof 11"). PDOK is ongevoelig voor accenten/hoofdletters.
     _adr = re.sub(r"([^\W\d_])(\d)", r"\1 \2", re.sub(r"\s+", " ", address.replace(",", " ")).strip())
-    url = (base + "free?q=" + urllib.parse.quote(_adr)
-           + "&fq=type:adres&fl=id,weergavenaam,pandid,centroide_ll&rows=10")
-    docs = json.loads(_fetch_url(url, timeout=20)).get("response", {}).get("docs", [])
-
-    def _pids(d):
-        p = d.get("pandid") or []
-        return [p] if isinstance(p, str) else list(p)
-
+    url = ("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=" + urllib.parse.quote(_adr)
+           + "&fq=type:adres&fl=weergavenaam,centroide_rd&rows=5")
     out = []
-    for d in docs:
-        pids = _pids(d)
-        if not pids and d.get("id"):
-            # De free-respons geeft voor een adres geen pand-id; haal het op via de lookup-endpoint.
-            try:
-                lk = json.loads(_fetch_url(base + "lookup?id=" + urllib.parse.quote(str(d["id"]))
-                                           + "&fl=id,weergavenaam,pandid", timeout=20))
-                ldocs = lk.get("response", {}).get("docs", [])
-                if ldocs:
-                    pids = _pids(ldocs[0])
-            except Exception:  # noqa: BLE001
-                pids = []
-        out.append({"naam": d.get("weergavenaam", ""), "pandids": pids, "ll": d.get("centroide_ll")})
-        if pids:
-            break  # eerste treffer mét pand-id is genoeg
+    for d in json.loads(_fetch_url(url, timeout=20)).get("response", {}).get("docs", []):
+        m_ = re.search(r"POINT\(([-\d.]+)\s+([-\d.]+)\)", str(d.get("centroide_rd") or ""))
+        if m_:
+            out.append({"naam": d.get("weergavenaam", ""), "x": float(m_.group(1)), "y": float(m_.group(2))})
     return out
 
 
 @st.cache_data(show_spinner=False, ttl=86400)
-def _bag3d_fetch_text(pid):
-    """Ruwe CityJSON(-Feature) tekst voor één pand uit het 3D BAG (api.3dbag.nl)."""
-    _pid = pid if str(pid).startswith("NL.IMBAG.Pand.") else f"NL.IMBAG.Pand.{pid}"
-    return _fetch_url(f"https://api.3dbag.nl/collections/pand/items/{_pid}", timeout=30)
+def _bag3d_fc_text(x, y, d=6.0):
+    """Ruwe 3D BAG-respons (CityJSONFeatures) voor de panden rond een RD-coördinaat (bbox in EPSG:28992)."""
+    url = ("https://api.3dbag.nl/collections/pand/items?"
+           f"bbox={x - d:.1f},{y - d:.1f},{x + d:.1f},{y + d:.1f}&limit=20")
+    return _fetch_url(url, timeout=30)
 
 
 def _bag3d_fig(text):
-    """Bouw een Plotly-3D-figuur uit een 3D BAG CityJSON(-Feature) respons. Geeft (fig, info)."""
+    """Bouw een Plotly-3D-figuur uit een 3D BAG-respons (FeatureCollection van CityJSONFeatures)."""
     resp = json.loads(text)
-    feat = resp.get("feature", resp)
-    meta = resp.get("metadata", {}) or {}
-    tf = meta.get("transform") or feat.get("transform") or resp.get("transform") \
-        or {"scale": [1, 1, 1], "translate": [0, 0, 0]}
-    sc, tr = tf.get("scale", [1, 1, 1]), tf.get("translate", [0, 0, 0])
-    verts = feat.get("vertices", []) or []
-    X = [v[0] * sc[0] + tr[0] for v in verts]
-    Y = [v[1] * sc[1] + tr[1] for v in verts]
-    Z = [v[2] * sc[2] + tr[2] for v in verts]
-    # rond de oorsprong centreren zodat de coördinaten klein en stabiel blijven
-    if X:
-        cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
-        X = [x - cx for x in X]
-        Y = [y - cy for y in Y]
-        Z = [z - mz for z in Z]
-    roof, other = [], []
+    feats = resp.get("features")
+    if feats is None:  # losse CityJSONFeature i.p.v. een collectie
+        feats = [resp.get("feature", resp)]
+    tf0 = resp.get("transform") or (resp.get("metadata") or {}).get("transform")
+    X, Y, Z, roof, other, pids = [], [], [], [], [], []
 
-    def _fan(ring, bucket):
+    def _fan(ring, off, bucket):
         if ring and len(ring) >= 3:
             for t in range(1, len(ring) - 1):
-                bucket.append((ring[0], ring[t], ring[t + 1]))
+                bucket.append((ring[0] + off, ring[t] + off, ring[t + 1] + off))
 
-    def _faces_of(geom):
-        gtype, bnd = geom.get("type"), geom.get("boundaries", []) or []
-        sem = geom.get("semantics") or {}
-        surfaces, values = sem.get("surfaces") or [], sem.get("values")
+    for feat in feats:
+        verts = feat.get("vertices", []) or []
+        off = len(X)
+        tf = feat.get("transform") or tf0
+        if tf:
+            sc, tr = tf.get("scale", [1, 1, 1]), tf.get("translate", [0, 0, 0])
+            X += [v[0] * sc[0] + tr[0] for v in verts]
+            Y += [v[1] * sc[1] + tr[1] for v in verts]
+            Z += [v[2] * sc[2] + tr[2] for v in verts]
+        else:
+            X += [v[0] for v in verts]
+            Y += [v[1] for v in verts]
+            Z += [v[2] for v in verts]
+        for oid, obj in (feat.get("CityObjects", {}) or {}).items():
+            if "Pand." in oid and obj.get("type") == "Building":
+                pids.append(oid)
+            geoms = obj.get("geometry") or []
+            if not geoms:
+                continue
+            g = next((c for c in geoms if str(c.get("lod")) in ("2.2", "2")), None) \
+                or max(geoms, key=lambda c: float(str(c.get("lod", "0")) or 0))
+            gtype, bnd = g.get("type"), g.get("boundaries", []) or []
+            sem = g.get("semantics") or {}
+            surfaces, values = sem.get("surfaces") or [], sem.get("values")
 
-        def _stype(idx):
-            try:
-                return surfaces[idx].get("type") if idx is not None else None
-            except (IndexError, TypeError):
-                return None
-        res = []
-        if gtype == "Solid":
-            for si, shell in enumerate(bnd):
-                svals = values[si] if (values and si < len(values)) else None
+            def _stype(idx):
+                try:
+                    return surfaces[idx].get("type") if idx is not None else None
+                except (IndexError, TypeError):
+                    return None
+            if gtype == "Solid":
+                shells, vshells = bnd, (values or [])
+            elif gtype in ("MultiSurface", "CompositeSurface"):
+                shells, vshells = [bnd], [values]
+            else:
+                shells, vshells = [], []
+            for si, shell in enumerate(shells):
+                svals = vshells[si] if (vshells and si < len(vshells)) else None
                 for fi, face in enumerate(shell):
-                    res.append((face, _stype(svals[fi] if (svals and fi < len(svals)) else None)))
-        elif gtype in ("MultiSurface", "CompositeSurface"):
-            for fi, face in enumerate(bnd):
-                res.append((face, _stype(values[fi] if (values and fi < len(values)) else None)))
-        return res
-
-    for obj in (feat.get("CityObjects", {}) or {}).values():
-        geoms = obj.get("geometry") or []
-        if not geoms:
-            continue
-        g = next((c for c in geoms if str(c.get("lod")) == "2.2"), None) \
-            or max(geoms, key=lambda c: float(str(c.get("lod", "0")) or 0))
-        for face, stype in _faces_of(g):
-            _fan(face[0] if face else [], roof if stype == "RoofSurface" else other)
+                    stype = _stype(svals[fi] if (svals and fi < len(svals)) else None)
+                    _fan(face[0] if face else [], off, roof if stype == "RoofSurface" else other)
+    if X:
+        cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
+        X = [v - cx for v in X]
+        Y = [v - cy for v in Y]
+        Z = [v - mz for v in Z]
     fig = go.Figure()
     if other:
         fig.add_trace(go.Mesh3d(x=X, y=Y, z=Z, i=[t[0] for t in other], j=[t[1] for t in other],
@@ -651,7 +640,7 @@ def _bag3d_fig(text):
                                 k=[t[2] for t in roof], color="#7a2f2f", flatshading=True, name="dak"))
     fig.update_layout(scene=dict(aspectmode="data", xaxis_title="x (m)", yaxis_title="y (m)",
                                  zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=460)
-    return fig, {"faces": len(roof) + len(other), "roof": len(roof)}
+    return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids))}
 
 
 def _ics_unfold(text):
@@ -1579,31 +1568,27 @@ with tab_dak:
         _adr = st.text_input("Adres", value="Compiègnehof 11, Eindhoven", key="dak_bag_adres")
         if st.button("🛰️ Haal 3D BAG-model op", key="dak_bag_fetch"):
             try:
-                _panden = _bag_panden(_adr.strip())
-                _hit = next((p for p in _panden if p["pandids"]), None)
-                if not _hit:
-                    st.session_state.pop("dak_bag_pid", None)
-                    if _panden:
-                        st.warning(f"Adres gevonden ({_panden[0]['naam']}) maar geen pand-id — probeer een "
-                                   "ander huisnummer of voeg de woonplaats toe.")
-                    else:
-                        st.warning("Geen adres gevonden — schrijf het als 'Straat 11, Plaats'.")
+                _hits = _bag_geocode(_adr.strip())
+                if not _hits:
+                    st.session_state.pop("dak_bag_xy", None)
+                    st.warning("Geen adres gevonden — schrijf het als 'Straat 11, Plaats'.")
                 else:
-                    st.session_state["dak_bag_pid"] = _hit["pandids"][0]
-                    st.session_state["dak_bag_naam"] = _hit["naam"]
+                    st.session_state["dak_bag_xy"] = [_hits[0]["x"], _hits[0]["y"]]
+                    st.session_state["dak_bag_naam"] = _hits[0]["naam"]
             except Exception as exc:  # noqa: BLE001
-                st.session_state.pop("dak_bag_pid", None)
-                st.error(f"Adres opzoeken mislukt: {exc}. Staan `api.pdok.nl` en `api.3dbag.nl` op de allowlist?")
-        _pid = st.session_state.get("dak_bag_pid")
-        if _pid:
+                st.session_state.pop("dak_bag_xy", None)
+                st.error(f"Adres opzoeken mislukt: {exc}. Staat `api.pdok.nl` op de allowlist?")
+        _xy = st.session_state.get("dak_bag_xy")
+        if _xy:
             try:
-                _fig3, _info3 = _bag3d_fig(_bag3d_fetch_text(_pid))
+                _fig3, _info3 = _bag3d_fig(_bag3d_fc_text(_xy[0], _xy[1]))
                 if _info3["faces"]:
-                    st.caption(f"Pand **{_pid}** · {st.session_state.get('dak_bag_naam', '')} · "
-                               f"{_info3['faces']} vlakken ({_info3['roof']} dak).")
+                    _pnd = ", ".join(p.split(".")[-1] for p in _info3["panden"]) or "—"
+                    st.caption(f"{st.session_state.get('dak_bag_naam', '')} · pand {_pnd} · "
+                               f"{_info3['faces']} vlakken ({_info3['roof']} dak). Sleep om te draaien.")
                     st.plotly_chart(_fig3, use_container_width=True)
                 else:
-                    st.warning("Geen geometrie in het 3D BAG-antwoord — mogelijk een nieuw/ontbrekend pand.")
+                    st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
             except Exception as exc:  # noqa: BLE001
                 st.error(f"3D BAG-model laden mislukt: {exc}")
 
