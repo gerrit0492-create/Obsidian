@@ -36,53 +36,53 @@ CONTENT = {
                      "experience": "Professional experience", "education": "Education",
                      "certs": "Certifications", "languages": "Languages"},
         "summary": (
-            "A cost engineer who makes the number trustworthy — and the conversation around it "
-            "easier. My career runs from the shop floor to the calculation office at DAF Trucks, "
-            "VDL ETG, Andritz, Wilting and Wärtsilä, so I know what sits behind every operation "
-            "in a calculation. I turn engineering into defensible cost prices, keep quoting fast "
-            "and transparent, protect margin, and get engineering, purchasing, sales and business "
-            "control onto one and the same number. Where it helps, I build the tools myself — "
-            "data & dashboards (Power BI), automation & tools (Python). Lean Six Sigma Green "
-            "Belt; hands-on and pragmatic."
+            "Cost engineer with a career from the shop floor to the calculation office — DAF "
+            "Trucks, VDL ETG, Andritz, Wilting and Wärtsilä — so every cost price I produce is "
+            "grounded in what actually happens at the machine. I build defensible cost prices for "
+            "development, customer and non-standard work, keep quoting fast and transparent, and "
+            "align engineering, purchasing, sales and business control on the same figure. Where "
+            "the tooling falls short, I build it myself — automation and dashboards in Python, "
+            "and Excel/VBA. Lean Six Sigma Green Belt."
         ),
         "competencies": (
-            "Cost estimating · Should-cost · Post-calculation · Lean Six Sigma (Green Belt) · "
-            "Continuous improvement · Work preparation & routing · Manufacturing strategy · "
-            "SAP · Power BI · Excel/VBA · CNC programming · Cross-functional collaboration"
+            "Cost estimating & calculation · Should-cost · RFQ & quotation · Post-calculation · "
+            "Make-or-buy · Bill of materials (BOM) · Margin & cost control · Value engineering · "
+            "Lean Six Sigma (Green Belt) · Continuous improvement · Work preparation & routing · "
+            "Manufacturing strategy · Supplier collaboration · SAP · Power BI · Excel/VBA · "
+            "Python · CNC programming"
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
-                "Owned the cost price for development, customer and non-standard projects — the "
-                "single number engineering, sales, purchasing and business control all worked from.",
-                "Trusted cost partner to engineering, sales, project management, purchasing and "
-                "product management: translated technical choices into clear cost impact before "
-                "decisions were made.",
-                "Helped shape cost strategy and led cross-functional cost reduction; made budget-"
-                "versus-actual transparent so deviations surfaced early enough to act on.",
+                "Set the cost price for development, customer and non-standard projects — the "
+                "reference figure engineering, sales, purchasing and business control all worked from.",
+                "Translated technical choices into cost impact before decisions were made, as cost "
+                "partner to engineering, sales, project management, purchasing and product management.",
+                "Drove cross-functional cost-reduction and made budget-versus-actual transparent, "
+                "so deviations surfaced early enough to act on.",
             ]),
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
-                "Ran purchasing of indirect goods and tooling, and set up the workshop and tool "
-                "management from the ground up.",
+                "Built the workshop and tool management from the ground up and ran purchasing of "
+                "indirect goods and tooling.",
                 "Led improvement projects that raised safety, quality and delivery reliability "
                 "while taking cost out of the process.",
             ]),
             ("2017 – 2019", "VDL ETG", "Factory Engineer", [
-                "Defined make strategy and routing for complex high-tech products, and produced "
-                "the supporting product documentation.",
-                "Improved and supported running production as product owner — the link between "
-                "design intent and what the factory actually makes.",
+                "Defined make strategy and routing for complex high-tech products and produced the "
+                "supporting manufacturing documentation.",
+                "Owned running production as product owner — the link between design intent and "
+                "what the factory actually makes.",
             ]),
             ("2011 – 2017", "Andritz Feed & Biofuel", "Production Supervisor", [
-                "Led the hardening shop and three production departments on clear performance "
-                "indicators, including coaching and HR responsibility.",
-                "Drove structural process improvements in quality, throughput and cost, and kept "
-                "the shop floor and management speaking the same language.",
+                "Led the hardening shop and three production departments on clear KPIs, with "
+                "coaching and HR responsibility.",
+                "Drove structural improvements in quality, throughput and cost across the "
+                "departments.",
             ]),
-            ("", "DAF Trucks", "Production / Technical Engineer & Team Lead", [
-                "Delivered process and product improvements, machine acceptance and the "
-                "implementation of new production lines.",
-                "Reduced defects and improved line flow through hands-on continuous improvement "
-                "and CNC programming; led and trained production teams.",
+            ("1987 – 2011", "DAF Trucks", "Production / Technical Engineer & Team Lead", [
+                "Delivered process and product improvements, machine acceptance and the start-up "
+                "of new production lines.",
+                "Cut defects and improved line flow through continuous improvement and CNC "
+                "programming; led and trained production teams.",
             ]),
         ],
         "education": ("KMBO Mechanical Engineering, Eindhoven  ·  "
@@ -97,55 +97,55 @@ CONTENT = {
                      "experience": "Werkervaring", "education": "Opleiding",
                      "certs": "Certificeringen", "languages": "Talen"},
         "summary": (
-            "Een cost engineer die het cijfer betrouwbaar maakt — en het gesprek erover "
-            "makkelijker. Mijn loopbaan loopt van de werkvloer naar de calculatie bij DAF Trucks, "
-            "VDL ETG, Andritz, Wilting en Wärtsilä, dus ik weet wat er achter elke bewerking in "
-            "een calculatie zit. Ik vertaal techniek naar onderbouwde kostprijzen, houd offreren "
-            "snel en transparant, bescherm de marge en krijg engineering, inkoop, verkoop en "
-            "business control op één en hetzelfde cijfer. Waar het helpt bouw ik zelf de tools — "
-            "data & dashboards (Power BI), automatisering & tools (Python). Lean Six Sigma Green "
-            "Belt; hands-on en pragmatisch."
+            "Cost engineer met een loopbaan van de werkvloer naar de calculatie — DAF Trucks, "
+            "VDL ETG, Andritz, Wilting en Wärtsilä — zodat elke kostprijs die ik maak geworteld "
+            "is in wat er werkelijk op de machine gebeurt. Ik bouw onderbouwde kostprijzen voor "
+            "ontwikkel-, klant- en niet-standaard werk, houd offreren snel en transparant, en "
+            "krijg engineering, inkoop, verkoop en business control op hetzelfde cijfer. Waar de "
+            "tooling tekortschiet bouw ik die zelf — automatisering en dashboards in Python, en "
+            "Excel/VBA. Lean Six Sigma Green Belt."
         ),
         "competencies": (
-            "Kostencalculatie · Should-cost · Nacalculatie · Lean Six Sigma (Green Belt) · "
-            "Continu verbeteren · Werkvoorbereiding & routing · Maakstrategie · SAP · "
-            "Power BI · Excel/VBA · CNC-programmeren · Samenwerken"
+            "Kostencalculatie · Should-cost · RFQ & offerte · Nacalculatie · Make-or-buy · "
+            "Stuklijst (BOM) · Marge- & kostenbeheersing · Value engineering · "
+            "Lean Six Sigma (Green Belt) · Continu verbeteren · Werkvoorbereiding & routing · "
+            "Maakstrategie · Leveranciers · SAP · Power BI · Excel/VBA · Python · CNC-programmeren"
         ),
         "experience": [
             ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
-                "Eigenaar van de kostprijs voor ontwikkel-, klant- en niet-standaard projecten — "
-                "het ene cijfer waar engineering, verkoop, inkoop en business control allemaal "
+                "De kostprijs bepaald voor ontwikkel-, klant- en niet-standaard projecten — het "
+                "referentiecijfer waar engineering, verkoop, inkoop en business control allemaal "
                 "mee werkten.",
-                "Vaste kostenpartner voor engineering, verkoop, projectmanagement, inkoop en "
-                "productmanagement: technische keuzes vertaald naar helder kosteneffect vóórdat "
-                "beslissingen vielen.",
-                "Meegebouwd aan de kostenstrategie en cross-functionele kostenreductie geleid; "
-                "budget-versus-werkelijk transparant gemaakt zodat afwijkingen vroeg genoeg "
-                "zichtbaar werden om bij te sturen.",
+                "Technische keuzes vertaald naar kosteneffect vóórdat beslissingen vielen, als "
+                "kostenpartner voor engineering, verkoop, projectmanagement, inkoop en "
+                "productmanagement.",
+                "Cross-functionele kostenreductie aangejaagd en budget-versus-werkelijk "
+                "transparant gemaakt, zodat afwijkingen vroeg genoeg zichtbaar werden om bij te "
+                "sturen.",
             ]),
             ("2019 – 2021", "Wilting", "Manufacturing Engineer", [
-                "Inkoop van indirecte goederen en gereedschappen verzorgd, en de werkplaats en "
-                "het gereedschapsbeheer vanaf de basis ingericht.",
+                "Werkplaats en gereedschapsbeheer vanaf de basis opgezet en de inkoop van "
+                "indirecte goederen en gereedschappen verzorgd.",
                 "Verbeterprojecten geleid die veiligheid, kwaliteit en leverbetrouwbaarheid "
                 "verhoogden en tegelijk kosten uit het proces haalden.",
             ]),
             ("2017 – 2019", "VDL ETG", "Factory Engineer", [
-                "Maakstrategie en routing bepaald voor complexe high-tech producten, en de "
-                "bijbehorende productdocumentatie opgesteld.",
-                "Lopende productie verbeterd en begeleid als producteigenaar — de schakel tussen "
+                "Maakstrategie en routing bepaald voor complexe high-tech producten en de "
+                "bijbehorende productiedocumentatie opgesteld.",
+                "Lopende productie als producteigenaar aangestuurd — de schakel tussen "
                 "ontwerpintentie en wat de fabriek werkelijk maakt.",
             ]),
             ("2011 – 2017", "Andritz Feed & Biofuel", "Supervisor productie", [
-                "De harderij en drie productieafdelingen aangestuurd op heldere prestatie-"
-                "indicatoren, inclusief coaching en HR-verantwoordelijkheid.",
-                "Structurele procesverbeteringen doorgevoerd in kwaliteit, doorlooptijd en "
-                "kosten, en werkvloer en management dezelfde taal laten spreken.",
+                "De harderij en drie productieafdelingen aangestuurd op heldere KPI's, met "
+                "coaching en HR-verantwoordelijkheid.",
+                "Structurele verbeteringen in kwaliteit, doorlooptijd en kosten doorgevoerd over "
+                "de afdelingen.",
             ]),
-            ("", "DAF Trucks", "Production / Technical Engineer & Teamleider", [
-                "Proces- en productverbeteringen, machine-afnames en de implementatie van nieuwe "
+            ("1987 – 2011", "DAF Trucks", "Production / Technical Engineer & Teamleider", [
+                "Proces- en productverbeteringen, machine-afnames en de opstart van nieuwe "
                 "productielijnen gerealiseerd.",
-                "Defecten teruggedrongen en de lijnflow verbeterd met hands-on continu verbeteren "
-                "en CNC-programmeren; productieteams aangestuurd en opgeleid.",
+                "Defecten teruggedrongen en de lijnflow verbeterd met continu verbeteren en "
+                "CNC-programmeren; productieteams aangestuurd en opgeleid.",
             ]),
         ],
         "education": ("KMBO Metaaltechniek, Eindhoven  ·  "
@@ -169,7 +169,7 @@ def build_pdf(path: Path, role_title: str | None = None, keywords: str | None = 
     h = c["headings"]
 
     styles = getSampleStyleSheet()
-    body = ParagraphStyle("body", parent=styles["Normal"], fontSize=9.7, leading=13.6,
+    body = ParagraphStyle("body", parent=styles["Normal"], fontSize=9.5, leading=12.3,
                           textColor=INK, alignment=TA_LEFT)
     name = ParagraphStyle("name", parent=body, fontSize=21, leading=23, fontName="Helvetica-Bold", spaceAfter=2)
     role = ParagraphStyle("role", parent=body, fontSize=10.5, leading=14, textColor=ACCENT,
@@ -178,8 +178,8 @@ def build_pdf(path: Path, role_title: str | None = None, keywords: str | None = 
                               fontName="Helvetica-Oblique", spaceAfter=3)
     contact = ParagraphStyle("contact", parent=body, fontSize=8.6, textColor=GREY, spaceAfter=2)
     h2 = ParagraphStyle("h2", parent=body, fontSize=10.5, leading=13, textColor=INK,
-                        fontName="Helvetica-Bold", spaceBefore=11, spaceAfter=2)
-    job = ParagraphStyle("job", parent=body, fontName="Helvetica-Bold", fontSize=10, spaceBefore=6)
+                        fontName="Helvetica-Bold", spaceBefore=7, spaceAfter=2)
+    job = ParagraphStyle("job", parent=body, fontName="Helvetica-Bold", fontSize=10, spaceBefore=4)
     meta = ParagraphStyle("meta", parent=body, fontSize=8.6, textColor=GREY, spaceAfter=2)
 
     def heading(text):
@@ -205,7 +205,7 @@ def build_pdf(path: Path, role_title: str | None = None, keywords: str | None = 
 
     path.parent.mkdir(parents=True, exist_ok=True)
     SimpleDocTemplate(str(path), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
-                      topMargin=15 * mm, bottomMargin=13 * mm, title=f"CV {NAME}", author=NAME).build(flow)
+                      topMargin=13 * mm, bottomMargin=10 * mm, title=f"CV {NAME}", author=NAME).build(flow)
 
 
 def build_docx(path: Path, role_title: str | None = None, keywords: str | None = None, lang: str = "en") -> None:
