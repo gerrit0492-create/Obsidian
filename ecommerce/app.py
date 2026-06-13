@@ -693,7 +693,7 @@ def _bag3d_fig(text, x=None, y=None):
 
     X, Y, Z, roof, other = [], [], [], [], []
     roof_tot = roof_sl = roof_fl = foot = 0.0
-    foot_rings = []
+    foot_rings, flat_patches = [], []
 
     def _tri(ring, rv, off, bucket):
         if ring and len(ring) >= 3:
@@ -746,6 +746,10 @@ def _bag3d_fig(text, x=None, y=None):
                     roof_tot += _a
                     if _tilt <= 20.0:        # bijna plat → dakkapeltop / plat dak
                         roof_fl += _a
+                        _rx = [rv[_i][0] for _i in ring]
+                        _ry = [rv[_i][1] for _i in ring]
+                        _dx, _dy = max(_rx) - min(_rx), max(_ry) - min(_ry)
+                        flat_patches.append({"w": max(_dx, _dy), "d": min(_dx, _dy), "m2": _a})
                     elif _tilt < 80.0:       # hellend dakvlak → krijgt pannen
                         roof_sl += _a
                 elif len(ring) >= 3 and stype == "GroundSurface":
@@ -770,7 +774,8 @@ def _bag3d_fig(text, x=None, y=None):
                       margin=dict(l=0, r=0, t=10, b=0), height=460)
     return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids)),
                  "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl, "footprint_m2": foot,
-                 "footprint_rings": foot_rings}
+                 "footprint_rings": foot_rings,
+                 "flat_patches": sorted([p for p in flat_patches if p["m2"] >= 1.0], key=lambda p: -p["m2"])}
 
 
 @st.cache_data(show_spinner=False, ttl=86400)
@@ -1675,6 +1680,15 @@ with tab_dak:
     def _dak_apply_foot():
         st.session_state["dak_perc_huis"] = float(round(st.session_state.get("dak_bag_footprint", 0.0)))
 
+    def _dak_apply_dakkapel():
+        _fps = st.session_state.get("dak_bag_flat") or []
+        if _fps:
+            st.session_state["dak_calc_dkf_br"] = float(round(_fps[0]["w"], 1))
+            st.session_state["dak_calc_dkf_di"] = float(round(_fps[0]["d"], 1))
+        if len(_fps) > 1:
+            st.session_state["dak_calc_dk_br"] = float(round(_fps[1]["w"], 1))
+            st.session_state["dak_calc_dk_di"] = float(round(_fps[1]["d"], 1))
+
     with st.expander("📐 Dakoppervlak berekenen uit Google Maps", expanded=False):
         st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
                    "*Afstand meten* en klik de dakomtrek rond. Een hellend dak is gróter dan die platte footprint: "
@@ -1692,15 +1706,18 @@ with tab_dak:
                            help="0° = plat dak (dakvlak = footprint). Hellend pannendak in NL: meestal 35–45°.")
         _factor = 1.0 / math.cos(math.radians(_pitch))
         _main = _fp * _factor
-        st.markdown("**Dakkapellen** — tel de dakvlakken van de dakkapellen mee (Maps mist vaak verbouwingen).")
+        st.markdown("**Dakkapellen** — tel de dakvlakken van de dakkapellen mee (uit 3D BAG of zelf gemeten).")
+        for _k, _v in {"dak_calc_dk_br": 3.0, "dak_calc_dk_di": 1.2,
+                       "dak_calc_dkf_br": 3.0, "dak_calc_dkf_di": 1.5}.items():
+            st.session_state.setdefault(_k, _v)
         _dk = st.columns([1.3, 1, 1])
         _dk_on = _dk[0].checkbox("Achterzijde meetellen", value=True, key="dak_calc_dk_on")
-        _dk_br = _dk[1].number_input("Breedte achter (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dk_br")
-        _dk_di = _dk[2].number_input("Uitbouw achter (m)", 0.0, 20.0, 1.2, 0.1, key="dak_calc_dk_di")
+        _dk_br = _dk[1].number_input("Breedte achter (m)", 0.0, 50.0, step=0.1, key="dak_calc_dk_br")
+        _dk_di = _dk[2].number_input("Uitbouw achter (m)", 0.0, 20.0, step=0.1, key="dak_calc_dk_di")
         _dkf = st.columns([1.3, 1, 1])
         _dkf_on = _dkf[0].checkbox("Voorzijde meetellen", value=True, key="dak_calc_dkf_on")
-        _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dkf_br")
-        _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, 1.5, 0.1, key="dak_calc_dkf_di")
+        _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, step=0.1, key="dak_calc_dkf_br")
+        _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, step=0.1, key="dak_calc_dkf_di")
         _dr = st.columns(2)
         _dr[0].number_input("Dakkapel vóór — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.5, 0.1,
                             key="dak_calc_dk_right_f", help="Rechterrand van de voorste dakkapel t.o.v. de rechtergevel.")
@@ -1821,6 +1838,20 @@ with tab_dak:
                                "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
                                "is het 'echte dakvlak minus de dakkapellen'. De carport-patch (breedte × lengte langs "
                                "de helling) komt erbij. Indicatief, geen meetstaat.")
+                    _flat = _info3.get("flat_patches", [])
+                    st.session_state["dak_bag_flat"] = _flat
+                    if _flat:
+                        st.markdown("**Dakkapel-maten uit het model** (platte dakvlakken = dakkapeltoppen):")
+                        st.dataframe(pd.DataFrame([{"Vlak": f"#{i + 1}", "Breedte ≈ (m)": round(p["w"], 1),
+                                                    "Diepte ≈ (m)": round(p["d"], 1), "Oppervlak (m²)": round(p["m2"], 1)}
+                                                   for i, p in enumerate(_flat)]),
+                                     hide_index=True, use_container_width=True)
+                        st.button("📥 Neem de 2 grootste over als dakkapel vóór/achter", key="dak_bag_dk_apply",
+                                  on_click=_dak_apply_dakkapel,
+                                  help="Zet breedte × diepte van de twee grootste platte vlakken in de dakkapel-velden "
+                                       "in de Google Maps-rekenhulp. Hoogte staat niet in de meting.")
+                        st.caption("Let op: een plat dak/aanbouw kan hier ook tussen staan — kies de juiste. "
+                                   "Hoogte van de dakkapel staat niet in deze meting (van bovenaf niet zichtbaar).")
                 else:
                     st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
             except Exception as exc:  # noqa: BLE001
