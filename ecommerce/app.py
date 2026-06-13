@@ -324,8 +324,8 @@ def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
                              unsafe_allow_html=True)
 
 
-def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi):
-    """Twee staafdiagrammen: totaal incl. btw per offerte + €/m² t.o.v. de marktband. PNG-bytes."""
+def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi, sc_lo=None, sc_hi=None, sc_mid=None):
+    """Twee staafdiagrammen: totaal incl. btw per offerte + €/m² t.o.v. de markt- en should-cost band."""
     import io
     import matplotlib
     matplotlib.use("Agg")
@@ -339,13 +339,18 @@ def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi):
     ax1.set_title("Totaal incl. btw (€)", fontsize=10)
     ax1.bar_label(b1, fmt="€%.0f", fontsize=8)
     ax1.tick_params(axis="x", labelrotation=12, labelsize=7)
-    if hi > 0:
-        ax2.axhspan(lo, hi, color="#e7f1fb", label=f"markt €{lo:.0f}–{hi:.0f}/m²")
+    if hi and hi > 0:
+        ax2.axhspan(lo, hi, color="#e7f1fb", alpha=0.6, label=f"markt €{lo:.0f}–{hi:.0f}/m²")
+    if sc_lo and sc_hi:
+        ax2.axhspan(sc_lo, sc_hi, color="#e3f5e9", alpha=0.7,
+                    label=f"should-cost €{sc_lo:.0f}–{sc_hi:.0f}/m²")
+        if sc_mid:
+            ax2.axhline(sc_mid, color="#1e8449", linestyle="--", linewidth=1)
     b2 = ax2.bar(namen, m2, color=kleur)
-    ax2.set_title("€/m² incl. btw", fontsize=10)
+    ax2.set_title("€/m² incl. btw — t.o.v. should-cost band", fontsize=10)
     ax2.bar_label(b2, fmt="€%.0f", fontsize=8)
     ax2.tick_params(axis="x", labelrotation=12, labelsize=7)
-    ax2.legend(fontsize=7)
+    ax2.legend(fontsize=6.5)
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=130)
@@ -353,7 +358,8 @@ def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi):
     return buf.getvalue()
 
 
-def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bullets, lo, hi, normdf=None):
+def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bullets, lo, hi, normdf=None,
+                                sc_lo=None, sc_hi=None, sc_mid=None):
     """Printbaar A4-rapport van de offertevergelijking met grafieken, scope en advies."""
     import io
     from datetime import date
@@ -400,7 +406,8 @@ def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bul
     el.append(_tbl(_kcols, _krows, [30 * mm, 20 * mm, 20 * mm, 14 * mm, 12 * mm, 36 * mm, 30 * mm]))
     try:
         el.append(Spacer(1, 6))
-        el.append(Image(io.BytesIO(_dak_vergelijking_chart_png(hl, dak_opp, lo, hi)), width=172 * mm, height=67 * mm))
+        el.append(Image(io.BytesIO(_dak_vergelijking_chart_png(hl, dak_opp, lo, hi, sc_lo, sc_hi, sc_mid)),
+                        width=172 * mm, height=67 * mm))
     except Exception:  # noqa: BLE001
         pass
     el.append(Paragraph("Scope-vergelijking", h2))
@@ -577,6 +584,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_posten"] = _data.get("dak_posten", DAK_POSTEN_DEFAULT)
     if "dak_afspraken" not in st.session_state:
         st.session_state["dak_afspraken"] = _data.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)
+    if "dak_shouldcost" not in st.session_state:
+        st.session_state["dak_shouldcost"] = _data.get("dak_shouldcost", [])  # [] = automatisch
     if "dak_migr" not in st.session_state:
         st.session_state["dak_migr"] = _data.get("dak_migr", 0)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
@@ -587,6 +596,7 @@ def _persist():
                        "dakofferte": st.session_state.get("dakofferte", []),
                        "dak_posten": st.session_state.get("dak_posten", []),
                        "dak_afspraken": st.session_state.get("dak_afspraken", []),
+                       "dak_shouldcost": st.session_state.get("dak_shouldcost", []),
                        "dak_migr": st.session_state.get("dak_migr", 0)})
 
 
@@ -1990,7 +2000,42 @@ with tab_dak:
                 return "Overig"
             _SC = "Should-cost (baseline)"
             _byb = {b: [p for p in _prows if str(p.get("Bedrijf") or "").strip() == b] for b in _detbedr_real}
-            _byb[_SC] = _dak_shouldcost_posten(dak_opp)
+            with st.expander("📐 Should-cost band aanpassen (LCL/UCL per onderdeel)", expanded=False):
+                _sc_seed = st.session_state.get("dak_shouldcost") or _dak_shouldcost_posten(dak_opp)
+                _sc_in = pd.DataFrame([{"Onderdeel": p["Onderdeel"], "LCL": float(p.get("LCL", p["Prijs excl. btw"])),
+                                        "UCL": float(p.get("UCL", p["Prijs excl. btw"])), "Btw %": int(p["Btw %"])}
+                                       for p in _sc_seed])
+                _sc_key = f"dak_sc_editor_{len(_sc_in)}_{'c' if st.session_state.get('dak_shouldcost') else 'a'}"
+                _sc_ed = st.data_editor(_sc_in, num_rows="dynamic", use_container_width=True, key=_sc_key,
+                                        column_config={"LCL": st.column_config.NumberColumn(format="€%.0f"),
+                                                       "UCL": st.column_config.NumberColumn(format="€%.0f"),
+                                                       "Btw %": st.column_config.SelectboxColumn(options=[21, 9]),
+                                                       "Onderdeel": st.column_config.TextColumn(width="large")})
+                _sc_rows = []
+                for _r in _sc_ed.to_dict("records"):
+                    if str(_r.get("Onderdeel") or "").strip():
+                        _l, _u = float(_r.get("LCL") or 0), float(_r.get("UCL") or 0)
+                        _sc_rows.append({"Bedrijf": _SC, "Onderdeel": str(_r["Onderdeel"]).strip(),
+                                         "Prijs excl. btw": float(round((_l + _u) / 2)),
+                                         "Btw %": int(float(_r.get("Btw %") or 21)), "LCL": _l, "UCL": _u})
+                _cs1, _cs2 = st.columns(2)
+                if _cs1.button("💾 Should-cost bewaren", key="dak_sc_save"):
+                    st.session_state["dak_shouldcost"] = _sc_rows
+                    try:
+                        _persist()
+                        st.success("Should-cost bewaard.")
+                    except Exception as _e:  # noqa: BLE001
+                        st.error(f"Opslaan mislukt: {_e}")
+                if _cs2.button("🔄 Terug naar automatisch (huidig oppervlak)", key="dak_sc_reset"):
+                    st.session_state["dak_shouldcost"] = []
+                    try:
+                        _persist()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    st.rerun()
+                st.caption("LCL = ondergrens (scherp), UCL = bovengrens. Leeg/reset = automatische raming op het "
+                           "huidige dakoppervlak. Bewaar om je eigen band vast te leggen.")
+            _byb[_SC] = _sc_rows if _sc_rows else _dak_shouldcost_posten(dak_opp)
             _detbedr = _detbedr_real + [_SC]
             _assign = {b: {} for b in _detbedr}
             for b in _detbedr:
@@ -2192,7 +2237,10 @@ with tab_dak:
                                  key="dak_vergelijk_xlsx", use_container_width=True)
             try:
                 _pdfb = _dak_vergelijking_pdf_bytes(_hl, _cmpdf, _posten_df, dak_opp, _isde1, _isde2, _bullets,
-                                                    DAK_MARKT_LO, DAK_MARKT_HI, _normdf)
+                                                    DAK_MARKT_LO, DAK_MARKT_HI, _normdf,
+                                                    sc_lo=_sc_lcl_i / dak_opp if dak_opp else None,
+                                                    sc_hi=_sc_ucl_i / dak_opp if dak_opp else None,
+                                                    sc_mid=(_scx + _scb) / dak_opp if dak_opp else None)
                 _cdb.download_button("🖨️ Vergelijking — PDF (met grafieken)", _pdfb,
                                      file_name="dakrenovatie_vergelijking.pdf", mime="application/pdf",
                                      key="dak_vergelijk_pdf", use_container_width=True)
