@@ -155,33 +155,43 @@ DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
 
 # Posten per offerte (lang formaat) — voor de onderlinge vergelijking met scope-verschillen.
 DAK_POSTEN_DEFAULT = [
+    # Westermeer — alle regels uit offerte OFF-2026-0189 (bundelprijs + specificatie 'incl.' + lood + vogelwering).
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Complete dakrenovatie (60 m²) — keramische betonpannen [bundelprijs]", "Prijs excl. btw": 15000.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Sloop: verwijderen oude pannen/tengels/panlatten (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Afvoer: container 3,5 m³ naar recycling — 1 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Isolatiedeken Rd 3,8 — 60 m² (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Nieuwe tengels + panlatten — 60 m² (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Keramische betonpannen — 469 st (hoofddak 368 + erker 35 + dakkapel 66) (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Verwijderen oude dakpannen, tengels en panlatten — 60 m² (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Container 3,5 m³ + afvoer naar erkend recyclingbedrijf — 1 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Isolatiedeken aanbrengen — Rd 3,8 — 60 m² (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Nieuwe tengels + panlatten monteren — 60 m² (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Keramische betonpannen hoofddak — 368 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Keramische betonpannen erker voorzijde — 35 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Keramische betonpannen dakkapel — 66 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Nokvorsten — 17 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Kantpannen links + rechts — 42 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Pannenlift + paslodespijkers (2.000 st) + zaagmateriaal (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Montage + arbeid, max. 3 werkdagen (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Linkse kantpannen (hoofddak + erker) — 21 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Rechtse kantpannen (hoofddak + erker) — 21 st (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Pannenlift + paslodespijkers (2.000 st) + slijp-/zaagmateriaal (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "• Volledige montage + arbeid, max. 3 werkdagen (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Loodaansluiting dakkapel voorzijde — 10 m (lood code 18)", "Prijs excl. btw": 900.0, "Btw %": 21},
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Vogelwering & dakvoetprofielen — 12 m", "Prijs excl. btw": 780.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Bouwkundige voorzieningen: steiger (Layher) + pannenlift + puincontainer", "Prijs excl. btw": 2390.0, "Btw %": 21},
+    # Albers — alle 20 regels uit offerte 2026060231 (incl. de €0-regels en de 3 stelposten).
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Bouwkundige voorzieningen: steiger Layher (€1.840) + pannenlift/kraan (€100) + puincontainer/afvoer (€450)", "Prijs excl. btw": 2390.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Afvoeren en opruimen van overgebleven bouwafval (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Opruimen en schoonmaken van de dakgoten (incl.)", "Prijs excl. btw": 0.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "SF40BB isolatiefolie aanbrengen — arbeid (Rc 3,89–4,11, 60 m²)", "Prijs excl. btw": 1600.0, "Btw %": 9},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "SF40BB isolatiefolie leveren (60 m²)", "Prijs excl. btw": 2000.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panlatten als tengels t.b.v. folie (200 m¹)", "Prijs excl. btw": 800.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panlatten (200 m¹)", "Prijs excl. btw": 1100.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Ruitersteunen (10 st) + ruiterbalk nok + ondervorst (7 m¹)", "Prijs excl. btw": 650.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Ruitersteunen (10 st)", "Prijs excl. btw": 200.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Ruiterbalk voor de nok (m¹)", "Prijs excl. btw": 200.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Ondervorst over de nokbalk (7 m¹)", "Prijs excl. btw": 250.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Sneldek betonpannen Antraciet (60 m²)", "Prijs excl. btw": 1800.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Gevelpannen links + rechts", "Prijs excl. btw": 600.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Linkse gevelpannen", "Prijs excl. btw": 300.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Rechtse gevelpannen", "Prijs excl. btw": 300.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Nelskamp halfronde vorst Antraciet (21 st, keramisch)", "Prijs excl. btw": 700.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Gootbeugels", "Prijs excl. btw": 400.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Zinken bakgoot b37 (14 m¹)", "Prijs excl. btw": 1200.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panhaken (RVS, NEN 6707)", "Prijs excl. btw": 300.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: regenpijpen zink vervangen (optie €1.400)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: dakdoorvoer (rookgas, CV) — optie €400 extern", "Prijs excl. btw": 0.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: kunstlood dakkapel vernieuwen (optie €700/dakkapel)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: dakdoorvoer / rookgas-CV (optie €400, extern)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: regenpijpen zink vervangen (optie €1.400)", "Prijs excl. btw": 0.0, "Btw %": 21},
 ]
 
 # Should-cost (bottom-up) voor een hellend pannendak vervangen INCL. isolatie — NL 2025/2026,
@@ -605,9 +615,9 @@ def _dak_fix_albers(offertes, posten):
 
 
 # Eenmalige correctie: Albers-mis-parse + dubbele/variant-posten van Westermeer opschonen.
-if st.session_state.get("dak_migr", 0) < 6:
+if st.session_state.get("dak_migr", 0) < 7:
     _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
-    st.session_state["dak_migr"] = 6
+    st.session_state["dak_migr"] = 7
     try:
         _persist()
     except Exception:  # noqa: BLE001
@@ -1427,32 +1437,46 @@ with tab_dak:
             _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
             _rows.insert(_ix, {"Onderdeel": f"{_pt} pannen — materiaal", "Laag": _plo, "Hoog": _phi})
             _rb = pd.DataFrame(_rows)
+            _rb["Gem."] = (_rb["Laag"] + _rb["Hoog"]) / 2.0
             _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
-            st.dataframe(_rb, use_container_width=True, hide_index=True,
-                         column_config={"Laag": st.column_config.NumberColumn("Laag (€/m²)", format="€%.0f"),
-                                        "Hoog": st.column_config.NumberColumn("Hoog (€/m²)", format="€%.0f")})
-            # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico.
-            _ak_lo, _ak_hi = _dlo * DAK_RENO_AK, _dhi * DAK_RENO_AK
-            _wr_lo, _wr_hi = (_dlo + _ak_lo) * DAK_RENO_WR, (_dhi + _ak_hi) * DAK_RENO_WR
-            _slo, _shi = _dlo + _ak_lo + _wr_lo, _dhi + _ak_hi + _wr_hi  # should-price excl. btw €/m²
-            _btw_lo, _btw_hi = _slo * DAK_RENO_BTW, _shi * DAK_RENO_BTW
-            _silo, _sihi = _slo + _btw_lo, _shi + _btw_hi  # should-price incl. btw €/m²
+            _dme = float(_rb["Gem."].sum())
+            # Scope-lijnen + TOTAAL-rij, met LCL (laag) / Mean / UCL (hoog) per m².
+            _rb_show = pd.concat([_rb, pd.DataFrame(
+                [{"Onderdeel": "TOTAAL directe kosten", "Laag": _dlo, "Gem.": _dme, "Hoog": _dhi}])],
+                ignore_index=True)[["Onderdeel", "Laag", "Gem.", "Hoog"]]
+            st.dataframe(_rb_show, use_container_width=True, hide_index=True,
+                         column_config={"Laag": st.column_config.NumberColumn("LCL (€/m²)", format="€%.0f"),
+                                        "Gem.": st.column_config.NumberColumn("Mean (€/m²)", format="€%.0f"),
+                                        "Hoog": st.column_config.NumberColumn("UCL (€/m²)", format="€%.0f")})
+            # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico (LCL/Mean/UCL).
+            _ak_lo, _ak_me, _ak_hi = _dlo * DAK_RENO_AK, _dme * DAK_RENO_AK, _dhi * DAK_RENO_AK
+            _wr_lo, _wr_me, _wr_hi = ((_dlo + _ak_lo) * DAK_RENO_WR, (_dme + _ak_me) * DAK_RENO_WR,
+                                      (_dhi + _ak_hi) * DAK_RENO_WR)
+            _slo, _sme, _shi = _dlo + _ak_lo + _wr_lo, _dme + _ak_me + _wr_me, _dhi + _ak_hi + _wr_hi  # excl. btw €/m²
+            _btw_lo, _btw_me, _btw_hi = _slo * DAK_RENO_BTW, _sme * DAK_RENO_BTW, _shi * DAK_RENO_BTW
+            _silo, _sime, _sihi = _slo + _btw_lo, _sme + _btw_me, _shi + _btw_hi  # incl. btw €/m²
             _opb = pd.DataFrame([
-                {"Opbouw": "Directe kosten (materiaal + arbeid)", "Laag (€/m²)": _dlo, "Hoog (€/m²)": _dhi},
-                {"Opbouw": f"+ Algemene kosten ({DAK_RENO_AK * 100:.0f}%)", "Laag (€/m²)": _ak_lo, "Hoog (€/m²)": _ak_hi},
-                {"Opbouw": f"+ Winst & risico ({DAK_RENO_WR * 100:.0f}%)", "Laag (€/m²)": _wr_lo, "Hoog (€/m²)": _wr_hi},
-                {"Opbouw": "= Should-price excl. btw", "Laag (€/m²)": _slo, "Hoog (€/m²)": _shi},
-                {"Opbouw": f"+ BTW ({DAK_RENO_BTW * 100:.0f}%)", "Laag (€/m²)": _btw_lo, "Hoog (€/m²)": _btw_hi},
-                {"Opbouw": "= Should-price incl. btw", "Laag (€/m²)": _silo, "Hoog (€/m²)": _sihi},
+                {"Opbouw": "Directe kosten (materiaal + arbeid)", "LCL (€/m²)": _dlo, "Mean (€/m²)": _dme, "UCL (€/m²)": _dhi},
+                {"Opbouw": f"+ Algemene kosten ({DAK_RENO_AK * 100:.0f}%)", "LCL (€/m²)": _ak_lo, "Mean (€/m²)": _ak_me, "UCL (€/m²)": _ak_hi},
+                {"Opbouw": f"+ Winst & risico ({DAK_RENO_WR * 100:.0f}%)", "LCL (€/m²)": _wr_lo, "Mean (€/m²)": _wr_me, "UCL (€/m²)": _wr_hi},
+                {"Opbouw": "= Should-price excl. btw", "LCL (€/m²)": _slo, "Mean (€/m²)": _sme, "UCL (€/m²)": _shi},
+                {"Opbouw": f"+ BTW ({DAK_RENO_BTW * 100:.0f}%)", "LCL (€/m²)": _btw_lo, "Mean (€/m²)": _btw_me, "UCL (€/m²)": _btw_hi},
+                {"Opbouw": "= Should-price incl. btw", "LCL (€/m²)": _silo, "Mean (€/m²)": _sime, "UCL (€/m²)": _sihi},
             ])
             st.dataframe(_opb, use_container_width=True, hide_index=True,
-                         column_config={"Laag (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
-                                        "Hoog (€/m²)": st.column_config.NumberColumn(format="€%.0f")})
-            rc = st.columns(2)
-            rc[0].metric("Should-price excl. btw", f"€{_slo:.0f}–€{_shi:.0f}/m²")
-            rc[1].metric("Should-price incl. btw", f"€{_silo:.0f}–€{_sihi:.0f}/m²")
-            st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw → "
-                       f"**{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw**.")
+                         column_config={"LCL (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
+                                        "Mean (€/m²)": st.column_config.NumberColumn(format="€%.0f"),
+                                        "UCL (€/m²)": st.column_config.NumberColumn(format="€%.0f")})
+            rc = st.columns(3)
+            rc[0].metric("Should-price excl. btw (mean)", f"€{_sme:.0f}/m²",
+                         f"LCL €{_slo:.0f} – UCL €{_shi:.0f}", delta_color="off")
+            rc[1].metric("Should-price incl. btw (mean)", f"€{_sime:.0f}/m²",
+                         f"LCL €{_silo:.0f} – UCL €{_sihi:.0f}", delta_color="off")
+            rc[2].metric(f"Totaal incl. btw — {dak_opp:.0f} m² (mean)", eur(_sime * dak_opp),
+                         f"{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)}", delta_color="off")
+            st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw "
+                       f"(mean {eur(_sme * dak_opp)}) → **{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw "
+                       f"(mean {eur(_sime * dak_opp)})**.")
             _wm_m2 = 15000.0 / dak_opp  # dakrenovatie-deel van Westermeer (zonder lood/vogelwering)
             _wm_v = ("🟢 marktconform" if _wm_m2 <= _shi
                      else "🟡 aan de hoge kant" if _wm_m2 <= _shi * 1.25 else "🔴 fors boven should-price")
@@ -1481,7 +1505,7 @@ with tab_dak:
                        "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
                        "vogelwering apart. Indicatie, geen offerte.")
             st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                               m.df_to_excel_bytes({"Directe kosten": _rb, "Opbouw should-price": _opb}),
+                               m.df_to_excel_bytes({"Directe kosten": _rb_show, "Opbouw should-price": _opb}),
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
@@ -1690,10 +1714,11 @@ with tab_dak:
         _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
         _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
         _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
+        _af_key = f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}"
         _af = st.data_editor(
             pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
             use_container_width=True,
-            key=f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}",
+            key=_af_key,
             column_config={
                 "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
                 "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
@@ -1701,8 +1726,33 @@ with tab_dak:
                 "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
                 "Notitie": st.column_config.TextColumn(width="large"),
             })
+        # Een rij verwijderen = de afspraak op 'Geannuleerd' zetten (zacht verwijderen): de
+        # afspraak blijft bewaard in de log/Excel, maar valt uit het overzicht geplande bezoeken.
+        _deleted = (st.session_state.get(_af_key) or {}).get("deleted_rows", []) or []
+        _geannuleerd = []
+        for _i in _deleted:
+            if 0 <= _i < len(_zichtbaar):
+                _row = dict(_zichtbaar[_i])
+                if str(_row.get("Bedrijf") or "").strip() and str(_row.get("Status") or "") != "Geannuleerd":
+                    _row["Status"] = "Geannuleerd"
+                    _geannuleerd.append(_row)
         _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-        st.session_state["dak_afspraken"] = _verborgen + _af_rows
+        _nieuw_afspr = _verborgen + _af_rows + _geannuleerd
+        if _nieuw_afspr != st.session_state.get("dak_afspraken"):
+            # Een wijziging in de tabel (rij geannuleerd of bewerkt) meteen vastleggen,
+            # zodat de aanpassing ook na herladen behouden blijft.
+            st.session_state["dak_afspraken"] = _nieuw_afspr
+            try:
+                _persist()
+            except Exception:  # noqa: BLE001
+                pass
+            if _geannuleerd:
+                # Editor opnieuw opbouwen: de geannuleerde afspraak komt terug in beeld (status
+                # Geannuleerd) en de verwijder-markering uit de oude editor-state vervalt.
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                st.rerun()
+        else:
+            st.session_state["dak_afspraken"] = _nieuw_afspr
         if _verborgen:
             st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
                        "(blijven wel bewaard).")
@@ -2109,7 +2159,7 @@ with tab_dak:
             _off_by[_SC] = {"Bedrijf": _SC, "Excl. btw": round(_scx), "Incl. btw": round(_scx + _scb),
                             "Isolatie": "Rd ≥ 3,5 (norm)", "Garantie": "—"}
             st.info(f"📐 **Should-cost band (LCL–UCL):** €{_sc_lcl_i:.0f} – €{_sc_ucl_i:.0f} incl. btw "
-                    f"(€{_sc_lcl_i / dak_opp:.0f} – €{_sc_ucl_i / dak_opp:.0f}/m²) · midpunt "
+                    f"(€{_sc_lcl_i / dak_opp:.0f} – €{_sc_ucl_i / dak_opp:.0f}/m²) · mean (midpunt) "
                     f"€{round(_scx + _scb):.0f}. LCL = efficiënt/scherp, UCL = bovengrens. Een offerte **boven de "
                     f"UCL** is duur; **binnen de band** is marktconform.")
             _hl = []
