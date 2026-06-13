@@ -592,16 +592,48 @@ def _bag3d_fig(text, x=None, y=None):
         return [(v[0], v[1], v[2]) for v in verts]
 
     rverts = [_realverts(f) for f in feats]
-    if x is not None and y is not None and len(feats) > 1:
-        def _d2(rv):
-            if not rv:
-                return float("inf")
-            cx, cy = sum(p[0] for p in rv) / len(rv), sum(p[1] for p in rv) / len(rv)
-            return (cx - x) ** 2 + (cy - y) ** 2
-        _best = min(range(len(feats)), key=lambda i: _d2(rverts[i]))
-        feats, rverts = [feats[_best]], [rverts[_best]]
-    X, Y, Z, roof, other, pids = [], [], [], [], [], []
-    roof_tot = roof_sl = roof_fl = 0.0
+
+    def _lod(obj):
+        geoms = obj.get("geometry") or []
+        if not geoms:
+            return None
+        return next((c for c in geoms if str(c.get("lod")) in ("2.2", "2")), None) \
+            or max(geoms, key=lambda c: float(str(c.get("lod", "0")) or 0))
+
+    def _flat_idx(o, acc):
+        if isinstance(o, int):
+            acc.append(o)
+        elif isinstance(o, list):
+            for e in o:
+                _flat_idx(e, acc)
+
+    # Verzamel per geometrie-object (BuildingPart) het pand-id en het zwaartepunt, zodat we één
+    # pand kunnen kiezen — ook als alle buurpanden in één feature met gedeelde vertices zitten.
+    units = []
+    for _fi, feat in enumerate(feats):
+        rv = rverts[_fi]
+        for oid, obj in (feat.get("CityObjects", {}) or {}).items():
+            g = _lod(obj)
+            if not g:
+                continue
+            _ix = []
+            _flat_idx(g.get("boundaries", []) or [], _ix)
+            _ix = [i for i in _ix if 0 <= i < len(rv)]
+            if not _ix:
+                continue
+            cx = sum(rv[i][0] for i in _ix) / len(_ix)
+            cy = sum(rv[i][1] for i in _ix) / len(_ix)
+            units.append({"pid": oid.split("-")[0], "fi": _fi, "g": g, "cx": cx, "cy": cy})
+
+    _allpids = {u["pid"] for u in units if "Pand." in u["pid"]}
+    sel_pid = None
+    if x is not None and y is not None and len(_allpids) > 1 and units:
+        sel_pid = min(units, key=lambda u: (u["cx"] - x) ** 2 + (u["cy"] - y) ** 2)["pid"]
+    sel_units = [u for u in units if (sel_pid is None or u["pid"] == sel_pid)]
+    pids = sorted({u["pid"] for u in sel_units})
+
+    X, Y, Z, roof, other = [], [], [], [], []
+    roof_tot = roof_sl = roof_fl = foot = 0.0
 
     def _fan(ring, off, bucket):
         if ring and len(ring) >= 3:
@@ -621,47 +653,43 @@ def _bag3d_fig(text, x=None, y=None):
             return 0.0, 0.0
         return mag / 2.0, math.degrees(math.acos(min(1.0, abs(nz) / mag)))
 
-    for feat, rv in zip(feats, rverts):
+    for u in sel_units:
+        rv = rverts[u["fi"]]
+        g = u["g"]
         off = len(X)
         X += [p[0] for p in rv]
         Y += [p[1] for p in rv]
         Z += [p[2] for p in rv]
-        for oid, obj in (feat.get("CityObjects", {}) or {}).items():
-            if "Pand." in oid and obj.get("type") == "Building":
-                pids.append(oid)
-            geoms = obj.get("geometry") or []
-            if not geoms:
-                continue
-            g = next((c for c in geoms if str(c.get("lod")) in ("2.2", "2")), None) \
-                or max(geoms, key=lambda c: float(str(c.get("lod", "0")) or 0))
-            gtype, bnd = g.get("type"), g.get("boundaries", []) or []
-            sem = g.get("semantics") or {}
-            surfaces, values = sem.get("surfaces") or [], sem.get("values")
+        gtype, bnd = g.get("type"), g.get("boundaries", []) or []
+        sem = g.get("semantics") or {}
+        surfaces, values = sem.get("surfaces") or [], sem.get("values")
 
-            def _stype(idx):
-                try:
-                    return surfaces[idx].get("type") if idx is not None else None
-                except (IndexError, TypeError):
-                    return None
-            if gtype == "Solid":
-                shells, vshells = bnd, (values or [])
-            elif gtype in ("MultiSurface", "CompositeSurface"):
-                shells, vshells = [bnd], [values]
-            else:
-                shells, vshells = [], []
-            for si, shell in enumerate(shells):
-                svals = vshells[si] if (vshells and si < len(vshells)) else None
-                for fi, face in enumerate(shell):
-                    stype = _stype(svals[fi] if (svals and fi < len(svals)) else None)
-                    ring = face[0] if face else []
-                    _fan(ring, off, roof if stype == "RoofSurface" else other)
-                    if stype == "RoofSurface" and len(ring) >= 3:
-                        _a, _tilt = _area_tilt([rv[_i] for _i in ring])
-                        roof_tot += _a
-                        if _tilt <= 20.0:        # bijna plat → dakkapeltop / plat dak
-                            roof_fl += _a
-                        elif _tilt < 80.0:       # hellend dakvlak → krijgt pannen
-                            roof_sl += _a
+        def _stype(idx):
+            try:
+                return surfaces[idx].get("type") if idx is not None else None
+            except (IndexError, TypeError):
+                return None
+        if gtype == "Solid":
+            shells, vshells = bnd, (values or [])
+        elif gtype in ("MultiSurface", "CompositeSurface"):
+            shells, vshells = [bnd], [values]
+        else:
+            shells, vshells = [], []
+        for si, shell in enumerate(shells):
+            svals = vshells[si] if (vshells and si < len(vshells)) else None
+            for fi, face in enumerate(shell):
+                stype = _stype(svals[fi] if (svals and fi < len(svals)) else None)
+                ring = face[0] if face else []
+                _fan(ring, off, roof if stype == "RoofSurface" else other)
+                if len(ring) >= 3 and stype == "RoofSurface":
+                    _a, _tilt = _area_tilt([rv[_i] for _i in ring])
+                    roof_tot += _a
+                    if _tilt <= 20.0:        # bijna plat → dakkapeltop / plat dak
+                        roof_fl += _a
+                    elif _tilt < 80.0:       # hellend dakvlak → krijgt pannen
+                        roof_sl += _a
+                elif len(ring) >= 3 and stype == "GroundSurface":
+                    foot += _area_tilt([rv[_i] for _i in ring])[0]
     if X:
         cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
         X = [v - cx for v in X]
@@ -677,7 +705,7 @@ def _bag3d_fig(text, x=None, y=None):
     fig.update_layout(scene=dict(aspectmode="data", xaxis_title="x (m)", yaxis_title="y (m)",
                                  zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=460)
     return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids)),
-                 "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl}
+                 "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl, "footprint_m2": foot}
 
 
 def _ics_unfold(text):
@@ -1509,6 +1537,9 @@ with tab_dak:
         if _v:
             st.session_state["dak_opp"] = float(round(_v))
 
+    def _dak_apply_foot():
+        st.session_state["dak_perc_huis"] = float(round(st.session_state.get("dak_bag_footprint", 0.0)))
+
     with st.expander("📐 Dakoppervlak berekenen uit Google Maps", expanded=False):
         st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
                    "*Afstand meten* en klik de dakomtrek rond. Een hellend dak is gróter dan die platte footprint: "
@@ -1625,6 +1656,7 @@ with tab_dak:
                                f"{_info3['faces']} vlakken ({_info3['roof']} dak). Officieel 3D BAG LoD 2.2-model "
                                "(blokkig); sleep om te draaien.")
                     st.plotly_chart(_fig3, use_container_width=True)
+                    st.session_state["dak_bag_footprint"] = float(_info3.get("footprint_m2", 0.0))
                     _slope = float(_info3.get("roof_sloped_m2", 0.0))
                     st.markdown("**Dakvlak & pannen uit het 3D BAG-model (LoD 2.2)**")
                     _bm = st.columns(3)
@@ -1647,6 +1679,46 @@ with tab_dak:
                     st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
             except Exception as exc:  # noqa: BLE001
                 st.error(f"3D BAG-model laden mislukt: {exc}")
+
+    with st.expander("📐 Perceel — oppervlakten (huis, tuin, schuur, carport, voortuin)", expanded=False):
+        st.caption("Verdeel je kavel. Het **huis-footprint** komt automatisch uit het 3D BAG-model hierboven "
+                   "(haal dat eerst op). Schuur, carport en de voor/achter-verdeling staan niet in open data — die "
+                   "vul je zelf in; de achtertuin/rest reken ik uit.")
+        _fp = float(st.session_state.get("dak_bag_footprint", 0.0))
+        st.session_state.setdefault("dak_perc_huis", float(round(_fp)))
+        _pp = st.columns(2)
+        _perc = _pp[0].number_input("Perceel totaal (m²)", min_value=0.0, max_value=10000.0, step=1.0,
+                                    key="dak_perc_tot", help="Bron: Kadaster (kadastrale grootte) of je koopakte/WOZ.")
+        _huis = _pp[1].number_input("Huis — footprint (m²)", min_value=0.0, max_value=5000.0, step=1.0,
+                                    key="dak_perc_huis", help="Automatisch uit het 3D BAG-model; pas aan indien nodig.")
+        if _fp > 0:
+            _pp[1].button(f"📥 Neem BAG-footprint over ({_fp:.0f} m²)", key="dak_perc_huis_apply",
+                          on_click=_dak_apply_foot)
+        _p2 = st.columns(3)
+        _schuur = _p2[0].number_input("Schuur/berging (m²)", min_value=0.0, max_value=2000.0, step=1.0, key="dak_perc_schuur")
+        _carport = _p2[1].number_input("Carport (m²)", min_value=0.0, max_value=2000.0, step=1.0, key="dak_perc_carport")
+        _voor = _p2[2].number_input("Voortuin (m²)", min_value=0.0, max_value=5000.0, step=1.0, key="dak_perc_voor")
+        _bebouwd = _huis + _schuur + _carport
+        _rest = _perc - _bebouwd - _voor
+        _prows = [{"Onderdeel": "Huis (footprint)", "m²": round(_huis, 1)},
+                  {"Onderdeel": "Schuur / berging", "m²": round(_schuur, 1)},
+                  {"Onderdeel": "Carport", "m²": round(_carport, 1)},
+                  {"Onderdeel": "Voortuin", "m²": round(_voor, 1)},
+                  {"Onderdeel": "Achtertuin / resterend", "m²": round(_rest, 1)},
+                  {"Onderdeel": "Perceel totaal", "m²": round(_perc, 1)}]
+        _pdf = pd.DataFrame(_prows)
+        st.dataframe(_pdf, hide_index=True, use_container_width=True,
+                     column_config={"m²": st.column_config.NumberColumn(format="%.1f m²")})
+        if _perc > 0:
+            st.bar_chart(_pdf[~_pdf["Onderdeel"].eq("Perceel totaal")].set_index("Onderdeel"),
+                         use_container_width=True)
+            st.caption(f"Bebouwd (huis + schuur + carport): {_bebouwd:.0f} m² ({100 * _bebouwd / _perc:.0f}% van "
+                       f"het perceel) · tuin (voor + achter): {_voor + max(_rest, 0.0):.0f} m².")
+            if _rest < -0.5:
+                st.warning("De onderdelen samen zijn groter dan het perceel — controleer de invoer.")
+        st.download_button("⬇️ Download perceel-overzicht (Excel)", m.df_to_excel_bytes({"Perceel": _pdf}),
+                           file_name="perceel_oppervlakten.xlsx", key="dak_perc_xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
