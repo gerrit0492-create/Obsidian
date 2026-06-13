@@ -221,10 +221,11 @@ DAK_RENO_PANTYPE = {
 }
 
 # Dekkend aantal pannen per m² (LCL–UCL) per type — om een geoffreerd pannenaantal te toetsen aan het
-# dakoppervlak. Grootformaat betonpan (bv. Sneldek) ligt rond ~10/m²; standaard keramische pan hoger.
+# dakoppervlak (bron: Sleiderink / dakpanrichtlijnen). Holle keramisch & OVH liggen hoger dan vlakke/beton.
 DAK_RENO_PANNEN_PER_M2 = {
-    "Keramisch (antraciet)": (12.0, 16.0),
-    "Betonpan (antraciet)": (9.0, 11.0),
+    "Betonpan / Sneldek": (10.0, 12.0),
+    "Keramisch vlak": (10.0, 12.0),
+    "Keramisch hol / OVH": (14.0, 16.0),
 }
 
 # Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — gesynchroniseerd met de DePoorter-agenda.
@@ -1714,8 +1715,8 @@ with tab_dak:
                    "De achterzijde-dakkapel is hier 1,2 m uitgebouwd → breedte × 1,2 m extra dakvlak.")
 
     with st.expander("🧱 Pannen-check — klopt het geoffreerde aantal dakpannen?", expanded=False):
-        st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Het dekkend aantal per m² hangt "
-                   "af van het pantype: grootformaat betonpan ~9–11/m², standaard keramisch ~12–16/m².")
+        st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Dekkend aantal per m² (bron "
+                   "dakpanrichtlijnen): beton/Sneldek & vlakke keramisch **10–12**, holle keramisch / OVH **14–16**.")
         _pc = st.columns(2)
         _pct = _pc[0].selectbox("Pantype", list(DAK_RENO_PANNEN_PER_M2), key="dak_pannen_type")
         _pp_lo, _pp_hi = DAK_RENO_PANNEN_PER_M2[_pct]
@@ -1804,8 +1805,8 @@ with tab_dak:
                     _bc = st.columns(3)
                     _cpw = _bc[0].number_input("Carport breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_bag_cpw")
                     _cph = _bc[1].number_input("Carport langs helling (m)", 0.0, 50.0, 2.0, 0.1, key="dak_bag_cph")
-                    _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
-                                               help="Sneldek/betonpan ≈ 10/m²; keramisch vaak 12–16/m².")
+                    _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 11.0, 0.5, key="dak_bag_ppm",
+                                               help="Beton/Sneldek & vlakke keramisch 10–12; holle keramisch / OVH 14–16.")
                     _extra = _cpw * _cph
                     _tarea = _slope + _extra
                     st.metric("Pannen-aantal (hellend dakvlak + carport-patch)", f"{round(_tarea * _ppm)} pannen",
