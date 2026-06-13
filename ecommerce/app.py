@@ -1858,13 +1858,38 @@ with tab_dak:
                         _planmaanden.add((_pm.year, _pm.month))
                     except Exception:  # noqa: BLE001
                         continue
-                st.markdown("**📅 Weekoverzicht — geplande bezoeken**")
-                for _jr, _mn in sorted(_planmaanden):
-                    _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
-                _legenda = "Kleur per status: 🟦 gepland · 🟩 uitgevoerd · 🟧 offerte ontvangen/wachten · ⬜ geannuleerd"
+                _mnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+                _emo = {"Bezoek gepland": "🔵", "Bezoek uitgevoerd": "✅", "Offerte ontvangen": "🟠",
+                        "Wachten op offerte": "🟠", "Geannuleerd": "⚪"}
+                _today = _date.today()
+                _plan = sorted((_date.fromisoformat(k), t, b) for k in _per_dag for t, b, s in _per_dag[k]
+                               if s == "Bezoek gepland")
+                _upcoming = [x for x in _plan if x[0] >= _today]
+                st.markdown("**📅 Agenda — geplande bezoeken**")
+                _sum = f"**{len(_plan)}** gepland bezoek" + ("en" if len(_plan) != 1 else "")
+                if _upcoming:
+                    _nx = _upcoming[0]
+                    _sum += f" · eerstvolgende **{_nx[0].day} {_mnd[_nx[0].month - 1]}** — {_nx[2]}"
                 if _conf_dat:
-                    _legenda += " · 🟥 / ⚠️ planning-conflict (overlap of < 1 uur ertussen)"
-                st.caption(_legenda)
+                    _sum += f" · ⚠️ **{len(_conf_dat)}** dag(en) met conflict"
+                st.caption(_sum)
+                _lines = []
+                for _iso in sorted(_per_dag):
+                    _d = _date.fromisoformat(_iso)
+                    _chips = []
+                    for _t, _b, _s in _per_dag[_iso]:
+                        _e = "⚠️" if _iso in _conf_dat else _emo.get(_s, "•")
+                        _bb = f"~~{_b}~~" if _s == "Geannuleerd" else _b
+                        _chips.append(f"{_e} {(_t + ' ') if _t else ''}{_bb}")
+                    _pre = "🔴 " if _iso in _conf_dat else ("· " if _d < _today else "")
+                    _lines.append(f"{_pre}**{_dagen[_d.weekday()]} {_d.day} {_mnd[_d.month - 1]}** — "
+                                  + " · ".join(_chips))
+                st.markdown("  \n".join(_lines) if _lines else "_Nog geen afspraken in beeld._")
+                st.caption("🔵 gepland · ✅ uitgevoerd · 🟠 offerte/wachten · ⚪ geannuleerd"
+                           + (" · 🔴 ⚠️ conflict" if _conf_dat else ""))
+                with st.expander("🗓️ Maandkalender (visueel)", expanded=False):
+                    for _jr, _mn in sorted(_planmaanden):
+                        _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
                 # platte rijen (alleen plan-maanden) voor de Excel-export
                 for _iso in sorted(_per_dag):
                     _dd = _date.fromisoformat(_iso)
