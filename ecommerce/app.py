@@ -328,6 +328,44 @@ def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
                              unsafe_allow_html=True)
 
 
+def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0):
+    """Schematisch 3D-model van een gezadeld pannendak (muren + twee dakschilden + optionele dakkapel).
+
+    L = nokrichting (m), B = breedte gevel-tot-gevel (m), pitch_deg = dakhelling. De dakkapel zit op het
+    achterschild, breedte dk_br en uitbouw dk_di. Puur visueel/indicatief — geen bouwtekening.
+    """
+    pitch = math.radians(max(0.0, min(pitch_deg, 75.0)))
+    apex = wall_h + (B / 2.0) * math.tan(pitch)
+    V = [(0, 0, 0), (L, 0, 0), (L, B, 0), (0, B, 0),                  # 0-3 grondvlak
+         (0, 0, wall_h), (L, 0, wall_h), (L, B, wall_h), (0, B, wall_h),  # 4-7 dakvoet
+         (0, B / 2, apex), (L, B / 2, apex)]                          # 8-9 nok
+    xs, ys, zs = [v[0] for v in V], [v[1] for v in V], [v[2] for v in V]
+    roof = [(4, 5, 9), (4, 9, 8), (7, 6, 9), (7, 9, 8)]
+    walls = [(0, 1, 5), (0, 5, 4), (3, 2, 6), (3, 6, 7), (0, 3, 7), (0, 7, 4),
+             (1, 2, 6), (1, 6, 5), (4, 7, 8), (5, 6, 9)]
+    fig = go.Figure()
+    fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=[t[0] for t in walls], j=[t[1] for t in walls],
+                            k=[t[2] for t in walls], color="#d9c7a3", flatshading=True, name="muren"))
+    fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=[t[0] for t in roof], j=[t[1] for t in roof],
+                            k=[t[2] for t in roof], color="#3a3f44", flatshading=True, name="dakvlak"))
+    if dk_br > 0 and dk_di > 0:
+        xc = L / 2.0
+        x0, x1 = max(0.0, xc - dk_br / 2), min(L, xc + dk_br / 2)
+        yi = B * 0.58
+        yo = min(B * 0.95, yi + dk_di)
+        z_top = max(wall_h + 0.3, min(apex - (yi - B / 2) * math.tan(pitch), apex - 0.2))
+        DV = [(x0, yi, wall_h), (x1, yi, wall_h), (x1, yo, wall_h), (x0, yo, wall_h),
+              (x0, yi, z_top), (x1, yi, z_top), (x1, yo, z_top), (x0, yo, z_top)]
+        cub = [(0, 1, 2), (0, 2, 3), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
+               (3, 2, 6), (3, 6, 7), (0, 3, 7), (0, 7, 4), (1, 2, 6), (1, 6, 5)]
+        fig.add_trace(go.Mesh3d(x=[v[0] for v in DV], y=[v[1] for v in DV], z=[v[2] for v in DV],
+                                i=[t[0] for t in cub], j=[t[1] for t in cub], k=[t[2] for t in cub],
+                                color="#9fb0bb", flatshading=True, name="dakkapel"))
+    fig.update_layout(scene=dict(aspectmode="data", xaxis_title="lengte (m)", yaxis_title="breedte (m)",
+                                 zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=440)
+    return fig
+
+
 def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi, sc_lo=None, sc_hi=None, sc_mid=None):
     """Twee staafdiagrammen: totaal incl. btw per offerte + €/m² t.o.v. de markt- en should-cost band."""
     import io
@@ -1393,6 +1431,23 @@ with tab_dak:
             st.warning(f"🟡 {_stated} pannen ligt **boven** de verwachting ({_exp_lo:.0f}–{_exp_hi:.0f}) — "
                        f"impliceert ~{_stated / _pp:.0f} m². Meer dakvlak (dakkapel/erker) of kleinere pannen; "
                        f"check de specificatie.")
+
+    with st.expander("🏠 3D-aanzicht van het dak", expanded=False):
+        _3l = st.session_state.get("dak_calc_l")
+        _3b = st.session_state.get("dak_calc_b")
+        if not _3l or not _3b:
+            # Geen lengte×breedte ingevuld → leid een vierkante footprint af uit het oppervlak.
+            _area = st.session_state.get("dak_calc_fp") or dak_opp
+            _3l = _3b = math.sqrt(max(float(_area), 1.0))
+        _3pitch = st.session_state.get("dak_calc_pitch", 40)
+        _3on = st.session_state.get("dak_calc_dk_on", True)
+        _3dkbr = st.session_state.get("dak_calc_dk_br", 3.0) if _3on else 0.0
+        _3dkdi = st.session_state.get("dak_calc_dk_di", 1.2) if _3on else 0.0
+        st.plotly_chart(_dak_roof_3d_fig(float(_3l), float(_3b), float(_3pitch), 3.0, float(_3dkbr), float(_3dkdi)),
+                        use_container_width=True)
+        st.caption("Schematisch 3D-model op basis van de afmetingen uit de rekenhulp hierboven (lengte × breedte, "
+                   "dakhelling en de dakkapel-uitbouw aan de achterzijde). Sleep om te draaien/zoomen. "
+                   "Indicatief — geen bouwtekening.")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
