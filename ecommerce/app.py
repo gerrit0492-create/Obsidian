@@ -882,6 +882,12 @@ def _ics_dt(val, key):
         return "", ""
 
 
+def _afspr_key(r):
+    """Sleutel om afspraken te ontdubbelen: bedrijf (genormaliseerd) + datum + tijd."""
+    return (str(r.get("Bedrijf") or "").strip().lower(),
+            str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip())
+
+
 def _ics_dak_afspraken(text, keyword="dak", today=None, min_datum=None):
     """Afspraken uit iCal waarvan de titel het trefwoord bevat en datum >= min_datum."""
     from datetime import date
@@ -2458,8 +2464,13 @@ with tab_dak:
                     try:
                         _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
                                                   min_datum=_vanaf_s)
-                        _have = {(r.get("Datum"), r.get("Tijd")) for r in st.session_state.get("dak_afspraken", [])}
-                        _added = [r for r in _new if (r["Datum"], r["Tijd"]) not in _have]
+                        _have = {_afspr_key(r) for r in st.session_state.get("dak_afspraken", [])}
+                        _added = []
+                        for r in _new:                       # ontdubbel t.o.v. bestaande én binnen de import zelf
+                            k = _afspr_key(r)
+                            if k not in _have:
+                                _have.add(k)
+                                _added.append(r)
                         st.session_state.setdefault("dak_afspraken", [])
                         st.session_state["dak_afspraken"].extend(_added)
                         if _added:
@@ -2498,6 +2509,26 @@ with tab_dak:
                 st.rerun()
             else:
                 st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
+        if st.button("🧹 Dubbele afspraken verwijderen", key="dak_afspr_dedup",
+                     help="Houdt per bedrijf + datum + tijd één afspraak over (bv. dubbel geïmporteerd uit de agenda)."):
+            _seen, _uniq = set(), []
+            for _r in st.session_state.get("dak_afspraken", []):
+                _k = _afspr_key(_r)
+                if _k not in _seen:
+                    _seen.add(_k)
+                    _uniq.append(_r)
+            _dups = len(st.session_state.get("dak_afspraken", [])) - len(_uniq)
+            if _dups:
+                st.session_state["dak_afspraken"] = _uniq
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.success(f"{_dups} dubbele afspra(a)k(en) verwijderd.")
+                st.rerun()
+            else:
+                st.info("Geen dubbele afspraken gevonden.")
         if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
             try:
                 _persist()
