@@ -153,20 +153,6 @@ def _offerte_pdf_path(orow):
 
 DAK_MARKT_LO, DAK_MARKT_HI = 180.0, 260.0  # €/m² incl. btw, NL-indicatie
 
-# Gedetailleerde uitsplitsing van de Westermeer-offerte mét marktindicatie per onderdeel.
-DAK_DETAIL = [
-    {"Onderdeel": "Complete dakrenovatie 60 m² — isolatie Rd 3,8, keramische pannen, tengels/panlatten, afvoer (3,5 m³ container)",
-     "Offerte (excl. btw)": 15000.0, "Eenheidsprijs": "€250/m²",
-     "Marktindicatie (excl. btw)": "€110–160/m² → €6.600–9.600", "Oordeel": "🔴 ~1,5–2× markt"},
-    {"Onderdeel": "Loodwerk dakkapel voorzijde (loodaansluiting rondom)",
-     "Offerte (excl. btw)": 900.0, "Eenheidsprijs": "post",
-     "Marktindicatie (excl. btw)": "loodslab €85–300/m²", "Oordeel": "🟡 tot hoge kant"},
-    {"Onderdeel": "Vogelwering (≈ 12 m)",
-     "Offerte (excl. btw)": 780.0, "Eenheidsprijs": "€65/m",
-     "Marktindicatie (excl. btw)": "€15–35/m → €180–420", "Oordeel": "🔴 ~2–4× markt"},
-]
-DAK_SUBTOTAAL, DAK_BTW, DAK_TOTAAL = 16680.0, 3502.80, 20182.80
-
 # Posten per offerte (lang formaat) — voor de onderlinge vergelijking met scope-verschillen.
 DAK_POSTEN_DEFAULT = [
     {"Bedrijf": "Dakbedrijf Westermeer", "Onderdeel": "Complete dakrenovatie (60 m²) — keramische betonpannen [bundelprijs]", "Prijs excl. btw": 15000.0, "Btw %": 21},
@@ -195,7 +181,7 @@ DAK_POSTEN_DEFAULT = [
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Panhaken (RVS, NEN 6707)", "Prijs excl. btw": 300.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: regenpijpen zink vervangen (optie €1.400)", "Prijs excl. btw": 0.0, "Btw %": 21},
     {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: kunstlood dakkapel vernieuwen (optie €700/dakkapel)", "Prijs excl. btw": 0.0, "Btw %": 21},
-    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: dakdoorvoer/rookgasafvoer (optie €400, extern)", "Prijs excl. btw": 0.0, "Btw %": 21},
+    {"Bedrijf": "B. Albers Dakwerken", "Onderdeel": "Stelpost: dakdoorvoer / rookgas-CV (optie €400, extern)", "Prijs excl. btw": 0.0, "Btw %": 21},
 ]
 
 # Should-cost (bottom-up) voor een hellend pannendak vervangen INCL. isolatie — NL 2025/2026,
@@ -619,9 +605,9 @@ def _dak_fix_albers(offertes, posten):
 
 
 # Eenmalige correctie: Albers-mis-parse + dubbele/variant-posten van Westermeer opschonen.
-if st.session_state.get("dak_migr", 0) < 5:
+if st.session_state.get("dak_migr", 0) < 6:
     _dak_fix_albers(st.session_state["dakofferte"], st.session_state["dak_posten"])
-    st.session_state["dak_migr"] = 5
+    st.session_state["dak_migr"] = 6
     try:
         _persist()
     except Exception:  # noqa: BLE001
@@ -2066,11 +2052,10 @@ with tab_dak:
             def _cover(hits):
                 if not hits:
                     return "—"
-                if hits and all("stelpost" in str(p.get("Onderdeel") or "").lower() for p in hits) \
+                if all("stelpost" in str(p.get("Onderdeel") or "").lower() for p in hits) \
                         and sum(float(p.get("Prijs excl. btw") or 0) for p in hits) == 0:
                     return "stelpost"
-                _pr = sum(float(p.get("Prijs excl. btw") or 0) for p in hits
-                          if "bundel" not in str(p.get("Onderdeel") or "").lower())
+                _pr = sum(float(p.get("Prijs excl. btw") or 0) for p in hits)
                 return f"€{_pr:.0f}" if _pr > 0 else "incl."
             _vrows = []
             for _cat, _ in _CATS:
@@ -2080,29 +2065,18 @@ with tab_dak:
                 _vals = [_row[b] for b in _detbedr]
                 _row["Let op"] = "⚠️ niet bij allen" if ("—" in _vals and any(v != "—" for v in _vals)) else ""
                 _vrows.append(_row)
-            _cmpdf = pd.DataFrame(_vrows)
-            st.dataframe(_cmpdf, use_container_width=True, hide_index=True)
-            st.caption("Per scope-onderdeel: €-bedrag indien apart geprijsd · *incl.* = zit in een bundelprijs · "
-                       "*stelpost* = optie/nog niet vast · *—* = niet in deze offerte. ⚠️ = niet in elke offerte. "
-                       "Indicatief — gebundelde regels kunnen onder één kop vallen; zie het detail hieronder.")
-            # € per scope-onderdeel + totaal (numeriek, excl. btw)
-            _cats_all = [c for c, _ in _CATS] + (["Overig"] if any("Overig" in _assign[b] for b in _detbedr) else [])
-            _eurrows = []
-            for _cat in _cats_all:
-                _row = {"Scope": _cat}
-                for b in _detbedr:
-                    _row[b] = round(sum(float(p.get("Prijs excl. btw") or 0) for p in _assign[b].get(_cat, [])))
-                _eurrows.append(_row)
-            _totrow = {"Scope": "TOTAAL (excl. btw)"}
+            _tot = {"Scope": "TOTAAL (excl. btw)"}
             for b in _detbedr:
-                _totrow[b] = round(sum(float(p.get("Prijs excl. btw") or 0) for p in _byb[b]))
-            _eurrows.append(_totrow)
-            _eurdf = pd.DataFrame(_eurrows)
+                _tot[b] = f"€{round(sum(float(p.get('Prijs excl. btw') or 0) for p in _byb[b])):.0f}"
+            _tot["Let op"] = ""
+            _vrows.append(_tot)
+            _cmpdf = pd.DataFrame(_vrows)
             st.markdown("**€ per scope-onderdeel en totaal (excl. btw)**")
-            st.dataframe(_eurdf, use_container_width=True, hide_index=True,
-                         column_config={b: st.column_config.NumberColumn(format="€%.0f") for b in _detbedr})
-            st.caption("Bedragen excl. btw per onderdeel; €0 = inbegrepen in een bundel of niet apart geprijsd. "
-                       "Onderste rij = totaal per offerte. Westermeer bundelt het meeste onder de dakrenovatie-regel.")
+            st.dataframe(_cmpdf, use_container_width=True, hide_index=True)
+            st.caption("Per scope-onderdeel: €-bedrag indien apart geprijsd · *incl.* = inbegrepen in de "
+                       "bundelprijs · *stelpost* = optie/nog niet vast · *—* = niet in deze offerte. ⚠️ = niet bij "
+                       "elke offerte. Onderste rij = totaal per offerte; Westermeer bundelt de renovatie onder de "
+                       "dakpannen-regel.")
             with st.expander("🔍 Detail per scope-onderdeel — qty · type · kosten per offerte"):
                 for _cat, _ in _CATS:
                     if not any(_assign[b].get(_cat) for b in _detbedr):
@@ -2248,7 +2222,7 @@ with tab_dak:
                                         "Btw %": int(float(p.get("Btw %") or 21))}
                                        for b in _detbedr for p in _byb[b]])
             _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
-                     "Scope-€-matrix": _eurdf, "Posten": _posten_df,
+                     "Posten": _posten_df,
                      "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
                                                     + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
                                                        f"€{_isde2:.0f} (2 maatregelen) voor {dak_opp:.0f} m²"]})}
