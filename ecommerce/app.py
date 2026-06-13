@@ -641,6 +641,7 @@ def _bag3d_fig(text, x=None, y=None):
 
     X, Y, Z, roof, other = [], [], [], [], []
     roof_tot = roof_sl = roof_fl = foot = 0.0
+    foot_rings = []
 
     def _fan(ring, off, bucket):
         if ring and len(ring) >= 3:
@@ -697,6 +698,7 @@ def _bag3d_fig(text, x=None, y=None):
                         roof_sl += _a
                 elif len(ring) >= 3 and stype == "GroundSurface":
                     foot += _area_tilt([rv[_i] for _i in ring])[0]
+                    foot_rings.append([(rv[_i][0], rv[_i][1]) for _i in ring])
     if X:
         cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
         X = [v - cx for v in X]
@@ -715,7 +717,69 @@ def _bag3d_fig(text, x=None, y=None):
                                              eye=dict(x=1.4, y=1.4, z=0.9))),
                       margin=dict(l=0, r=0, t=10, b=0), height=460)
     return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids)),
-                 "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl, "footprint_m2": foot}
+                 "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl, "footprint_m2": foot,
+                 "footprint_rings": foot_rings}
+
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def _perceel_rings(x, y, d=40.0):
+    """Perceelpolygonen (RD) rond een coördinaat via de PDOK Kadastralekaart-WFS. Lijst van buitenringen."""
+    url = ("https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?service=WFS&version=2.0.0"
+           "&request=GetFeature&typeNames=Perceel&srsName=EPSG:28992&count=50&outputFormat=application/json"
+           f"&bbox={x - d:.1f},{y - d:.1f},{x + d:.1f},{y + d:.1f},EPSG:28992")
+    data = json.loads(_fetch_url(url, timeout=25))
+    rings = []
+    for ft in data.get("features", []):
+        geom = ft.get("geometry") or {}
+        gtype, coords = geom.get("type"), geom.get("coordinates") or []
+        polys = [coords] if gtype == "Polygon" else (coords if gtype == "MultiPolygon" else [])
+        for poly in polys:
+            if poly and poly[0]:
+                rings.append([(float(p[0]), float(p[1])) for p in poly[0]])
+    return rings
+
+
+def _ring_contains(ring, px, py):
+    """Punt-in-polygoon (ray casting)."""
+    inside, n, j = False, len(ring), len(ring) - 1
+    for i in range(n):
+        xi, yi = ring[i]
+        xj, yj = ring[j]
+        if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / ((yj - yi) or 1e-12) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _perceel_plan_fig(perceel_rings, house_rings, x=None, y=None):
+    """2D-plattegrond: perceel(en) + huis-footprint, op schaal (gelijke assen, RD-meters)."""
+    fig = go.Figure()
+    own = None
+    if x is not None and y is not None:
+        own = next((i for i, r in enumerate(perceel_rings) if len(r) >= 3 and _ring_contains(r, x, y)), None)
+    for i, r in enumerate(perceel_rings):
+        if len(r) < 3:
+            continue
+        xs = [p[0] for p in r] + [r[0][0]]
+        ys = [p[1] for p in r] + [r[0][1]]
+        if i == own or (own is None and len(perceel_rings) == 1):
+            fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", fillcolor="rgba(120,170,90,0.30)",
+                                     line=dict(color="#4d7a2a", width=2), name="ons perceel", hoverinfo="skip"))
+        else:
+            fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", fillcolor="rgba(0,0,0,0.03)", showlegend=False,
+                                     line=dict(color="#c2c2c2", width=1), name="buurperceel", hoverinfo="skip"))
+    for k, r in enumerate(house_rings):
+        if len(r) < 3:
+            continue
+        xs = [p[0] for p in r] + [r[0][0]]
+        ys = [p[1] for p in r] + [r[0][1]]
+        fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", fillcolor="rgba(150,40,40,0.55)",
+                                 line=dict(color="#7a2f2f", width=2), name="huis", showlegend=(k == 0),
+                                 hoverinfo="skip"))
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=440, legend=dict(orientation="h"),
+                      xaxis_title="RD-x (m)", yaxis_title="RD-y (m)")
+    return fig
 
 
 def _ics_unfold(text):
@@ -1671,6 +1735,7 @@ with tab_dak:
                                "(blokkig); sleep om te draaien.")
                     st.plotly_chart(_fig3, use_container_width=True)
                     st.session_state["dak_bag_footprint"] = float(_info3.get("footprint_m2", 0.0))
+                    st.session_state["dak_bag_foot_rings"] = _info3.get("footprint_rings", [])
                     _slope = float(_info3.get("roof_sloped_m2", 0.0))
                     st.markdown("**Dakvlak & pannen uit het 3D BAG-model (LoD 2.2)**")
                     _bm = st.columns(3)
@@ -1733,6 +1798,35 @@ with tab_dak:
         st.download_button("⬇️ Download perceel-overzicht (Excel)", m.df_to_excel_bytes({"Perceel": _pdf}),
                            file_name="perceel_oppervlakten.xlsx", key="dak_perc_xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        st.markdown("**🗺️ Plattegrond — perceel met het huis erop**")
+        _frings = st.session_state.get("dak_bag_foot_rings") or []
+        _pxy = st.session_state.get("dak_bag_xy")
+        if not _frings or not _pxy:
+            st.caption("Haal eerst het **3D BAG-model** hierboven op — dan teken ik het echte huis-footprint, "
+                       "en kun je het perceel uit het Kadaster halen of met maten tekenen.")
+        else:
+            _cp = st.columns(2)
+            if _cp[0].button("🗺️ Perceel ophalen (Kadaster)", key="dak_perc_fetch"):
+                try:
+                    st.session_state["dak_perc_rings"] = _perceel_rings(_pxy[0], _pxy[1])
+                    if not st.session_state["dak_perc_rings"]:
+                        st.warning("Geen perceel gevonden — gebruik de handmatige maten.")
+                except Exception as exc:  # noqa: BLE001
+                    st.session_state["dak_perc_rings"] = []
+                    st.warning(f"Perceel ophalen mislukt: {exc} — gebruik de handmatige maten hieronder.")
+            _mb = _cp[1].number_input("Of perceel handmatig: breedte (m)", 0.0, 200.0, 0.0, 0.5, key="dak_perc_br")
+            _md = st.number_input("Perceel diepte (m)", 0.0, 200.0, 0.0, 0.5, key="dak_perc_di")
+            _perc_rings = list(st.session_state.get("dak_perc_rings") or [])
+            if not _perc_rings and _mb > 0 and _md > 0:
+                _all = [p for r in _frings for p in r]
+                _cx = sum(p[0] for p in _all) / len(_all)
+                _cy = sum(p[1] for p in _all) / len(_all)
+                _perc_rings = [[(_cx - _mb / 2, _cy - _md / 2), (_cx + _mb / 2, _cy - _md / 2),
+                                (_cx + _mb / 2, _cy + _md / 2), (_cx - _mb / 2, _cy + _md / 2)]]
+            st.plotly_chart(_perceel_plan_fig(_perc_rings, _frings, _pxy[0], _pxy[1]), use_container_width=True)
+            st.caption("Huis-footprint = echt uit het 3D BAG. Perceel = Kadaster (knop) of je handmatige maten "
+                       "(rechthoek rond het huis). Op schaal in RD-meters.")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
