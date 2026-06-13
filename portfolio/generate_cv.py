@@ -52,7 +52,7 @@ CONTENT = {
             "Python · CNC programming"
         ),
         "experience": [
-            ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
+            ("2021 – present", "Wärtsilä", "Cost Engineer", [
                 "Set the cost price for development, customer and non-standard projects — the "
                 "reference figure engineering, sales, purchasing and business control all worked from.",
                 "Translated technical choices into cost impact before decisions were made, as cost "
@@ -112,7 +112,7 @@ CONTENT = {
             "Maakstrategie · Leveranciers · SAP · Power BI · Excel/VBA · Python · CNC-programmeren"
         ),
         "experience": [
-            ("2021 – 2026", "Wärtsilä", "Cost Engineer", [
+            ("2021 – present", "Wärtsilä", "Cost Engineer", [
                 "De kostprijs bepaald voor ontwikkel-, klant- en niet-standaard projecten — het "
                 "referentiecijfer waar engineering, verkoop, inkoop en business control allemaal "
                 "mee werkten.",
