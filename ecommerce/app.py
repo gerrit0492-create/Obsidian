@@ -1800,18 +1800,21 @@ with tab_dak:
                     _bm[0].metric("Totaal dakvlak", f"{_info3.get('roof_m2', 0):.0f} m²", delta_color="off")
                     _bm[1].metric("Hellend — pannen", f"{_slope:.0f} m²", "excl. platte dakkapellen", delta_color="off")
                     _bm[2].metric("Plat (dakkapel/plat dak)", f"{_info3.get('roof_flat_m2', 0):.0f} m²", delta_color="off")
-                    _bc = st.columns(2)
-                    _extra = _bc[0].number_input("+ extra hellend dakvlak (carport-patch, m²)", 0.0, 500.0, 0.0, 0.5,
-                                                 key="dak_bag_extra")
-                    _ppm = _bc[1].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
+                    st.markdown("Carport-patch (pannen, zelfde dakhelling) — niet in het BAG-model, dus handmatig:")
+                    _bc = st.columns(3)
+                    _cpw = _bc[0].number_input("Carport breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_bag_cpw")
+                    _cph = _bc[1].number_input("Carport langs helling (m)", 0.0, 50.0, 2.0, 0.1, key="dak_bag_cph")
+                    _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
                                                help="Sneldek/betonpan ≈ 10/m²; keramisch vaak 12–16/m².")
+                    _extra = _cpw * _cph
                     _tarea = _slope + _extra
-                    st.metric("Pannen-aantal (hellend dakvlak + carport)", f"{round(_tarea * _ppm)} pannen",
-                              f"{_tarea:.0f} m² × {_ppm:.1f}/m²", delta_color="off")
+                    st.metric("Pannen-aantal (hellend dakvlak + carport-patch)", f"{round(_tarea * _ppm)} pannen",
+                              f"{_tarea:.0f} m² ({_slope:.0f} dak + {_extra:.0f} carport) × {_ppm:.1f}/m²",
+                              delta_color="off")
                     st.caption("Afgeleid uit het 3D BAG LoD 2.2-model: som van de **hellende** dakvlakken "
                                "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
-                               "is het 'echte dakvlak minus de dakkapellen'. Voeg een carport-patch handmatig toe. "
-                               "Indicatief, geen meetstaat.")
+                               "is het 'echte dakvlak minus de dakkapellen'. De carport-patch (breedte × lengte langs "
+                               "de helling) komt erbij. Indicatief, geen meetstaat.")
                 else:
                     st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
             except Exception as exc:  # noqa: BLE001
