@@ -1695,7 +1695,52 @@ with tab_dak:
             st.session_state["dak_calc_dk_br"] = float(round(_fps[1]["w"], 1))
             st.session_state["dak_calc_dk_di"] = float(round(_fps[1]["d"], 1))
 
-    with st.expander("📐 Dakoppervlak berekenen uit Google Maps", expanded=False):
+    # --- Samenvatting (KPI's) + vervaldatum-signalen ---
+    from datetime import date as _kdate
+    _ktoday = _kdate.today()
+    _koffs = [o for o in st.session_state.get("dakofferte", [])
+              if str(o.get("Bedrijf") or "").strip() and float(o.get("Incl. btw") or 0) > 0]
+    _ksc = _dak_shouldcost_posten(dak_opp)
+    _ksc_incl = sum(float(p["Prijs excl. btw"]) * (1 + p["Btw %"] / 100) for p in _ksc)
+    _knext = None
+    for _r in st.session_state.get("dak_afspraken", []):
+        if str(_r.get("Status") or "") == "Bezoek gepland":
+            try:
+                _kd = _kdate.fromisoformat(str(_r.get("Datum")))
+            except Exception:  # noqa: BLE001
+                continue
+            if _kd >= _ktoday and (_knext is None or _kd < _knext[0]):
+                _knext = (_kd, str(_r.get("Bedrijf") or ""))
+    _km = st.columns(4)
+    _km[0].metric("Offertes", str(len(_koffs)))
+    if _koffs:
+        _klo = min(_koffs, key=lambda o: float(o["Incl. btw"]))
+        _km[1].metric("Laagste (incl. btw)", f"€{float(_klo['Incl. btw']):,.0f}".replace(",", "."),
+                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off")
+    else:
+        _km[1].metric("Laagste (incl. btw)", "—")
+    _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
+                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²", delta_color="off")
+    _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+    _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
+                  (_knext[1][:16] if _knext else None), delta_color="off")
+    _kexp = []
+    for o in _koffs:
+        _kg = str(o.get("Geldig t/m") or "").strip()
+        try:
+            _kdays = (_kdate.fromisoformat(_kg) - _ktoday).days
+        except Exception:  # noqa: BLE001
+            continue
+        if _kdays < 0:
+            _kexp.append(f"**{o.get('Bedrijf')}** verlopen (t/m {_kg})")
+        elif _kdays <= 7:
+            _kexp.append(f"**{o.get('Bedrijf')}** verloopt over {_kdays} dag(en)")
+    if _kexp:
+        st.warning("⏳ Let op vervaldatum: " + " · ".join(_kexp))
+
+    st.markdown("#### 📐 Opmeten & model — dak, pannen, 3D & perceel")
+    _meet = st.tabs(["📐 Dak m² (Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
+    with _meet[0]:
         st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
                    "*Afstand meten* en klik de dakomtrek rond. Een hellend dak is gróter dan die platte footprint: "
                    "**dakvlak ≈ footprint ÷ cos(dakhelling)** (gezadeld dak, beide schilden even steil).")
@@ -1741,7 +1786,7 @@ with tab_dak:
                    "Tel bij de dakkapel alleen mee wat met pannen wordt bedekt (een platte dakkapelkap niet). "
                    "De achterzijde-dakkapel is hier 1,2 m uitgebouwd → breedte × 1,2 m extra dakvlak.")
 
-    with st.expander("🧱 Pannen-check — klopt het geoffreerde aantal dakpannen?", expanded=False):
+    with _meet[1]:
         st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Dekkend aantal per m² (bron "
                    "dakpanrichtlijnen): beton/Sneldek & vlakke keramisch **10–12**, holle keramisch / OVH **14–16**.")
         _pc = st.columns(2)
@@ -1772,7 +1817,7 @@ with tab_dak:
                        f"impliceert ~{_stated / _pp:.0f} m². Meer dakvlak (dakkapel/erker) of kleinere pannen; "
                        f"check de specificatie.")
 
-    with st.expander("🏠 3D-aanzicht van het dak", expanded=False):
+    with _meet[2]:
         _3l = st.session_state.get("dak_calc_l")
         _3b = st.session_state.get("dak_calc_b")
         if not _3l or not _3b:
@@ -1795,7 +1840,7 @@ with tab_dak:
                    "dakhelling en de dakkapellen voor + achter). Sleep om te draaien/zoomen. "
                    "Indicatief — geen bouwtekening.")
 
-    with st.expander("🛰️ Echt 3D-model uit het 3D BAG (PDOK)", expanded=False):
+    with _meet[3]:
         st.caption("Haalt het werkelijke gebouwmodel (LoD 2.2) op uit het **3D BAG** (TU Delft) via de "
                    "PDOK-adressenservice. Vereist internettoegang naar `api.pdok.nl` en `api.3dbag.nl`.")
         _adr = st.text_input("Adres", value="Compiègnehof 11, Eindhoven", key="dak_bag_adres")
@@ -1863,7 +1908,7 @@ with tab_dak:
             except Exception as exc:  # noqa: BLE001
                 st.error(f"3D BAG-model laden mislukt: {exc}")
 
-    with st.expander("📐 Perceel — oppervlakten (huis, tuin, schuur, carport, voortuin)", expanded=False):
+    with _meet[4]:
         st.caption("Verdeel je kavel. Het **huis-footprint** komt automatisch uit het 3D BAG-model hierboven "
                    "(haal dat eerst op). Schuur, carport en de voor/achter-verdeling staan niet in open data — die "
                    "vul je zelf in; de achtertuin/rest reken ik uit.")
@@ -1946,17 +1991,19 @@ with tab_dak:
                 st.caption("Vaste plaatsing voor deze woning; alleen openen als je wilt bijstellen. ← links / → "
                            "rechts en ↓ voor / ↑ achter, in meter t.o.v. het midden van het huis.")
                 st.markdown("**Carport** (voorste-linkerhoek, vast aan het huis)")
-                _cc = st.columns(4)
-                _cp_br = _cc[0].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_cp_br")
-                _cp_di = _cc[1].number_input("Diepte (m)", 0.0, 50.0, 5.0, 0.1, key="dak_plan_cp_di")
-                _cp_x = _cc[2].number_input("← links / rechts → (m)", -60.0, 60.0, -round(_hw / 2 + 1.5, 1), 0.5, key="dak_plan_cp_x")
-                _cp_y = _cc[3].number_input("↓ voor / achter ↑ (m)", -60.0, 60.0, -round(_hd / 2, 1), 0.5, key="dak_plan_cp_y")
+                _cc1 = st.columns(2)
+                _cp_br = _cc1[0].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_cp_br")
+                _cp_di = _cc1[1].number_input("Diepte (m)", 0.0, 50.0, 5.0, 0.1, key="dak_plan_cp_di")
+                _cc2 = st.columns(2)
+                _cp_x = _cc2[0].number_input("← links / rechts → (m)", -60.0, 60.0, -round(_hw / 2 + 1.5, 1), 0.5, key="dak_plan_cp_x")
+                _cp_y = _cc2[1].number_input("↓ voor / achter ↑ (m)", -60.0, 60.0, -round(_hd / 2, 1), 0.5, key="dak_plan_cp_y")
                 st.markdown("**Schuur** (achter in de tuin, volle breedte)")
-                _sc = st.columns(4)
-                _sc_br = _sc[0].number_input("Breedte (m)", 0.0, 50.0, round(_hw, 1), 0.1, key="dak_plan_sc_br")
-                _sc_di = _sc[1].number_input("Diepte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_sc_di")
-                _sc_x = _sc[2].number_input("← links / rechts → (m)", -60.0, 60.0, 0.0, 0.5, key="dak_plan_sc_x")
-                _sc_y = _sc[3].number_input("↓ voor / achter ↑ (m)", -80.0, 80.0, round(_hd / 2 + 8.0, 1), 0.5, key="dak_plan_sc_y")
+                _sc1 = st.columns(2)
+                _sc_br = _sc1[0].number_input("Breedte (m)", 0.0, 50.0, round(_hw, 1), 0.1, key="dak_plan_sc_br")
+                _sc_di = _sc1[1].number_input("Diepte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_sc_di")
+                _sc2 = st.columns(2)
+                _sc_x = _sc2[0].number_input("← links / rechts → (m)", -60.0, 60.0, 0.0, 0.5, key="dak_plan_sc_x")
+                _sc_y = _sc2[1].number_input("↓ voor / achter ↑ (m)", -80.0, 80.0, round(_hd / 2 + 8.0, 1), 0.5, key="dak_plan_sc_y")
             if _cp_br > 0 and _cp_di > 0:
                 _extras.append({"ring": _box(_cp_x, _cp_y, _cp_br, _cp_di), "naam": "carport",
                                 "fill": "rgba(90,130,160,0.45)", "line": "#3f6781"})
@@ -2339,9 +2386,19 @@ with tab_dak:
             _dv = pd.DataFrame(_dak_rows)
             _dv["€/m² incl."] = (_dv["Incl. btw"] / dak_opp).round(0)
             _dv["Oordeel"] = _dv["€/m² incl."].apply(_dak_oordeel)
+
+            from datetime import date as _vdate
+
+            def _verval(g):
+                try:
+                    _d = (_vdate.fromisoformat(str(g).strip()) - _vdate.today()).days
+                except Exception:  # noqa: BLE001
+                    return ""
+                return "⛔ verlopen" if _d < 0 else (f"⚠️ {_d} d" if _d <= 7 else f"{_d} d")
+            _dv["Vervalt"] = _dv["Geldig t/m"].apply(_verval)
             _dv = _dv.sort_values("Incl. btw").reset_index(drop=True)
             st.dataframe(
-                _dv[["Bedrijf", "Offertenr.", "Geldig t/m", "Excl. btw", "Incl. btw", "€/m² incl.",
+                _dv[["Bedrijf", "Offertenr.", "Geldig t/m", "Vervalt", "Excl. btw", "Incl. btw", "€/m² incl.",
                      "Oordeel", "Status", "Notities"]],
                 use_container_width=True, hide_index=True,
                 column_config={
