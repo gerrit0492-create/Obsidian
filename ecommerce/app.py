@@ -571,33 +571,61 @@ def _bag3d_fc_text(x, y, d=6.0):
     return _fetch_url(url, timeout=30)
 
 
-def _bag3d_fig(text):
-    """Bouw een Plotly-3D-figuur uit een 3D BAG-respons (FeatureCollection van CityJSONFeatures)."""
+def _bag3d_fig(text, x=None, y=None):
+    """Bouw een Plotly-3D-figuur uit een 3D BAG-respons (FeatureCollection van CityJSONFeatures).
+
+    Met een RD-coördinaat (x, y) wordt alleen het pand getoond waarvan het zwaartepunt het dichtst
+    bij die coördinaat ligt — zo blijven bij rijtjeswoningen de buurpanden buiten beeld.
+    """
     resp = json.loads(text)
     feats = resp.get("features")
     if feats is None:  # losse CityJSONFeature i.p.v. een collectie
         feats = [resp.get("feature", resp)]
     tf0 = resp.get("transform") or (resp.get("metadata") or {}).get("transform")
+
+    def _realverts(feat):
+        verts = feat.get("vertices", []) or []
+        tf = feat.get("transform") or tf0
+        if tf:
+            sc, tr = tf.get("scale", [1, 1, 1]), tf.get("translate", [0, 0, 0])
+            return [(v[0] * sc[0] + tr[0], v[1] * sc[1] + tr[1], v[2] * sc[2] + tr[2]) for v in verts]
+        return [(v[0], v[1], v[2]) for v in verts]
+
+    rverts = [_realverts(f) for f in feats]
+    if x is not None and y is not None and len(feats) > 1:
+        def _d2(rv):
+            if not rv:
+                return float("inf")
+            cx, cy = sum(p[0] for p in rv) / len(rv), sum(p[1] for p in rv) / len(rv)
+            return (cx - x) ** 2 + (cy - y) ** 2
+        _best = min(range(len(feats)), key=lambda i: _d2(rverts[i]))
+        feats, rverts = [feats[_best]], [rverts[_best]]
     X, Y, Z, roof, other, pids = [], [], [], [], [], []
+    roof_tot = roof_sl = roof_fl = 0.0
 
     def _fan(ring, off, bucket):
         if ring and len(ring) >= 3:
             for t in range(1, len(ring) - 1):
                 bucket.append((ring[0] + off, ring[t] + off, ring[t + 1] + off))
 
-    for feat in feats:
-        verts = feat.get("vertices", []) or []
+    def _area_tilt(pts):
+        """Oppervlak (m²) en helling (° t.o.v. horizontaal) van een 3D-polygoon (Newell)."""
+        nx = ny = nz = 0.0
+        for i in range(len(pts)):
+            a, b = pts[i], pts[(i + 1) % len(pts)]
+            nx += (a[1] - b[1]) * (a[2] + b[2])
+            ny += (a[2] - b[2]) * (a[0] + b[0])
+            nz += (a[0] - b[0]) * (a[1] + b[1])
+        mag = math.sqrt(nx * nx + ny * ny + nz * nz)
+        if mag == 0:
+            return 0.0, 0.0
+        return mag / 2.0, math.degrees(math.acos(min(1.0, abs(nz) / mag)))
+
+    for feat, rv in zip(feats, rverts):
         off = len(X)
-        tf = feat.get("transform") or tf0
-        if tf:
-            sc, tr = tf.get("scale", [1, 1, 1]), tf.get("translate", [0, 0, 0])
-            X += [v[0] * sc[0] + tr[0] for v in verts]
-            Y += [v[1] * sc[1] + tr[1] for v in verts]
-            Z += [v[2] * sc[2] + tr[2] for v in verts]
-        else:
-            X += [v[0] for v in verts]
-            Y += [v[1] for v in verts]
-            Z += [v[2] for v in verts]
+        X += [p[0] for p in rv]
+        Y += [p[1] for p in rv]
+        Z += [p[2] for p in rv]
         for oid, obj in (feat.get("CityObjects", {}) or {}).items():
             if "Pand." in oid and obj.get("type") == "Building":
                 pids.append(oid)
@@ -625,7 +653,15 @@ def _bag3d_fig(text):
                 svals = vshells[si] if (vshells and si < len(vshells)) else None
                 for fi, face in enumerate(shell):
                     stype = _stype(svals[fi] if (svals and fi < len(svals)) else None)
-                    _fan(face[0] if face else [], off, roof if stype == "RoofSurface" else other)
+                    ring = face[0] if face else []
+                    _fan(ring, off, roof if stype == "RoofSurface" else other)
+                    if stype == "RoofSurface" and len(ring) >= 3:
+                        _a, _tilt = _area_tilt([rv[_i] for _i in ring])
+                        roof_tot += _a
+                        if _tilt <= 20.0:        # bijna plat → dakkapeltop / plat dak
+                            roof_fl += _a
+                        elif _tilt < 80.0:       # hellend dakvlak → krijgt pannen
+                            roof_sl += _a
     if X:
         cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
         X = [v - cx for v in X]
@@ -640,7 +676,8 @@ def _bag3d_fig(text):
                                 k=[t[2] for t in roof], color="#7a2f2f", flatshading=True, name="dak"))
     fig.update_layout(scene=dict(aspectmode="data", xaxis_title="x (m)", yaxis_title="y (m)",
                                  zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=460)
-    return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids))}
+    return fig, {"faces": len(roof) + len(other), "roof": len(roof), "panden": sorted(set(pids)),
+                 "roof_m2": roof_tot, "roof_sloped_m2": roof_sl, "roof_flat_m2": roof_fl}
 
 
 def _ics_unfold(text):
@@ -1581,12 +1618,31 @@ with tab_dak:
         _xy = st.session_state.get("dak_bag_xy")
         if _xy:
             try:
-                _fig3, _info3 = _bag3d_fig(_bag3d_fc_text(_xy[0], _xy[1]))
+                _fig3, _info3 = _bag3d_fig(_bag3d_fc_text(_xy[0], _xy[1]), _xy[0], _xy[1])
                 if _info3["faces"]:
                     _pnd = ", ".join(p.split(".")[-1] for p in _info3["panden"]) or "—"
                     st.caption(f"{st.session_state.get('dak_bag_naam', '')} · pand {_pnd} · "
-                               f"{_info3['faces']} vlakken ({_info3['roof']} dak). Sleep om te draaien.")
+                               f"{_info3['faces']} vlakken ({_info3['roof']} dak). Officieel 3D BAG LoD 2.2-model "
+                               "(blokkig); sleep om te draaien.")
                     st.plotly_chart(_fig3, use_container_width=True)
+                    _slope = float(_info3.get("roof_sloped_m2", 0.0))
+                    st.markdown("**Dakvlak & pannen uit het 3D BAG-model (LoD 2.2)**")
+                    _bm = st.columns(3)
+                    _bm[0].metric("Totaal dakvlak", f"{_info3.get('roof_m2', 0):.0f} m²", delta_color="off")
+                    _bm[1].metric("Hellend — pannen", f"{_slope:.0f} m²", "excl. platte dakkapellen", delta_color="off")
+                    _bm[2].metric("Plat (dakkapel/plat dak)", f"{_info3.get('roof_flat_m2', 0):.0f} m²", delta_color="off")
+                    _bc = st.columns(2)
+                    _extra = _bc[0].number_input("+ extra hellend dakvlak (carport-patch, m²)", 0.0, 500.0, 0.0, 0.5,
+                                                 key="dak_bag_extra")
+                    _ppm = _bc[1].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
+                                               help="Sneldek/betonpan ≈ 10/m²; keramisch vaak 12–16/m².")
+                    _tarea = _slope + _extra
+                    st.metric("Pannen-aantal (hellend dakvlak + carport)", f"{round(_tarea * _ppm)} pannen",
+                              f"{_tarea:.0f} m² × {_ppm:.1f}/m²", delta_color="off")
+                    st.caption("Afgeleid uit het 3D BAG LoD 2.2-model: som van de **hellende** dakvlakken "
+                               "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
+                               "is het 'echte dakvlak minus de dakkapellen'. Voeg een carport-patch handmatig toe. "
+                               "Indicatief, geen meetstaat.")
                 else:
                     st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
             except Exception as exc:  # noqa: BLE001
