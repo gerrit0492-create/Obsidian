@@ -1403,13 +1403,9 @@ with tab_dak:
                 st.caption("Alles-in €/m² is incl. loodwerk + vogelwering e.d. De **dakrenovatie zelf** "
                            "vergelijk je het eerlijkst los — zie de should-cost hieronder.")
 
-                if _sel == "Dakbedrijf Westermeer":
-                    st.markdown("**Markt per onderdeel (Westermeer):**")
-                    st.dataframe(pd.DataFrame(DAK_DETAIL), use_container_width=True, hide_index=True,
-                                 column_config={"Offerte (excl. btw)": st.column_config.NumberColumn(format="€%.0f")})
-                    st.caption("Marktindicaties: dakrenovatie+isolatie €110–160/m² (Werkspot/Homedeal), "
-                               "vogelwering €15–35/m geïnstalleerd, loodslab €85–300/m² (Gevelpro). "
-                               "Betaling 50/50 · uitvoering max. 3 werkdagen.")
+                if _posten:
+                    st.caption(f"📋 **{len(_posten)} scope-regels** in deze offerte — consistent met de "
+                               "posten-matrix en de vergelijking.")
 
                 # Westermeer-regel voor élke offerte: originele PDF altijd terugvindbaar.
                 _pdf_path = _offerte_pdf_path(_orow)
@@ -2121,7 +2117,8 @@ with tab_dak:
             for b in _detbedr:
                 _o = _off_by.get(b, {})
                 _ex, _in = float(_o.get("Excl. btw") or 0), float(_o.get("Incl. btw") or 0)
-                _hl.append({"Offerte": b, "Excl. btw": round(_ex), "Incl. btw": round(_in),
+                _hl.append({"Offerte": b, "Regels": len(_byb.get(b, [])), "Excl. btw": round(_ex),
+                            "Incl. btw": round(_in),
                             "€/m² incl.": round(_in / dak_opp) if dak_opp else 0,
                             "Effectief btw": f"{(_in - _ex) / _ex * 100:.0f}%" if _ex > 0 and _in > 0 else "—",
                             "Isolatie": str(_o.get("Isolatie") or "—"), "Garantie": str(_o.get("Garantie") or "—")})
