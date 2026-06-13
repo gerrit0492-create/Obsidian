@@ -482,7 +482,7 @@ def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bul
     for b in bullets:
         el.append(Paragraph("• " + esc(b.replace("**", "")), small))
     if normdf is not None and len(normdf):
-        el.append(Paragraph("Appels met appels — zelfde scope, netto (incl. btw)", h2))
+        el.append(Paragraph("Eerlijke vergelijking — zelfde scope, netto (incl. btw)", h2))
         _ncols = [c for c in normdf.columns if c != "Toegevoegd"]
         _nrows = [[(str(r[c]) if c == "Offerte" else f"€{r[c]:.0f}") for c in _ncols] for _, r in normdf.iterrows()]
         el.append(_tbl(_ncols, _nrows, None))
@@ -1712,18 +1712,24 @@ with tab_dak:
             if _kd >= _ktoday and (_knext is None or _kd < _knext[0]):
                 _knext = (_kd, str(_r.get("Bedrijf") or ""))
     _km = st.columns(4)
-    _km[0].metric("Offertes", str(len(_koffs)))
+    _km[0].metric("Offertes", str(len(_koffs)),
+                  help="Aantal offertes met een bedrag boven €0.")
     if _koffs:
         _klo = min(_koffs, key=lambda o: float(o["Incl. btw"]))
         _km[1].metric("Laagste (incl. btw)", f"€{float(_klo['Incl. btw']):,.0f}".replace(",", "."),
-                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off")
+                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off",
+                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
     else:
-        _km[1].metric("Laagste (incl. btw)", "—")
+        _km[1].metric("Laagste (incl. btw)", "—",
+                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
     _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
-                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²", delta_color="off")
+                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²" if _ksc_incl else "—", delta_color="off",
+                  help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak. "
+                       "De band eromheen staat bij 'Vergelijking & advies'.")
     _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
     _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
-                  (_knext[1][:16] if _knext else None), delta_color="off")
+                  (_knext[1][:16] if _knext else None), delta_color="off",
+                  help="Eerstvolgende geplande inspectie/bezoek uit de agenda.")
     _kexp = []
     for o in _koffs:
         _kg = str(o.get("Geldig t/m") or "").strip()
@@ -1737,6 +1743,18 @@ with tab_dak:
             _kexp.append(f"**{o.get('Bedrijf')}** verloopt over {_kdays} dag(en)")
     if _kexp:
         st.warning("⏳ Let op vervaldatum: " + " · ".join(_kexp))
+    if _koffs and _ksc_incl:
+        _klo_incl = float(_klo["Incl. btw"])
+        _kgap = _klo_incl - _ksc_incl
+        _kpct = _kgap / _ksc_incl * 100
+        _knm = str(_klo.get("Bedrijf") or "")
+        _keur = f"€{abs(_kgap):,.0f}".replace(",", ".")
+        if _kgap <= 0:
+            st.success(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **onder** de should-cost ({_kpct:.0f}%) — scherp geprijsd.")
+        elif _kpct <= 10:
+            st.info(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — binnen een normale marge.")
+        else:
+            st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
 
     st.markdown("#### 📐 Opmeten & model — dak, pannen, 3D & perceel")
     _meet = st.tabs(["📐 Dak m² (Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
@@ -2028,7 +2046,7 @@ with tab_dak:
             "*Elke nieuwe offerte krijgt automatisch exact dezelfde uitwerking* — uploaden, vergelijken, advies.\n"
             "4. **Vergelijken** — **🔍 Posten vergelijken**: per post wie wat rekent en waar de scope verschilt.\n"
             "5. **Inzichten & advies** — **📊 Vergelijking & advies**: €/m², markttoets, ontbrekende scope, "
-            "ISDE-subsidie en **appels-met-appels** netto. Download het rapport (Excel/PDF met grafieken).\n"
+            "ISDE-subsidie en een **eerlijke vergelijking** (gelijke scope) netto. Download het rapport (Excel/PDF met grafieken).\n"
             "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
 
     _stage = st.tabs(["🔎 Aannemers & afspraken", "📥 Offertes", "⚖️ Vergelijken · advies · kiezen"])
@@ -2953,7 +2971,7 @@ with tab_dak:
             st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
                        "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
                        "stelposten realistisch zijn.")
-            # ---- Appels met appels: normaliseer elke offerte naar dezelfde (firm) scope ----
+            # ---- Eerlijke vergelijking: normaliseer elke offerte naar dezelfde (firm) scope ----
             _cat_eur = {b: {c: sum(float(p.get("Prijs excl. btw") or 0) for p in items
                                    if "bundel" not in str(p.get("Onderdeel") or "").lower())
                             for c, items in _assign[b].items()} for b in _detbedr}
@@ -2976,7 +2994,7 @@ with tab_dak:
                               "Gelijke scope": round(_ni), "− ISDE": _isde1, "Netto": round(_ni - _isde1),
                               "Toegevoegd": ", ".join(_added) or "—"})
             _normdf = pd.DataFrame(_norm)
-            st.markdown("**🍏 Appels met appels — zelfde scope, incl. btw, ná ISDE**")
+            st.markdown("**⚖️ Eerlijke vergelijking — zelfde scope, incl. btw, ná ISDE**")
             st.dataframe(_normdf, use_container_width=True, hide_index=True,
                          column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
                                         ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
@@ -2995,18 +3013,19 @@ with tab_dak:
                     if _gs <= _sc_ucl_i:
                         _v = "🟢 binnen de band" if _gs >= _sc_lcl_i else "🔵 onder LCL (scherp)"
                     else:
-                        _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{(_gs - _sc_ucl_i) / _sc_ucl_i * 100:.0f}%)"
+                        _ovp = (_gs - _sc_ucl_i) / _sc_ucl_i * 100 if _sc_ucl_i else 0
+                        _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{_ovp:.0f}%)"
                     _parts.append(f"**{n['Offerte']}** {_v}")
                 st.markdown("📐 **Toets aan de should-cost band** (gelijke scope, incl. btw): " + " · ".join(_parts) + ".")
             st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
                        "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
-                       "niet mee). Zo vergelijk je appels met appels.")
+                       "niet mee). Zo vergelijk je op een eerlijke, gelijke basis.")
 
             _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
                                         "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
                                         "Btw %": int(float(p.get("Btw %") or 21))}
                                        for b in _detbedr for p in _byb[b]])
-            _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
+            _xlsx = {"Kerncijfers": _hldf, "Eerlijke vergelijking": _normdf, "Scope-vergelijking": _cmpdf,
                      "Posten": _posten_df,
                      "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
                                                     + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
