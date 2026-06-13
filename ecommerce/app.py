@@ -328,11 +328,11 @@ def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
                              unsafe_allow_html=True)
 
 
-def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0):
-    """Schematisch 3D-model van een gezadeld pannendak (muren + twee dakschilden + optionele dakkapel).
+def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0, dkf_br=0.0, dkf_di=0.0):
+    """Schematisch 3D-model van een gezadeld pannendak (muren + twee dakschilden + dakkapellen).
 
-    L = nokrichting (m), B = breedte gevel-tot-gevel (m), pitch_deg = dakhelling. De dakkapel zit op het
-    achterschild, breedte dk_br en uitbouw dk_di. Puur visueel/indicatief — geen bouwtekening.
+    L = nokrichting (m), B = breedte gevel-tot-gevel (m), pitch_deg = dakhelling. Een dakkapel op het
+    achterschild (dk_br × dk_di) en/of het voorschild (dkf_br × dkf_di). Visueel/indicatief.
     """
     pitch = math.radians(max(0.0, min(pitch_deg, 75.0)))
     apex = wall_h + (B / 2.0) * math.tan(pitch)
@@ -348,19 +348,27 @@ def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0):
                             k=[t[2] for t in walls], color="#d9c7a3", flatshading=True, name="muren"))
     fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=[t[0] for t in roof], j=[t[1] for t in roof],
                             k=[t[2] for t in roof], color="#3a3f44", flatshading=True, name="dakvlak"))
-    if dk_br > 0 and dk_di > 0:
+
+    def _dormer(br, di, toward_back, naam):
+        if br <= 0 or di <= 0:
+            return
         xc = L / 2.0
-        x0, x1 = max(0.0, xc - dk_br / 2), min(L, xc + dk_br / 2)
-        yi = B * 0.58
-        yo = min(B * 0.95, yi + dk_di)
-        z_top = max(wall_h + 0.3, min(apex - (yi - B / 2) * math.tan(pitch), apex - 0.2))
+        x0, x1 = max(0.0, xc - br / 2), min(L, xc + br / 2)
+        if toward_back:
+            yi, yo = B * 0.58, min(B * 0.96, B * 0.58 + di)
+        else:
+            yi, yo = B * 0.42, max(B * 0.04, B * 0.42 - di)
+        z_top = max(wall_h + 0.3, min(apex - abs(yi - B / 2) * math.tan(pitch), apex - 0.2))
         DV = [(x0, yi, wall_h), (x1, yi, wall_h), (x1, yo, wall_h), (x0, yo, wall_h),
               (x0, yi, z_top), (x1, yi, z_top), (x1, yo, z_top), (x0, yo, z_top)]
         cub = [(0, 1, 2), (0, 2, 3), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
                (3, 2, 6), (3, 6, 7), (0, 3, 7), (0, 7, 4), (1, 2, 6), (1, 6, 5)]
         fig.add_trace(go.Mesh3d(x=[v[0] for v in DV], y=[v[1] for v in DV], z=[v[2] for v in DV],
                                 i=[t[0] for t in cub], j=[t[1] for t in cub], k=[t[2] for t in cub],
-                                color="#9fb0bb", flatshading=True, name="dakkapel"))
+                                color="#9fb0bb", flatshading=True, name=naam))
+
+    _dormer(dk_br, dk_di, True, "dakkapel achter")
+    _dormer(dkf_br, dkf_di, False, "dakkapel voor")
     fig.update_layout(scene=dict(aspectmode="data", xaxis_title="lengte (m)", yaxis_title="breedte (m)",
                                  zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=440)
     return fig
@@ -542,9 +550,12 @@ def _fetch_url(url, timeout=15):
 def _bag_panden(address):
     """Adres → pand-id('s) via de PDOK-adressenservice (Locatieserver). Lijst van {naam, pandids}."""
     import urllib.parse
+    # Normaliseer: komma's weg, dubbele spaties weg, en een aan-elkaar-geplakt huisnummer losmaken
+    # ("Compiegnehof11" → "Compiegnehof 11"). PDOK is ongevoelig voor accenten/hoofdletters.
+    _adr = re.sub(r"([^\W\d_])(\d)", r"\1 \2", re.sub(r"\s+", " ", address.replace(",", " ")).strip())
     url = ("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q="
-           + urllib.parse.quote(address)
-           + "&fq=type:adres&fl=weergavenaam,pandid,centroide_ll&rows=5")
+           + urllib.parse.quote(_adr)
+           + "&fq=type:adres&fl=weergavenaam,pandid,centroide_ll&rows=8")
     data = json.loads(_fetch_url(url, timeout=20))
     out = []
     for d in data.get("response", {}).get("docs", []):
@@ -1474,17 +1485,21 @@ with tab_dak:
                            help="0° = plat dak (dakvlak = footprint). Hellend pannendak in NL: meestal 35–45°.")
         _factor = 1.0 / math.cos(math.radians(_pitch))
         _main = _fp * _factor
-        st.markdown("**Dakkapel / uitbouw achterzijde** — Google Maps loopt vaak achter op verbouwingen.")
-        _dk = st.columns(3)
-        _dk_on = _dk[0].checkbox("Meetellen", value=True, key="dak_calc_dk_on")
-        _dk_br = _dk[1].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dk_br")
-        _dk_di = _dk[2].number_input("Uitbouw/diepte (m)", 0.0, 20.0, 1.2, 0.1, key="dak_calc_dk_di")
-        _dk_extra = (_dk_br * _dk_di) if _dk_on else 0.0
+        st.markdown("**Dakkapellen** — tel de dakvlakken van de dakkapellen mee (Maps mist vaak verbouwingen).")
+        _dk = st.columns([1.3, 1, 1])
+        _dk_on = _dk[0].checkbox("Achterzijde meetellen", value=True, key="dak_calc_dk_on")
+        _dk_br = _dk[1].number_input("Breedte achter (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dk_br")
+        _dk_di = _dk[2].number_input("Uitbouw achter (m)", 0.0, 20.0, 1.2, 0.1, key="dak_calc_dk_di")
+        _dkf = st.columns([1.3, 1, 1])
+        _dkf_on = _dkf[0].checkbox("Voorzijde meetellen", value=True, key="dak_calc_dkf_on")
+        _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dkf_br")
+        _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, 1.5, 0.1, key="dak_calc_dkf_di")
+        _dk_extra = (_dk_br * _dk_di if _dk_on else 0.0) + (_dkf_br * _dkf_di if _dkf_on else 0.0)
         _roof = _main + _dk_extra
         st.session_state["_dak_roof_calc"] = _roof
         _mc = st.columns(2)
         _mc[0].metric("Berekend dakoppervlak", f"{_roof:.0f} m²",
-                      f"hoofddak {_main:.0f} m² (×{_factor:.2f}) + dakkapel {_dk_extra:.0f} m²", delta_color="off")
+                      f"hoofddak {_main:.0f} m² (×{_factor:.2f}) + dakkapellen {_dk_extra:.0f} m²", delta_color="off")
         _mc[1].button("📥 Gebruik als dakoppervlak", key="dak_calc_apply", on_click=_dak_apply_calc,
                       help="Zet dit berekende dakvlak bovenaan als dakoppervlak (m²).")
         st.caption("Google Maps meet het **platte** grondvlak; de helling maakt er het echte schuine dakvlak van. "
@@ -1533,10 +1548,14 @@ with tab_dak:
         _3on = st.session_state.get("dak_calc_dk_on", True)
         _3dkbr = st.session_state.get("dak_calc_dk_br", 3.0) if _3on else 0.0
         _3dkdi = st.session_state.get("dak_calc_dk_di", 1.2) if _3on else 0.0
-        st.plotly_chart(_dak_roof_3d_fig(float(_3l), float(_3b), float(_3pitch), 3.0, float(_3dkbr), float(_3dkdi)),
+        _3fon = st.session_state.get("dak_calc_dkf_on", True)
+        _3fbr = st.session_state.get("dak_calc_dkf_br", 3.0) if _3fon else 0.0
+        _3fdi = st.session_state.get("dak_calc_dkf_di", 1.5) if _3fon else 0.0
+        st.plotly_chart(_dak_roof_3d_fig(float(_3l), float(_3b), float(_3pitch), 3.0,
+                                         float(_3dkbr), float(_3dkdi), float(_3fbr), float(_3fdi)),
                         use_container_width=True)
         st.caption("Schematisch 3D-model op basis van de afmetingen uit de rekenhulp hierboven (lengte × breedte, "
-                   "dakhelling en de dakkapel-uitbouw aan de achterzijde). Sleep om te draaien/zoomen. "
+                   "dakhelling en de dakkapellen voor + achter). Sleep om te draaien/zoomen. "
                    "Indicatief — geen bouwtekening.")
 
     with st.expander("🛰️ Echt 3D-model uit het 3D BAG (PDOK)", expanded=False):
@@ -1546,13 +1565,17 @@ with tab_dak:
         if st.button("🛰️ Haal 3D BAG-model op", key="dak_bag_fetch"):
             try:
                 _panden = _bag_panden(_adr.strip())
-                _pids = _panden[0]["pandids"] if _panden else []
-                if not _pids:
+                _hit = next((p for p in _panden if p["pandids"]), None)
+                if not _hit:
                     st.session_state.pop("dak_bag_pid", None)
-                    st.warning("Geen pand gevonden voor dit adres — controleer de spelling.")
+                    if _panden:
+                        st.warning(f"Adres gevonden ({_panden[0]['naam']}) maar geen pand-id — probeer een "
+                                   "ander huisnummer of voeg de woonplaats toe.")
+                    else:
+                        st.warning("Geen adres gevonden — schrijf het als 'Straat 11, Plaats'.")
                 else:
-                    st.session_state["dak_bag_pid"] = _pids[0]
-                    st.session_state["dak_bag_naam"] = _panden[0]["naam"]
+                    st.session_state["dak_bag_pid"] = _hit["pandids"][0]
+                    st.session_state["dak_bag_naam"] = _hit["naam"]
             except Exception as exc:  # noqa: BLE001
                 st.session_state.pop("dak_bag_pid", None)
                 st.error(f"Adres opzoeken mislukt: {exc}. Staan `api.pdok.nl` en `api.3dbag.nl` op de allowlist?")
