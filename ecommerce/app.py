@@ -538,6 +538,96 @@ def _fetch_url(url, timeout=15):
         return resp.read().decode("utf-8", "replace")
 
 
+@st.cache_data(show_spinner=False, ttl=86400)
+def _bag_panden(address):
+    """Adres → pand-id('s) via de PDOK-adressenservice (Locatieserver). Lijst van {naam, pandids}."""
+    import urllib.parse
+    url = ("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q="
+           + urllib.parse.quote(address)
+           + "&fq=type:adres&fl=weergavenaam,pandid,centroide_ll&rows=5")
+    data = json.loads(_fetch_url(url, timeout=20))
+    out = []
+    for d in data.get("response", {}).get("docs", []):
+        pids = d.get("pandid") or []
+        if isinstance(pids, str):
+            pids = [pids]
+        out.append({"naam": d.get("weergavenaam", ""), "pandids": list(pids), "ll": d.get("centroide_ll")})
+    return out
+
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def _bag3d_fetch_text(pid):
+    """Ruwe CityJSON(-Feature) tekst voor één pand uit het 3D BAG (api.3dbag.nl)."""
+    _pid = pid if str(pid).startswith("NL.IMBAG.Pand.") else f"NL.IMBAG.Pand.{pid}"
+    return _fetch_url(f"https://api.3dbag.nl/collections/pand/items/{_pid}", timeout=30)
+
+
+def _bag3d_fig(text):
+    """Bouw een Plotly-3D-figuur uit een 3D BAG CityJSON(-Feature) respons. Geeft (fig, info)."""
+    resp = json.loads(text)
+    feat = resp.get("feature", resp)
+    meta = resp.get("metadata", {}) or {}
+    tf = meta.get("transform") or feat.get("transform") or resp.get("transform") \
+        or {"scale": [1, 1, 1], "translate": [0, 0, 0]}
+    sc, tr = tf.get("scale", [1, 1, 1]), tf.get("translate", [0, 0, 0])
+    verts = feat.get("vertices", []) or []
+    X = [v[0] * sc[0] + tr[0] for v in verts]
+    Y = [v[1] * sc[1] + tr[1] for v in verts]
+    Z = [v[2] * sc[2] + tr[2] for v in verts]
+    # rond de oorsprong centreren zodat de coördinaten klein en stabiel blijven
+    if X:
+        cx, cy, mz = sum(X) / len(X), sum(Y) / len(Y), min(Z)
+        X = [x - cx for x in X]
+        Y = [y - cy for y in Y]
+        Z = [z - mz for z in Z]
+    roof, other = [], []
+
+    def _fan(ring, bucket):
+        if ring and len(ring) >= 3:
+            for t in range(1, len(ring) - 1):
+                bucket.append((ring[0], ring[t], ring[t + 1]))
+
+    def _faces_of(geom):
+        gtype, bnd = geom.get("type"), geom.get("boundaries", []) or []
+        sem = geom.get("semantics") or {}
+        surfaces, values = sem.get("surfaces") or [], sem.get("values")
+
+        def _stype(idx):
+            try:
+                return surfaces[idx].get("type") if idx is not None else None
+            except (IndexError, TypeError):
+                return None
+        res = []
+        if gtype == "Solid":
+            for si, shell in enumerate(bnd):
+                svals = values[si] if (values and si < len(values)) else None
+                for fi, face in enumerate(shell):
+                    res.append((face, _stype(svals[fi] if (svals and fi < len(svals)) else None)))
+        elif gtype in ("MultiSurface", "CompositeSurface"):
+            for fi, face in enumerate(bnd):
+                res.append((face, _stype(values[fi] if (values and fi < len(values)) else None)))
+        return res
+
+    for obj in (feat.get("CityObjects", {}) or {}).values():
+        geoms = obj.get("geometry") or []
+        if not geoms:
+            continue
+        g = next((c for c in geoms if str(c.get("lod")) == "2.2"), None) \
+            or max(geoms, key=lambda c: float(str(c.get("lod", "0")) or 0))
+        for face, stype in _faces_of(g):
+            _fan(face[0] if face else [], roof if stype == "RoofSurface" else other)
+    fig = go.Figure()
+    if other:
+        fig.add_trace(go.Mesh3d(x=X, y=Y, z=Z, i=[t[0] for t in other], j=[t[1] for t in other],
+                                k=[t[2] for t in other], color="#cdb892", flatshading=True, name="gevels/grond"))
+    if roof:
+        fig.add_trace(go.Mesh3d(x=X, y=Y, z=Z, i=[t[0] for t in roof], j=[t[1] for t in roof],
+                                k=[t[2] for t in roof], color="#7a2f2f", flatshading=True, name="dak"))
+    fig.update_layout(scene=dict(aspectmode="data", xaxis_title="x (m)", yaxis_title="y (m)",
+                                 zaxis_title="hoogte (m)"), margin=dict(l=0, r=0, t=10, b=0), height=460)
+    return fig, {"faces": len(roof) + len(other), "roof": len(roof)}
+
+
 def _ics_unfold(text):
     """Splits een iCal-bestand in regels en plak gevouwen vervolgregels weer aan elkaar."""
     out = []
@@ -1448,6 +1538,36 @@ with tab_dak:
         st.caption("Schematisch 3D-model op basis van de afmetingen uit de rekenhulp hierboven (lengte × breedte, "
                    "dakhelling en de dakkapel-uitbouw aan de achterzijde). Sleep om te draaien/zoomen. "
                    "Indicatief — geen bouwtekening.")
+
+    with st.expander("🛰️ Echt 3D-model uit het 3D BAG (PDOK)", expanded=False):
+        st.caption("Haalt het werkelijke gebouwmodel (LoD 2.2) op uit het **3D BAG** (TU Delft) via de "
+                   "PDOK-adressenservice. Vereist internettoegang naar `api.pdok.nl` en `api.3dbag.nl`.")
+        _adr = st.text_input("Adres", value="Compiègnehof 11, Eindhoven", key="dak_bag_adres")
+        if st.button("🛰️ Haal 3D BAG-model op", key="dak_bag_fetch"):
+            try:
+                _panden = _bag_panden(_adr.strip())
+                _pids = _panden[0]["pandids"] if _panden else []
+                if not _pids:
+                    st.session_state.pop("dak_bag_pid", None)
+                    st.warning("Geen pand gevonden voor dit adres — controleer de spelling.")
+                else:
+                    st.session_state["dak_bag_pid"] = _pids[0]
+                    st.session_state["dak_bag_naam"] = _panden[0]["naam"]
+            except Exception as exc:  # noqa: BLE001
+                st.session_state.pop("dak_bag_pid", None)
+                st.error(f"Adres opzoeken mislukt: {exc}. Staan `api.pdok.nl` en `api.3dbag.nl` op de allowlist?")
+        _pid = st.session_state.get("dak_bag_pid")
+        if _pid:
+            try:
+                _fig3, _info3 = _bag3d_fig(_bag3d_fetch_text(_pid))
+                if _info3["faces"]:
+                    st.caption(f"Pand **{_pid}** · {st.session_state.get('dak_bag_naam', '')} · "
+                               f"{_info3['faces']} vlakken ({_info3['roof']} dak).")
+                    st.plotly_chart(_fig3, use_container_width=True)
+                else:
+                    st.warning("Geen geometrie in het 3D BAG-antwoord — mogelijk een nieuw/ontbrekend pand.")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"3D BAG-model laden mislukt: {exc}")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
