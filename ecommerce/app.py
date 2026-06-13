@@ -11,6 +11,7 @@ Starten:  streamlit run app.py
 from __future__ import annotations
 
 import json
+import math
 import re
 
 import pandas as pd
@@ -217,6 +218,13 @@ DAK_RENO_BTW = 0.21  # offerte rekent vlak 21%; isolatie-arbeid (woning > 2 jr) 
 DAK_RENO_PANTYPE = {
     "Keramisch (antraciet)": (26.0, 45.0),   # bron ≈ €35–75/m² incl.
     "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
+}
+
+# Dekkend aantal pannen per m² (LCL–UCL) per type — om een geoffreerd pannenaantal te toetsen aan het
+# dakoppervlak. Grootformaat betonpan (bv. Sneldek) ligt rond ~10/m²; standaard keramische pan hoger.
+DAK_RENO_PANNEN_PER_M2 = {
+    "Keramisch (antraciet)": (12.0, 16.0),
+    "Betonpan (antraciet)": (9.0, 11.0),
 }
 
 # Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — gesynchroniseerd met de DePoorter-agenda.
@@ -1311,9 +1319,80 @@ with tab_dak:
     st.subheader("🏠 Dakrenovatie — offertes volgen & vergelijken")
     st.caption("Compiègnehof 11, Eindhoven · volledige dakrenovatie. Vergelijk op €/m² incl. btw.")
     dc = st.columns(3)
-    dak_opp = dc[0].number_input("Dakoppervlak (m²)", 1.0, 1000.0, 60.0, 1.0, key="dak_opp")
+    st.session_state.setdefault("dak_opp", 60.0)
+    dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp")
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
+
+    def _dak_apply_calc():
+        _v = st.session_state.get("_dak_roof_calc")
+        if _v:
+            st.session_state["dak_opp"] = float(round(_v))
+
+    with st.expander("📐 Dakoppervlak berekenen uit Google Maps", expanded=False):
+        st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
+                   "*Afstand meten* en klik de dakomtrek rond. Een hellend dak is gróter dan die platte footprint: "
+                   "**dakvlak ≈ footprint ÷ cos(dakhelling)** (gezadeld dak, beide schilden even steil).")
+        _mode = st.radio("Footprint invoeren als", ["Oppervlak (m²)", "Lengte × breedte"],
+                         horizontal=True, key="dak_calc_mode")
+        if _mode == "Lengte × breedte":
+            _lb = st.columns(2)
+            _l = _lb[0].number_input("Lengte (m)", 1.0, 200.0, 10.0, 0.1, key="dak_calc_l")
+            _b = _lb[1].number_input("Breedte (m)", 1.0, 200.0, 6.0, 0.1, key="dak_calc_b")
+            _fp = _l * _b
+        else:
+            _fp = st.number_input("Footprint uit Google Maps (m²)", 1.0, 3000.0, 50.0, 1.0, key="dak_calc_fp")
+        _pitch = st.slider("Dakhelling (°)", 0, 70, 40, 1, key="dak_calc_pitch",
+                           help="0° = plat dak (dakvlak = footprint). Hellend pannendak in NL: meestal 35–45°.")
+        _factor = 1.0 / math.cos(math.radians(_pitch))
+        _main = _fp * _factor
+        st.markdown("**Dakkapel / uitbouw achterzijde** — Google Maps loopt vaak achter op verbouwingen.")
+        _dk = st.columns(3)
+        _dk_on = _dk[0].checkbox("Meetellen", value=True, key="dak_calc_dk_on")
+        _dk_br = _dk[1].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dk_br")
+        _dk_di = _dk[2].number_input("Uitbouw/diepte (m)", 0.0, 20.0, 1.2, 0.1, key="dak_calc_dk_di")
+        _dk_extra = (_dk_br * _dk_di) if _dk_on else 0.0
+        _roof = _main + _dk_extra
+        st.session_state["_dak_roof_calc"] = _roof
+        _mc = st.columns(2)
+        _mc[0].metric("Berekend dakoppervlak", f"{_roof:.0f} m²",
+                      f"hoofddak {_main:.0f} m² (×{_factor:.2f}) + dakkapel {_dk_extra:.0f} m²", delta_color="off")
+        _mc[1].button("📥 Gebruik als dakoppervlak", key="dak_calc_apply", on_click=_dak_apply_calc,
+                      help="Zet dit berekende dakvlak bovenaan als dakoppervlak (m²).")
+        st.caption("Google Maps meet het **platte** grondvlak; de helling maakt er het echte schuine dakvlak van. "
+                   "Tel bij de dakkapel alleen mee wat met pannen wordt bedekt (een platte dakkapelkap niet). "
+                   "De achterzijde-dakkapel is hier 1,2 m uitgebouwd → breedte × 1,2 m extra dakvlak.")
+
+    with st.expander("🧱 Pannen-check — klopt het geoffreerde aantal dakpannen?", expanded=False):
+        st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Het dekkend aantal per m² hangt "
+                   "af van het pantype: grootformaat betonpan ~9–11/m², standaard keramisch ~12–16/m².")
+        _pc = st.columns(2)
+        _pct = _pc[0].selectbox("Pantype", list(DAK_RENO_PANNEN_PER_M2), key="dak_pannen_type")
+        _pp_lo, _pp_hi = DAK_RENO_PANNEN_PER_M2[_pct]
+        _pp = _pc[1].slider("Pannen per m²", 6.0, 20.0, round((_pp_lo + _pp_hi) / 2, 1), 0.5,
+                            key="dak_pannen_per_m2", help="Pas aan als de leverancier een ander dekkend aantal opgeeft.")
+        _exp_lo, _exp_hi, _exp = dak_opp * _pp_lo, dak_opp * _pp_hi, dak_opp * _pp
+        _stated = st.number_input("Aantal pannen volgens offerte", 0, 100000, 469, 1, key="dak_pannen_stated",
+                                  help="Westermeer OFF-2026-0189: hoofddak 368 + erker 35 + dakkapel 66 = 469.")
+        _pm = st.columns(3)
+        _pm[0].metric("Verwacht (mean)", f"{_exp:.0f} pannen", f"band {_exp_lo:.0f}–{_exp_hi:.0f}", delta_color="off")
+        _pm[1].metric("Volgens offerte", f"{_stated} pannen",
+                      f"= {(_stated / dak_opp if dak_opp else 0):.1f}/m²", delta_color="off")
+        _pm[2].metric("Impliceert dakvlak", f"{(_stated / _pp if _pp else 0):.0f} m²",
+                      f"bij {_pp:.1f}/m²", delta_color="off")
+        if _stated == 0:
+            st.caption("Vul het aantal pannen uit de offerte in om te toetsen.")
+        elif _exp_lo <= _stated <= _exp_hi:
+            st.success(f"🟢 {_stated} pannen past binnen de verwachting ({_exp_lo:.0f}–{_exp_hi:.0f}) voor "
+                       f"{dak_opp:.0f} m² {_pct.lower()}.")
+        elif _stated < _exp_lo:
+            st.warning(f"🟡 {_stated} pannen ligt **onder** de verwachting ({_exp_lo:.0f}–{_exp_hi:.0f}) — "
+                       f"impliceert ~{_stated / _pp:.0f} m² i.p.v. {dak_opp:.0f} m². Grotere pannen, minder dakvlak "
+                       f"of een te hoog ingesteld dakoppervlak.")
+        else:
+            st.warning(f"🟡 {_stated} pannen ligt **boven** de verwachting ({_exp_lo:.0f}–{_exp_hi:.0f}) — "
+                       f"impliceert ~{_stated / _pp:.0f} m². Meer dakvlak (dakkapel/erker) of kleinere pannen; "
+                       f"check de specificatie.")
 
     st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
                 "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
