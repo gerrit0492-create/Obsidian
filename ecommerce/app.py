@@ -1905,23 +1905,24 @@ with tab_dak:
                 return [(cx - breedte / 2, cy - diepte / 2), (cx + breedte / 2, cy - diepte / 2),
                         (cx + breedte / 2, cy + diepte / 2), (cx - breedte / 2, cy + diepte / 2)]
             _extras = []
-            st.caption("Plaats carport en schuur met de schuifjes (← links / → rechts en ↓ voor / ↑ achter, in "
-                       "meter t.o.v. het midden van het huis). Kijk naar de plattegrond en stel bij tot het klopt.")
-            st.markdown("**Carport** (zit vast aan het huis — bv. voorste-linkerhoek)")
-            _cc = st.columns(4)
-            _cp_br = _cc[0].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_cp_br")
-            _cp_di = _cc[1].number_input("Diepte (m)", 0.0, 50.0, 5.0, 0.1, key="dak_plan_cp_di")
-            _cp_x = _cc[2].number_input("← links / rechts → (m)", -60.0, 60.0, -round(_hw / 2 + 1.5, 1), 0.5, key="dak_plan_cp_x")
-            _cp_y = _cc[3].number_input("↓ voor / achter ↑ (m)", -60.0, 60.0, -round(_hd / 2, 1), 0.5, key="dak_plan_cp_y")
+            with st.expander("🔧 Carport & schuur — maten/plaatsing (staat al goed voor dit huis)", expanded=False):
+                st.caption("Vaste plaatsing voor deze woning; alleen openen als je wilt bijstellen. ← links / → "
+                           "rechts en ↓ voor / ↑ achter, in meter t.o.v. het midden van het huis.")
+                st.markdown("**Carport** (voorste-linkerhoek, vast aan het huis)")
+                _cc = st.columns(4)
+                _cp_br = _cc[0].number_input("Breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_cp_br")
+                _cp_di = _cc[1].number_input("Diepte (m)", 0.0, 50.0, 5.0, 0.1, key="dak_plan_cp_di")
+                _cp_x = _cc[2].number_input("← links / rechts → (m)", -60.0, 60.0, -round(_hw / 2 + 1.5, 1), 0.5, key="dak_plan_cp_x")
+                _cp_y = _cc[3].number_input("↓ voor / achter ↑ (m)", -60.0, 60.0, -round(_hd / 2, 1), 0.5, key="dak_plan_cp_y")
+                st.markdown("**Schuur** (achter in de tuin, volle breedte)")
+                _sc = st.columns(4)
+                _sc_br = _sc[0].number_input("Breedte (m)", 0.0, 50.0, round(_hw, 1), 0.1, key="dak_plan_sc_br")
+                _sc_di = _sc[1].number_input("Diepte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_plan_sc_di")
+                _sc_x = _sc[2].number_input("← links / rechts → (m)", -60.0, 60.0, 0.0, 0.5, key="dak_plan_sc_x")
+                _sc_y = _sc[3].number_input("↓ voor / achter ↑ (m)", -80.0, 80.0, round(_hd / 2 + 8.0, 1), 0.5, key="dak_plan_sc_y")
             if _cp_br > 0 and _cp_di > 0:
                 _extras.append({"ring": _box(_cp_x, _cp_y, _cp_br, _cp_di), "naam": "carport",
                                 "fill": "rgba(90,130,160,0.45)", "line": "#3f6781"})
-            st.markdown("**Schuur** (bv. achter in de tuin, over de volle breedte)")
-            _sc = st.columns(4)
-            _sc_br = _sc[0].number_input("Breedte (m)", 0.0, 50.0, round(_hw, 1), 0.1, key="dak_plan_sc_br")
-            _sc_di = _sc[1].number_input("Diepte (m)", 0.0, 50.0, 0.0, 0.1, key="dak_plan_sc_di")
-            _sc_x = _sc[2].number_input("← links / rechts → (m)", -60.0, 60.0, 0.0, 0.5, key="dak_plan_sc_x")
-            _sc_y = _sc[3].number_input("↓ voor / achter ↑ (m)", -80.0, 80.0, round(_hd / 2 + 8.0, 1), 0.5, key="dak_plan_sc_y")
             if _sc_br > 0 and _sc_di > 0:
                 _extras.append({"ring": _box(_sc_x, _sc_y, _sc_br, _sc_di), "naam": "schuur",
                                 "fill": "rgba(150,120,80,0.45)", "line": "#8a6d3b"})
