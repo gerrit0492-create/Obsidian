@@ -550,19 +550,34 @@ def _fetch_url(url, timeout=15):
 def _bag_panden(address):
     """Adres → pand-id('s) via de PDOK-adressenservice (Locatieserver). Lijst van {naam, pandids}."""
     import urllib.parse
+    base = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/"
     # Normaliseer: komma's weg, dubbele spaties weg, en een aan-elkaar-geplakt huisnummer losmaken
     # ("Compiegnehof11" → "Compiegnehof 11"). PDOK is ongevoelig voor accenten/hoofdletters.
     _adr = re.sub(r"([^\W\d_])(\d)", r"\1 \2", re.sub(r"\s+", " ", address.replace(",", " ")).strip())
-    url = ("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q="
-           + urllib.parse.quote(_adr)
-           + "&fq=type:adres&fl=weergavenaam,pandid,centroide_ll&rows=8")
-    data = json.loads(_fetch_url(url, timeout=20))
+    url = (base + "free?q=" + urllib.parse.quote(_adr)
+           + "&fq=type:adres&fl=id,weergavenaam,pandid,centroide_ll&rows=10")
+    docs = json.loads(_fetch_url(url, timeout=20)).get("response", {}).get("docs", [])
+
+    def _pids(d):
+        p = d.get("pandid") or []
+        return [p] if isinstance(p, str) else list(p)
+
     out = []
-    for d in data.get("response", {}).get("docs", []):
-        pids = d.get("pandid") or []
-        if isinstance(pids, str):
-            pids = [pids]
-        out.append({"naam": d.get("weergavenaam", ""), "pandids": list(pids), "ll": d.get("centroide_ll")})
+    for d in docs:
+        pids = _pids(d)
+        if not pids and d.get("id"):
+            # De free-respons geeft voor een adres geen pand-id; haal het op via de lookup-endpoint.
+            try:
+                lk = json.loads(_fetch_url(base + "lookup?id=" + urllib.parse.quote(str(d["id"]))
+                                           + "&fl=id,weergavenaam,pandid", timeout=20))
+                ldocs = lk.get("response", {}).get("docs", [])
+                if ldocs:
+                    pids = _pids(ldocs[0])
+            except Exception:  # noqa: BLE001
+                pids = []
+        out.append({"naam": d.get("weergavenaam", ""), "pandids": pids, "ll": d.get("centroide_ll")})
+        if pids:
+            break  # eerste treffer mét pand-id is genoeg
     return out
 
 
