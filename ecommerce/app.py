@@ -329,11 +329,13 @@ def _render_maand_kalender(jaar, maand, per_dag, conf_dat):
                              unsafe_allow_html=True)
 
 
-def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0, dkf_br=0.0, dkf_di=0.0, dk_right=0.0):
+def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0, dkf_br=0.0, dkf_di=0.0,
+                     dk_right_b=0.3, dk_right_f=0.5):
     """Schematisch 3D-model van een gezadeld pannendak (muren + twee dakschilden + dakkapellen).
 
-    L = nokrichting (m), B = breedte gevel-tot-gevel (m), pitch_deg = dakhelling. Een dakkapel op het
-    achterschild (dk_br × dk_di) en/of het voorschild (dkf_br × dkf_di). Visueel/indicatief.
+    L = nokrichting (m), B = breedte gevel-tot-gevel (m), pitch_deg = dakhelling. Dakkapel op het
+    achterschild (dk_br × dk_di, rechterrand dk_right_b m van de rechterwand) en op het voorschild
+    (dkf_br × dkf_di, dk_right_f m). Visueel/indicatief.
     """
     pitch = math.radians(max(0.0, min(pitch_deg, 75.0)))
     apex = wall_h + (B / 2.0) * math.tan(pitch)
@@ -350,11 +352,11 @@ def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0, dkf_br=0
     fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=[t[0] for t in roof], j=[t[1] for t in roof],
                             k=[t[2] for t in roof], color="#3a3f44", flatshading=True, name="dakvlak"))
 
-    def _dormer(br, di, toward_back, naam):
+    def _dormer(br, di, toward_back, naam, right):
         if br <= 0 or di <= 0:
             return
-        if dk_right and dk_right > 0:        # rechterrand op dk_right meter van de rechterwand
-            x1 = min(L, L - dk_right)
+        if right and right > 0:              # rechterrand op `right` meter van de rechterwand
+            x1 = min(L, L - right)
             x0 = max(0.0, x1 - br)
         else:                                # 0 = gecentreerd
             xc = L / 2.0
@@ -372,8 +374,8 @@ def _dak_roof_3d_fig(L, B, pitch_deg, wall_h=3.0, dk_br=0.0, dk_di=0.0, dkf_br=0
                                 i=[t[0] for t in cub], j=[t[1] for t in cub], k=[t[2] for t in cub],
                                 color="#9fb0bb", flatshading=True, name=naam))
 
-    _dormer(dk_br, dk_di, True, "dakkapel achter")
-    _dormer(dkf_br, dkf_di, False, "dakkapel voor")
+    _dormer(dk_br, dk_di, True, "dakkapel achter", dk_right_b)
+    _dormer(dkf_br, dkf_di, False, "dakkapel voor", dk_right_f)
     fig.update_layout(scene=dict(aspectmode="data", xaxis_title="lengte (m)", yaxis_title="breedte (m)",
                                  zaxis_title="hoogte (m)",
                                  camera=dict(projection=dict(type="orthographic"),
@@ -1699,9 +1701,11 @@ with tab_dak:
         _dkf_on = _dkf[0].checkbox("Voorzijde meetellen", value=True, key="dak_calc_dkf_on")
         _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, 3.0, 0.1, key="dak_calc_dkf_br")
         _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, 1.5, 0.1, key="dak_calc_dkf_di")
-        st.number_input("Dakkapellen — afstand vanaf de rechterwand (m), 0 = gecentreerd", 0.0, 50.0, 0.5, 0.1,
-                        key="dak_calc_dk_right", help="Plaatst de rechterrand van de dakkapellen op deze afstand "
-                        "van de rechtergevel in het 3D-aanzicht.")
+        _dr = st.columns(2)
+        _dr[0].number_input("Dakkapel vóór — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.5, 0.1,
+                            key="dak_calc_dk_right_f", help="Rechterrand van de voorste dakkapel t.o.v. de rechtergevel.")
+        _dr[1].number_input("Dakkapel achter — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.3, 0.1,
+                            key="dak_calc_dk_right_b", help="Rechterrand van de achterste dakkapel t.o.v. de rechtergevel.")
         _dk_extra = (_dk_br * _dk_di if _dk_on else 0.0) + (_dkf_br * _dkf_di if _dkf_on else 0.0)
         _roof = _main + _dk_extra
         st.session_state["_dak_roof_calc"] = _roof
@@ -1759,9 +1763,10 @@ with tab_dak:
         _3fon = st.session_state.get("dak_calc_dkf_on", True)
         _3fbr = st.session_state.get("dak_calc_dkf_br", 3.0) if _3fon else 0.0
         _3fdi = st.session_state.get("dak_calc_dkf_di", 1.5) if _3fon else 0.0
-        _3right = float(st.session_state.get("dak_calc_dk_right", 0.5))
+        _3rf = float(st.session_state.get("dak_calc_dk_right_f", 0.5))
+        _3rb = float(st.session_state.get("dak_calc_dk_right_b", 0.3))
         st.plotly_chart(_dak_roof_3d_fig(float(_3l), float(_3b), float(_3pitch), 3.0,
-                                         float(_3dkbr), float(_3dkdi), float(_3fbr), float(_3fdi), _3right),
+                                         float(_3dkbr), float(_3dkdi), float(_3fbr), float(_3fdi), _3rb, _3rf),
                         use_container_width=True)
         st.caption("Schematisch 3D-model op basis van de afmetingen uit de rekenhulp hierboven (lengte × breedte, "
                    "dakhelling en de dakkapellen voor + achter). Sleep om te draaien/zoomen. "
