@@ -997,6 +997,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_opp"] = float(_data.get("dak_opp", 60.0) or 60.0)
     if "dak_migr" not in st.session_state:
         st.session_state["dak_migr"] = _data.get("dak_migr", 0)
+    if "actieplan" not in st.session_state:
+        st.session_state["actieplan"] = _data.get("actieplan", [])
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
@@ -1007,7 +1009,24 @@ def _persist():
                        "dak_afspraken": st.session_state.get("dak_afspraken", []),
                        "dak_shouldcost": st.session_state.get("dak_shouldcost", []),
                        "dak_opp": st.session_state.get("dak_opp", 60.0),
+                       "actieplan": st.session_state.get("actieplan", []),
                        "dak_migr": st.session_state.get("dak_migr", 0)})
+
+
+def _add_acties(acties, niche):
+    """Voeg AI-voorgestelde acties toe aan het actieplan (ontdubbeld op tekst)."""
+    _plan = st.session_state.setdefault("actieplan", [])
+    _have = {str(a.get("Actie") or "").strip().lower() for a in _plan}
+    _n = 0
+    for _t in acties:
+        _t = str(_t).strip()
+        if _t and _t.lower() not in _have:
+            _have.add(_t.lower())
+            _plan.append({"Actie": _t, "Niche": niche, "Status": "Open"})
+            _n += 1
+    if _n:
+        _persist_safe()
+    return _n
 
 
 def _persist_safe():
@@ -1152,12 +1171,13 @@ _labels = ["🏠 Dakofferte-tracker", "🧮 Marge-calculator", "📦 Productport
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
+_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check", "✅ Actieplan"]
 _it = iter(st.tabs(_labels))
 tab_dak = next(_it)
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
 tab_niches = next(_it); tab_scan = next(_it); tab_onderzoek = next(_it); tab_founder = next(_it)
+tab_acties = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -1619,6 +1639,7 @@ with tab_founder:
             if not idea.strip():
                 st.warning("Vul eerst je idee in.")
             else:
+                _founder_outs = []
                 for p in m.FOUNDER_PROMPTS:
                     if f"{p['nr']}. {p['titel']}" not in keuze:
                         continue
@@ -1627,12 +1648,62 @@ with tab_founder:
                     st.markdown(f"#### {p['nr']}. {p['titel']}")
                     st.markdown(out or "_(geen antwoord — probeer opnieuw)_")
                     st.divider()
+                    if out:
+                        _founder_outs.append(out)
+                st.session_state["founder_last_out"] = "\n\n".join(_founder_outs)
+                st.session_state["founder_last_niche"] = idea.strip()
+        if st.session_state.get("founder_last_out"):
+            if st.button("➕ Voorgestelde acties → mijn ✅ Actieplan", key="founder_to_acties",
+                         help="Haalt de concrete acties uit de analyse en zet ze als trackbare taken op je actieplan."):
+                with st.spinner("Acties uit de analyse halen…"):
+                    _ex = ai.complete(
+                        "Haal uit de volgende analyse de concrete, uitvoerbare acties als korte to-do-regels "
+                        "(imperatief, maximaal 6, één per regel, zonder nummering of opsommingstekens). Geef "
+                        "alleen de acties terug, niets anders.\n\n" + st.session_state["founder_last_out"], 500)
+                _acties = [_l.strip().lstrip("-*•0123456789.) ").strip() for _l in (_ex or "").splitlines()]
+                _acties = [a for a in _acties if len(a) > 3][:8]
+                _added = _add_acties(_acties, st.session_state.get("founder_last_niche", actieve_niche))
+                if _added:
+                    st.success(f"{_added} actie(s) toegevoegd aan je ✅ Actieplan-tab.")
+                else:
+                    st.info("Geen nieuwe acties gevonden (mogelijk staan ze al op je actieplan).")
     else:
         st.info("Geen LLM-key gevonden. Zet **GROQ_API_KEY** (gratis, geen creditcard) in Secrets "
                 "om dit automatisch te draaien. Of kopieer hieronder de prompts naar je eigen AI.")
         for p in m.FOUNDER_PROMPTS:
             with st.expander(f"{p['nr']}. {p['titel']}"):
                 st.code(f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nStappen:\n{p['steps']}")
+
+
+# --- Actieplan -------------------------------------------------------------
+with tab_acties:
+    st.subheader("✅ Actieplan")
+    st.caption("Je acties uit de 🚀 Founder-check (en eigen invoer) als trackbare taken. Zet de status op "
+               "Open / Bezig / Klaar; rij toevoegen met +. Wordt automatisch bewaard.")
+    _ap = list(st.session_state.get("actieplan", []))
+    _ap_key = f"actieplan_oe_{len(_ap)}"
+    _ap_ed = st.data_editor(
+        pd.DataFrame(_ap, columns=["Actie", "Niche", "Status"]), num_rows="dynamic",
+        use_container_width=True, key=_ap_key,
+        column_config={
+            "Actie": st.column_config.TextColumn(width="large"),
+            "Status": st.column_config.SelectboxColumn(options=["Open", "Bezig", "Klaar"], default="Open"),
+        })
+    _ap_rows = [r for r in _ap_ed.to_dict("records") if str(r.get("Actie") or "").strip()]
+    if _ap_rows != st.session_state.get("actieplan"):
+        st.session_state["actieplan"] = _ap_rows
+        _persist_safe()
+    if _ap_rows:
+        _klaar = sum(1 for r in _ap_rows if str(r.get("Status") or "") == "Klaar")
+        st.caption(f"📊 {len(_ap_rows)} acties · {len(_ap_rows) - _klaar} open · {_klaar} klaar.")
+        st.download_button("⬇️ Download actieplan (Excel)",
+                           m.df_to_excel_bytes({"Actieplan": pd.DataFrame(_ap_rows)}),
+                           file_name="actieplan.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           key="actieplan_xlsx")
+    else:
+        st.info("Nog geen acties. Draai een analyse in 🚀 **Founder-check** en klik "
+                "**'➕ Voorgestelde acties → mijn Actieplan'**, of voeg hierboven handmatig een actie toe.")
 
 
 # --- 9. Niche-scan ---------------------------------------------------------
