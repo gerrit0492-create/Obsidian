@@ -1543,6 +1543,32 @@ with tab_niches:
     st.caption("Alle niches — bekende én je eigen — gesorteerd op fit en marge. "
                "Klik ‘Activeer’ om het hele dashboard op die niche te zetten.")
 
+    # --- Stappenplan voor de niche-flow: kies → scan → founder-check → actieplan → uitvoeren ---
+    _ns_chosen = bool(actieve_niche) and actieve_niche != "(eigen / vrij)"
+    _ns_scans = st.session_state.get("scans", [])
+    _ns_founder = bool(st.session_state.get("founder_last_out"))
+    _ns_acties = st.session_state.get("actieplan", [])
+    _ns_bezig = any(str(a.get("Status") or "") in ("Bezig", "Klaar") for a in _ns_acties)
+    _ns_steps = [
+        ("Niche kiezen", _ns_chosen, (actieve_niche if _ns_chosen else "nog niet gekozen"),
+         "Kies hieronder een niche en klik 'Activeer' (of zet 'm in de zijbalk)."),
+        ("Niche scannen", bool(_ns_scans), f"{len(_ns_scans)} gescand",
+         "Scoor de niche op 6 criteria in tab '🔎 Niche-scan'."),
+        ("Founder-check", _ns_founder, ("analyse gedaan" if _ns_founder else "nog niet"),
+         "Pressure-test het idee in tab '🚀 Founder-check' (incl. afzetmarkt NL/Benelux)."),
+        ("Actieplan vullen", bool(_ns_acties), f"{len(_ns_acties)} acties",
+         "Zet de voorgestelde acties op je lijst (knop in Founder-check / Onderzoek & groei)."),
+        ("Uitvoeren", _ns_bezig, ("bezig/klaar" if _ns_bezig else "nog te starten"),
+         "Werk de acties af in tab '✅ Actieplan' (status Bezig → Klaar)."),
+    ]
+    _nd = sum(1 for _, _ok, _s, _i in _ns_steps if _ok)
+    st.markdown(f"### 📋 Stappenplan — {_nd}/{len(_ns_steps)} stappen klaar")
+    st.caption("Nieuw hierin? Volg deze stappen van boven naar beneden — tabblad voor tabblad.")
+    st.progress(_nd / len(_ns_steps))
+    for _i, (_nm, _ok, _stat, _instr) in enumerate(_ns_steps, 1):
+        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
+    st.divider()
+
     def _fitnum(f):
         try:
             return float(str(f).split("/")[0].replace(",", "."))
