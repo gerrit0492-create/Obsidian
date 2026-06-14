@@ -1933,6 +1933,30 @@ with tab_dak:
         else:
             st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
 
+    # --- Stappenplan: begeleide, statusbewuste flow voor wie geen verstand van daken heeft ---
+    _st_afspr = [r for r in st.session_state.get("dak_afspraken", []) if str(r.get("Bedrijf") or "").strip()]
+    _st_n = len(_koffs)
+    _st_gekozen = [o for o in st.session_state.get("dakofferte", []) if str(o.get("Status") or "") == "Gekozen"]
+    _steps = [
+        ("Dakoppervlak bepalen", dak_opp > 0, f"{dak_opp:.0f} m²",
+         "Meet je dak in '📐 Opmeten & model' (of vul het oppervlak bovenaan in)."),
+        ("Aannemers & afspraken", bool(_st_afspr), f"{len(_st_afspr)} contact(en)",
+         "Zet aannemers + bezoekafspraken in tab '🔎 Aannemers & afspraken'."),
+        ("Offertes verzamelen", _st_n >= 1, f"{_st_n} offerte(s)",
+         "Voeg offertes toe of upload de PDF in tab '📥 Offertes'."),
+        ("Vergelijken", _st_n >= 2, "kan vanaf 2 offertes",
+         "Vergelijk prijs, scope en should-cost in tab '⚖️ Vergelijken · advies · kiezen'."),
+        ("Kiezen", bool(_st_gekozen), (_st_gekozen[0].get("Bedrijf", "") if _st_gekozen else "nog niet gekozen"),
+         "Kies onderaan 'Vergelijken' je aannemer — die krijgt status 'Gekozen'."),
+    ]
+    _done = sum(1 for _, _ok, _s, _i in _steps if _ok)
+    st.markdown(f"### 📋 Stappenplan — {_done}/5 stappen klaar")
+    st.caption("Geen verstand van daken? Volg deze stappen gewoon van boven naar beneden.")
+    st.progress(_done / len(_steps))
+    for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1):
+        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i}: {_nm}** · _{_stat}_ — {_instr}")
+    st.divider()
+
     st.markdown("#### 📐 Opmeten & model — dak, pannen, 3D & perceel")
     _meet = st.tabs(["📐 Dak m² (Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
     with _meet[0]:
