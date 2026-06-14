@@ -2321,27 +2321,43 @@ with tab_dak:
                          f"LCL €{_slo:.0f} – UCL €{_shi:.0f}", delta_color="off")
             rc[1].metric("Should-price incl. btw (mean)", f"€{_sime:.0f}/m²",
                          f"LCL €{_silo:.0f} – UCL €{_sihi:.0f}", delta_color="off")
-            rc[2].metric(f"Totaal incl. btw — {dak_opp:.0f} m² (mean)", eur(_sime * dak_opp),
+            rc[2].metric(f"Kale dakrenovatie — {dak_opp:.0f} m² incl. (mean)", eur(_sime * dak_opp),
                          f"{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)}", delta_color="off")
-            st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw "
-                       f"(mean {eur(_sme * dak_opp)}) → **{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw "
-                       f"(mean {eur(_sime * dak_opp)})**.")
-            # Toets álle offertes (niet één hardcoded naam) aan de should-price — driven door de data.
+            st.caption(f"**Kale dakrenovatie** (excl. lood/vogelwering/goot) voor {dak_opp:.0f} m²: "
+                       f"{eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw → "
+                       f"**{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw (mean {eur(_sime * dak_opp)})**.")
+            # Toets de offertes aan de COMPLETE should-cost (zelfde baseline als ⚖️ Vergelijking & advies),
+            # zodat beide tabs hetzelfde getal gebruiken: volledige offerte tegen volledige scope.
+            _bl = st.session_state.get("dak_shouldcost") or _dak_shouldcost_posten(dak_opp)
+            _bl_incl = sum(float(p["Prijs excl. btw"]) * (1 + float(p["Btw %"]) / 100) for p in _bl)
+            _bl_lcl = sum(float(p.get("LCL", p["Prijs excl. btw"])) * (1 + float(p["Btw %"]) / 100) for p in _bl)
+            _bl_ucl = sum(float(p.get("UCL", p["Prijs excl. btw"])) * (1 + float(p["Btw %"]) / 100) for p in _bl)
+            st.markdown(f"**Complete should-cost** (kale dakrenovatie **+** goot/loodwerk/vogelwering) voor "
+                        f"{dak_opp:.0f} m²: **{eur(_bl_incl)} incl.** (band {eur(_bl_lcl)} – {eur(_bl_ucl)}) — "
+                        "**dezelfde baseline als in ⚖️ Vergelijking & advies**. Hiertegen toets je de offertes.")
             _toets = [o for o in st.session_state.get("dakofferte", [])
                       if str(o.get("Bedrijf") or "").strip() and str(o.get("Status") or "") != "Afgewezen"
-                      and float(o.get("Excl. btw") or 0) > 0]
+                      and (float(o.get("Excl. btw") or 0) > 0 or float(o.get("Incl. btw") or 0) > 0)]
             if _toets:
-                st.markdown("**Offertes getoetst aan de should-price** (€/m² excl. btw):")
+                st.markdown("**Offertes getoetst** (excl. → incl. btw):")
                 for _o in _toets:
                     _oex = float(_o.get("Excl. btw") or 0)
-                    _om2 = _oex / dak_opp if dak_opp else 0.0
-                    _ov = ("🟢 marktconform" if _om2 <= _shi
-                           else "🟡 aan de hoge kant" if _om2 <= _shi * 1.25 else "🔴 fors boven should-price")
-                    st.markdown(f"- **{_o.get('Bedrijf')}**: {eur(_oex)} excl. = **€{_om2:.0f}/m²** → {_ov} "
-                                f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
-                st.caption("De should-price is het **dakrenovatie-deel** (excl. lood/vogelwering/goot); "
-                           "offertetotalen bevatten die vaak wél → die liggen hoger. Voor de zuivere, "
-                           "scope-genormaliseerde vergelijking zie **⚖️ Vergelijking & advies**.")
+                    _oin = float(_o.get("Incl. btw") or 0)
+                    if _oin <= 0 and _oex > 0:
+                        _oin = round(_oex * 1.21, 2)
+                    if _oex <= 0 and _oin > 0:
+                        _oex = round(_oin / 1.21, 2)
+                    if _oin < _bl_lcl:
+                        _ov = "🔵 onder de band (scherp)"
+                    elif _oin <= _bl_ucl:
+                        _ov = "🟢 binnen de band (marktconform)"
+                    elif _oin <= _bl_ucl * 1.15:
+                        _ov = "🟡 net boven de band"
+                    else:
+                        _ov = "🔴 fors boven de band"
+                    _oim2 = _oin / dak_opp if dak_opp else 0.0
+                    st.markdown(f"- **{_o.get('Bedrijf')}**: {eur(_oex)} excl. · {eur(_oin)} incl. "
+                                f"(€{_oim2:.0f}/m²) → {_ov}")
             else:
                 st.caption("Nog geen offertes om te toetsen — voeg ze toe bij **📥 Offertes**.")
             _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
