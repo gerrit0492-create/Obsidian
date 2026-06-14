@@ -220,8 +220,8 @@ DAK_RENO_BTW = 0.21  # offerte rekent vlak 21%; isolatie-arbeid (woning > 2 jr) 
 # Pannen-materiaal €/m² EXCL. btw per type (bron: prijsoverzicht, omgerekend van incl.) — kies per
 # offerte, want er komen offertes met zowel keramische als betonnen pannen.
 DAK_RENO_PANTYPE = {
-    "Keramisch (antraciet)": (26.0, 45.0),   # bron ≈ €35–75/m² incl.
-    "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
+    "Betonpan / Sneldek (antraciet)": (20.0, 30.0),  # standaard hier; bron ≈ €26–36/m² incl.
+    "Keramisch (antraciet)": (26.0, 45.0),           # bron ≈ €35–75/m² incl.
 }
 
 # Directe arbeid (cao-dakdekker incl. directe werkgeverslasten, excl. AK/W&R/btw).
@@ -277,8 +277,8 @@ DAK_RENO_DETAIL = {
 # Dekkend aantal pannen per m² (LCL–UCL) per type — om een geoffreerd pannenaantal te toetsen aan het
 # dakoppervlak (bron: Sleiderink / dakpanrichtlijnen). Holle keramisch & OVH liggen hoger dan vlakke/beton.
 DAK_RENO_PANNEN_PER_M2 = {
-    "Betonpan / Sneldek": (10.0, 12.0),
-    "Keramisch vlak": (10.0, 12.0),
+    "Sneldek (grootformaat beton)": (8.5, 10.5),
+    "Betonpan / vlak keramisch": (10.0, 12.0),
     "Keramisch hol / OVH": (14.0, 16.0),
 }
 
@@ -1884,7 +1884,8 @@ with tab_dak:
 
     with _meet[1]:
         st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Dekkend aantal per m² (bron "
-                   "dakpanrichtlijnen): beton/Sneldek & vlakke keramisch **10–12**, holle keramisch / OVH **14–16**.")
+                   "dakpanrichtlijnen): **Sneldek (grootformaat) ~8–10**, betonpan / vlak keramisch **10–12**, "
+                   "holle keramisch / OVH **14–16**.")
         _pc = st.columns(2)
         _pct = _pc[0].selectbox("Pantype", list(DAK_RENO_PANNEN_PER_M2), key="dak_pannen_type")
         _pp_lo, _pp_hi = DAK_RENO_PANNEN_PER_M2[_pct]
@@ -1974,7 +1975,7 @@ with tab_dak:
                     _bc = st.columns(3)
                     _cpw = _bc[0].number_input("Carport breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_bag_cpw")
                     _cph = _bc[1].number_input("Carport langs helling (m)", 0.0, 50.0, 2.0, 0.1, key="dak_bag_cph")
-                    _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 11.0, 0.5, key="dak_bag_ppm",
+                    _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
                                                help="Beton/Sneldek & vlakke keramisch 10–12; holle keramisch / OVH 14–16.")
                     _extra = _cpw * _cph
                     _tarea = _slope + _extra
