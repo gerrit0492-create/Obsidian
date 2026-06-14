@@ -892,6 +892,14 @@ def _afspr_key(r):
             str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip())
 
 
+def _afspr_slotkey(r):
+    """Dedup op tijdslot: zelfde datum + tijd = dezelfde afspraak, ook bij een andere schrijfwijze
+    van de naam (bv. seed 'Dakbedrijf Westermeer' vs agenda 'Dak offerte westerman'). Afspraken
+    zonder datum én tijd vallen terug op de exacte bedrijf+datum+tijd-sleutel."""
+    _d, _t = str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip()
+    return ("slot", _d, _t) if (_d and _t) else ("exact",) + _afspr_key(r)
+
+
 def _ics_dak_afspraken(text, keyword="dak", today=None, min_datum=None):
     """Afspraken uit iCal waarvan de titel het trefwoord bevat en datum >= min_datum."""
     from datetime import date
@@ -2565,10 +2573,14 @@ with tab_dak:
                     try:
                         _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
                                                   min_datum=_vanaf_s)
-                        _have = {_afspr_key(r) for r in st.session_state.get("dak_afspraken", [])}
+                        # Ontdubbel op tijdslot (datum+tijd) tegen wat er al staat — zo komt dezelfde
+                        # afspraak niet onder een agenda-naamvariant nóg eens binnen. Geannuleerde
+                        # afspraken tellen niet mee: een nieuwe afspraak op dat vrijgekomen slot mag wél.
+                        _have = {_afspr_slotkey(r) for r in st.session_state.get("dak_afspraken", [])
+                                 if str(r.get("Status") or "") != "Geannuleerd"}
                         _added = []
                         for r in _new:
-                            k = _afspr_key(r)
+                            k = _afspr_slotkey(r)
                             if k not in _have:
                                 _have.add(k)
                                 _added.append(r)
@@ -2697,24 +2709,24 @@ with tab_dak:
             if st.button("🧹 Dubbele afspraken opruimen (zelfde datum + tijd)", key="dak_afspr_dedup",
                          help="Behandelt afspraken op dezelfde **datum + tijd** als één afspraak — ook bij een "
                               "andere schrijfwijze van de naam (bv. 'Stipt Dakgroep' vs 'Stipt dak groep offerte'). "
-                              "De meest complete rij blijft staan. Afspraken zonder datum/tijd worden niet aangeraakt."):
+                              "De meest complete rij blijft staan. **Geannuleerde** afspraken en afspraken zonder "
+                              "datum/tijd blijven ongemoeid (een geannuleerde + een nieuwe op een ander tijdstip "
+                              "zijn twee verschillende afspraken)."):
                 _rows = st.session_state.get("dak_afspraken", [])
-
-                def _slotkey(r):
-                    _d, _t = str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip()
-                    return ("slot", _d, _t) if (_d and _t) else ("exact",) + _afspr_key(r)
 
                 def _filled(r):
                     return sum(1 for v in r.values() if str(v or "").strip())
-                _best, _order = {}, []
+                _seen, _uniq = {}, []  # slot-sleutel -> index in _uniq van de bewaarde rij
                 for _r in _rows:
-                    _k = _slotkey(_r)
-                    if _k not in _best:
-                        _best[_k] = _r
-                        _order.append(_k)
-                    elif _filled(_r) > _filled(_best[_k]):
-                        _best[_k] = _r  # houd de meest complete rij van dit tijdslot
-                _uniq = [_best[_k] for _k in _order]
+                    if str(_r.get("Status") or "") == "Geannuleerd":
+                        _uniq.append(_r)  # geannuleerde records nooit samenvoegen of verwijderen
+                        continue
+                    _k = _afspr_slotkey(_r)
+                    if _k not in _seen:
+                        _seen[_k] = len(_uniq)
+                        _uniq.append(_r)
+                    elif _filled(_r) > _filled(_uniq[_seen[_k]]):
+                        _uniq[_seen[_k]] = _r  # houd de meest complete rij van dit tijdslot
                 _dups = len(_rows) - len(_uniq)
                 if _dups:
                     st.session_state["dak_afspraken"] = _uniq
