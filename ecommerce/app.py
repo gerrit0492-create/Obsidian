@@ -2469,7 +2469,14 @@ with tab_dak:
                         _row["Status"] = "Geannuleerd"
                         _geannuleerd.append(_row)
             _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-            _nieuw_afspr = _verborgen + _af_rows + _geannuleerd
+            # Guard tegen dubbel ingezette afspraken: een rij met een datum vóór het filter valt in
+            # _verborgen terwijl de data_editor (zelfde key, want len(_zichtbaar) blijft gelijk) zijn
+            # added_rows opnieuw toepast — dan zit dezelfde rij in zowel _verborgen als _af_rows. Vouw
+            # exact identieke rijen samen (veilig: byte-identiek = altijd een echte dubbele).
+            _nieuw_afspr = []
+            for _r in _verborgen + _af_rows + _geannuleerd:
+                if _r not in _nieuw_afspr:
+                    _nieuw_afspr.append(_r)
             if _nieuw_afspr != st.session_state.get("dak_afspraken"):
                 st.session_state["dak_afspraken"] = _nieuw_afspr
                 try:
