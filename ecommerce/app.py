@@ -1630,6 +1630,10 @@ with tab_founder:
         return (f"Je bent {p['role']}\n\nTaak: {p['task']}\n\nVolg deze stappen:\n{p['steps']}\n\n"
                 f"IDEE: {idea}\nCONTEXT: {ctx or 'niet opgegeven — benoem je aanname'}\n\n"
                 "Antwoord in het Nederlands, concreet en eerlijk; geen wollige taal. "
+                "Benoem ook expliciet de **afzetmarkt in Nederland (en waar relevant de Benelux)**: een "
+                "geschatte marktomvang (aantal potentiële klanten en/of marktwaarde in €), de groei/trend, "
+                "en hoe dit idee zich daartoe verhoudt (de correlatie tussen het aanbod en die vraag) — met "
+                "je aanname of bron erbij. "
                 "Vraag niets terug en geef een VOLLEDIG, beslissend antwoord — maak redelijke "
                 "aannames en eindig met een duidelijke conclusie. Zeg NIET dat verdere analyse "
                 "nodig is en laat je antwoord niet halverwege stoppen.")
@@ -1681,12 +1685,12 @@ with tab_acties:
     st.caption("Je acties uit de 🚀 Founder-check (en eigen invoer) als trackbare taken. Zet de status op "
                "Open / Bezig / Klaar; rij toevoegen met +. Wordt automatisch bewaard.")
     _ap = list(st.session_state.get("actieplan", []))
-    _ap_key = f"actieplan_oe_{len(_ap)}"
     _ap_ed = st.data_editor(
-        pd.DataFrame(_ap, columns=["Actie", "Niche", "Status"]), num_rows="dynamic",
-        use_container_width=True, key=_ap_key,
+        pd.DataFrame(_ap).reindex(columns=["Actie", "Niche", "Deadline", "Status"]), num_rows="dynamic",
+        use_container_width=True, key=f"actieplan_oe_{len(_ap)}",
         column_config={
             "Actie": st.column_config.TextColumn(width="large"),
+            "Deadline": st.column_config.TextColumn(help="jjjj-mm-dd (optioneel)"),
             "Status": st.column_config.SelectboxColumn(options=["Open", "Bezig", "Klaar"], default="Open"),
         })
     _ap_rows = [r for r in _ap_ed.to_dict("records") if str(r.get("Actie") or "").strip()]
@@ -1694,16 +1698,23 @@ with tab_acties:
         st.session_state["actieplan"] = _ap_rows
         _persist_safe()
     if _ap_rows:
+        _ord = {"Open": 0, "Bezig": 1, "Klaar": 2}
+        _sorted = sorted(_ap_rows, key=lambda r: (_ord.get(str(r.get("Status") or ""), 0),
+                                                  str(r.get("Deadline") or "9999-12-31")))
         _klaar = sum(1 for r in _ap_rows if str(r.get("Status") or "") == "Klaar")
         st.caption(f"📊 {len(_ap_rows)} acties · {len(_ap_rows) - _klaar} open · {_klaar} klaar.")
+        st.markdown("**Gesorteerd — open eerst, dan op deadline:**")
+        st.dataframe(pd.DataFrame(_sorted).reindex(columns=["Status", "Deadline", "Actie", "Niche"]),
+                     use_container_width=True, hide_index=True)
         st.download_button("⬇️ Download actieplan (Excel)",
-                           m.df_to_excel_bytes({"Actieplan": pd.DataFrame(_ap_rows)}),
+                           m.df_to_excel_bytes({"Actieplan": pd.DataFrame(_sorted).reindex(
+                               columns=["Status", "Deadline", "Actie", "Niche"])}),
                            file_name="actieplan.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            key="actieplan_xlsx")
     else:
-        st.info("Nog geen acties. Draai een analyse in 🚀 **Founder-check** en klik "
-                "**'➕ Voorgestelde acties → mijn Actieplan'**, of voeg hierboven handmatig een actie toe.")
+        st.info("Nog geen acties. Draai een analyse in 🚀 **Founder-check** of 📑 **Onderzoek & groei** en klik "
+                "**'➕ … → Actieplan'**, of voeg hierboven handmatig een actie toe.")
 
 
 # --- 9. Niche-scan ---------------------------------------------------------
@@ -1796,6 +1807,18 @@ with tab_onderzoek:
                             "analyse nodig is.", 1200)
                 if st.session_state.get(_ogk):
                     st.markdown(st.session_state[_ogk])
+                    if st.button("➕ Acties → ✅ Actieplan", key=f"act_{_ogk}",
+                                 help="Haalt de concrete acties uit dit AI-antwoord en zet ze op je actieplan."):
+                        with st.spinner("Acties uit de analyse halen…"):
+                            _ex = ai.complete(
+                                "Haal uit de volgende tekst de concrete, uitvoerbare acties als korte to-do-regels "
+                                "(imperatief, maximaal 6, één per regel, zonder nummering of opsommingstekens). "
+                                "Geef alleen de acties terug.\n\n" + st.session_state[_ogk], 500)
+                        _acties = [_l.strip().lstrip("-*•0123456789.) ").strip() for _l in (_ex or "").splitlines()]
+                        _acties = [a for a in _acties if len(a) > 3][:8]
+                        _added = _add_acties(_acties, _np)
+                        st.success(f"{_added} actie(s) toegevoegd aan ✅ Actieplan." if _added
+                                   else "Geen nieuwe acties gevonden (mogelijk al toegevoegd).")
 
 
 # --- 11. Dakofferte-tracker ------------------------------------------------
