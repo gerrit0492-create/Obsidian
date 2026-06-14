@@ -1888,66 +1888,8 @@ with tab_dak:
             st.session_state["dak_calc_dk_br"] = float(round(_fps[1]["w"], 1))
             st.session_state["dak_calc_dk_di"] = float(round(_fps[1]["d"], 1))
 
-    # --- Samenvatting (KPI's) + vervaldatum-signalen ---
-    from datetime import date as _kdate
-    _ktoday = _kdate.today()
     _koffs = [o for o in st.session_state.get("dakofferte", [])
               if str(o.get("Bedrijf") or "").strip() and float(o.get("Incl. btw") or 0) > 0]
-    _ksc = _dak_shouldcost_posten(dak_opp)
-    _ksc_incl = sum(float(p["Prijs excl. btw"]) * (1 + p["Btw %"] / 100) for p in _ksc)
-    _knext = None
-    for _r in st.session_state.get("dak_afspraken", []):
-        if str(_r.get("Status") or "") == "Bezoek gepland":
-            try:
-                _kd = _kdate.fromisoformat(str(_r.get("Datum")))
-            except Exception:  # noqa: BLE001
-                continue
-            if _kd >= _ktoday and (_knext is None or _kd < _knext[0]):
-                _knext = (_kd, str(_r.get("Bedrijf") or ""))
-    _km = st.columns(4)
-    _km[0].metric("Offertes", str(len(_koffs)),
-                  help="Aantal offertes met een bedrag boven €0.")
-    if _koffs:
-        _klo = min(_koffs, key=lambda o: float(o["Incl. btw"]))
-        _km[1].metric("Laagste (incl. btw)", f"€{float(_klo['Incl. btw']):,.0f}".replace(",", "."),
-                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off",
-                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
-    else:
-        _km[1].metric("Laagste (incl. btw)", "—",
-                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
-    _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
-                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²" if _ksc_incl else "—", delta_color="off",
-                  help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak; alleen "
-                       "de hierboven aangevinkte extra's tellen mee. De band staat bij 'Vergelijking & advies'.")
-    _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
-    _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
-                  (_knext[1][:16] if _knext else None), delta_color="off",
-                  help="Eerstvolgende geplande inspectie/bezoek uit de agenda.")
-    _kexp = []
-    for o in _koffs:
-        _kg = str(o.get("Geldig t/m") or "").strip()
-        try:
-            _kdays = (_kdate.fromisoformat(_kg) - _ktoday).days
-        except Exception:  # noqa: BLE001
-            continue
-        if _kdays < 0:
-            _kexp.append(f"**{o.get('Bedrijf')}** verlopen (t/m {_kg})")
-        elif _kdays <= 7:
-            _kexp.append(f"**{o.get('Bedrijf')}** verloopt over {_kdays} dag(en)")
-    if _kexp:
-        st.warning("⏳ Let op vervaldatum: " + " · ".join(_kexp))
-    if _koffs and _ksc_incl:
-        _klo_incl = float(_klo["Incl. btw"])
-        _kgap = _klo_incl - _ksc_incl
-        _kpct = _kgap / _ksc_incl * 100
-        _knm = str(_klo.get("Bedrijf") or "")
-        _keur = f"€{abs(_kgap):,.0f}".replace(",", ".")
-        if _kgap <= 0:
-            st.success(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **onder** de should-cost ({_kpct:.0f}%) — scherp geprijsd.")
-        elif _kpct <= 10:
-            st.info(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — binnen een normale marge.")
-        else:
-            st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
 
     # --- Stappenplan (als tabel: toont gegarandeerd alle rijen; 'Nu' = de stand, geen valse 'klaar') ---
     _st_afspr = [r for r in st.session_state.get("dak_afspraken", []) if str(r.get("Bedrijf") or "").strip()]
@@ -2355,6 +2297,65 @@ with tab_dak:
         if st.session_state.get("dak_flash"):
             _lvl, _msg = st.session_state.pop("dak_flash")
             getattr(st, _lvl, st.info)(_msg)
+        # --- Samenvatting (KPI's) + vervaldatum-signalen ---
+        from datetime import date as _kdate
+        _ktoday = _kdate.today()
+        _ksc = _dak_shouldcost_posten(dak_opp)
+        _ksc_incl = sum(float(p["Prijs excl. btw"]) * (1 + p["Btw %"] / 100) for p in _ksc)
+        _knext = None
+        for _r in st.session_state.get("dak_afspraken", []):
+            if str(_r.get("Status") or "") == "Bezoek gepland":
+                try:
+                    _kd = _kdate.fromisoformat(str(_r.get("Datum")))
+                except Exception:  # noqa: BLE001
+                    continue
+                if _kd >= _ktoday and (_knext is None or _kd < _knext[0]):
+                    _knext = (_kd, str(_r.get("Bedrijf") or ""))
+        _km = st.columns(4)
+        _km[0].metric("Offertes", str(len(_koffs)),
+                      help="Aantal offertes met een bedrag boven €0.")
+        if _koffs:
+            _klo = min(_koffs, key=lambda o: float(o["Incl. btw"]))
+            _km[1].metric("Laagste (incl. btw)", f"€{float(_klo['Incl. btw']):,.0f}".replace(",", "."),
+                          str(_klo.get("Bedrijf") or "")[:16], delta_color="off",
+                          help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
+        else:
+            _km[1].metric("Laagste (incl. btw)", "—",
+                          help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
+        _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
+                      f"≈ €{_ksc_incl / dak_opp:.0f}/m²" if _ksc_incl else "—", delta_color="off",
+                      help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak; alleen "
+                           "de aangevinkte extra's (tab 'Should-cost') tellen mee. De band staat bij 'Vergelijking & advies'.")
+        _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+        _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
+                      (_knext[1][:16] if _knext else None), delta_color="off",
+                      help="Eerstvolgende geplande inspectie/bezoek uit de agenda.")
+        _kexp = []
+        for o in _koffs:
+            _kg = str(o.get("Geldig t/m") or "").strip()
+            try:
+                _kdays = (_kdate.fromisoformat(_kg) - _ktoday).days
+            except Exception:  # noqa: BLE001
+                continue
+            if _kdays < 0:
+                _kexp.append(f"**{o.get('Bedrijf')}** verlopen (t/m {_kg})")
+            elif _kdays <= 7:
+                _kexp.append(f"**{o.get('Bedrijf')}** verloopt over {_kdays} dag(en)")
+        if _kexp:
+            st.warning("⏳ Let op vervaldatum: " + " · ".join(_kexp))
+        if _koffs and _ksc_incl:
+            _klo_incl = float(_klo["Incl. btw"])
+            _kgap = _klo_incl - _ksc_incl
+            _kpct = _kgap / _ksc_incl * 100
+            _knm = str(_klo.get("Bedrijf") or "")
+            _keur = f"€{abs(_kgap):,.0f}".replace(",", ".")
+            if _kgap <= 0:
+                st.success(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **onder** de should-cost ({_kpct:.0f}%) — scherp geprijsd.")
+            elif _kpct <= 10:
+                st.info(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — binnen een normale marge.")
+            else:
+                st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
+
         _cmp_tabs = st.tabs(["🧮 Should-cost", "🔍 Posten vergelijken", "⚖️ Vergelijking & advies"])
         with _cmp_tabs[0]:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
