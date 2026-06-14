@@ -2453,6 +2453,33 @@ with tab_dak:
             _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
             _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
             _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
+            # Automatisch ontdubbelen op tijdslot (datum+tijd): seed- en agenda-varianten van dezelfde
+            # afspraak (bv. 'Dakbedrijf Westermeer' vs 'Dak offerte westerman', of 'Bonné Dakonderhoud'
+            # vs 'Bonné dak onderhoud') vallen samen — de meest complete rij blijft staan, geannuleerde
+            # afspraken blijven los (geannuleerd + nieuwe = twee aparte). Eénmalig opslaan zodat ook de
+            # Gist schoon wordt; daarna komen de dubbelen niet meer terug.
+            def _af_filled(r):
+                return sum(1 for v in r.values() if str(v or "").strip())
+            _seen_slot, _clean_afspr = {}, []
+            for _r in _alle_afspr:
+                if str(_r.get("Status") or "") == "Geannuleerd":
+                    _clean_afspr.append(_r)
+                    continue
+                _k = _afspr_slotkey(_r)
+                if _k not in _seen_slot:
+                    _seen_slot[_k] = len(_clean_afspr)
+                    _clean_afspr.append(_r)
+                elif _af_filled(_r) > _af_filled(_clean_afspr[_seen_slot[_k]]):
+                    _clean_afspr[_seen_slot[_k]] = _r  # houd de meest complete rij van dit tijdslot
+            if len(_clean_afspr) != len(_alle_afspr):
+                _alle_afspr = _clean_afspr
+                st.session_state["dak_afspraken"] = _clean_afspr
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.rerun()
             _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
             _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
             _af_key = f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}"
