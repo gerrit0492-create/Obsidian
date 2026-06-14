@@ -100,23 +100,27 @@ def _dak_shouldcost_posten(opp):
     puntvergelijking, de band toont wat een offerte 'zou moeten' kosten.
     """
     r = max(float(opp or 60), 1.0) / 60.0
-    items = [  # (Onderdeel, LCL @60 m², UCL @60 m², btw %, schaalt mee met oppervlak)
-        ("Steiger + materieel + pannenlift", 900, 1400, 21, False),
-        ("Sloop + afvoer + container", 700, 1100, 21, True),
-        ("Isolatie materiaal (Rd ≥ 3,5)", 900, 1400, 21, True),
-        ("Isolatie aanbrengen (arbeid)", 500, 800, 9, True),
-        ("Tengels + panlatten", 600, 1000, 21, True),
-        ("Dakpannen (beton, midmarkt)", 1000, 1600, 21, True),
-        ("Dakpannen leggen / montage", 1000, 1600, 21, True),
-        ("Nokvorsten + ruiters", 400, 800, 21, False),
-        ("Kant-/gevelpannen", 300, 600, 21, False),
-        ("Zinken bakgoot + gootbeugels", 900, 1500, 21, False),
-        ("Loodaansluiting dakkapel (10 m)", 500, 900, 21, False),
-        ("Vogelwering + dakvoet (12 m)", 250, 450, 21, False),
-        ("Panhaken / stormklemmen", 150, 350, 21, False),
+    items = [  # (Onderdeel, LCL @60 m², UCL @60 m², btw %, schaalt mee, optie-key of None)
+        ("Steiger + materieel + pannenlift", 900, 1400, 21, False, None),
+        ("Sloop + afvoer + container", 700, 1100, 21, True, None),
+        ("Isolatie materiaal (Rd ≥ 3,5)", 900, 1400, 21, True, None),
+        ("Isolatie aanbrengen (arbeid)", 500, 800, 9, True, None),
+        ("Tengels + panlatten", 600, 1000, 21, True, None),
+        ("Dakpannen (beton, midmarkt)", 1000, 1600, 21, True, None),
+        ("Dakpannen leggen / montage", 1000, 1600, 21, True, None),
+        ("Nokvorsten + ruiters", 400, 800, 21, False, None),
+        ("Kant-/gevelpannen", 300, 600, 21, False, None),
+        ("Zinken bakgoot + gootbeugels", 900, 1500, 21, False, "goot"),
+        ("Loodaansluiting dakkapel (10 m)", 500, 900, 21, False, "dakkapel"),
+        ("Vogelwering + dakvoet (12 m)", 250, 450, 21, False, "vogelwering"),
+        ("Panhaken / stormklemmen", 150, 350, 21, False, None),
     ]
     out = []
-    for _n, _lo, _hi, _b, _s in items:
+    for _n, _lo, _hi, _b, _s, _opt in items:
+        # Huis-specifieke extra's (goot/dakkapel-lood/vogelwering) tellen alleen mee als dit dak ze
+        # heeft — anders staat de should-cost kunstmatig hoog voor een 60 m²-referentie mét dakkapel.
+        if _opt is not None and not st.session_state.get(f"dak_sc_extra_{_opt}", True):
+            continue
         _sc = r if _s else 1.0
         _l, _u = round(_lo * _sc), round(_hi * _sc)
         out.append({"Bedrijf": "Should-cost (baseline)", "Onderdeel": _n,
@@ -1677,6 +1681,14 @@ with tab_dak:
     dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp")
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
+    for _ek in ("dakkapel", "goot", "vogelwering"):
+        st.session_state.setdefault(f"dak_sc_extra_{_ek}", True)
+    st.caption("Welke extra's zitten in dít dak? (uitvinken = lagere should-cost; deze posten staan los "
+               "van de kale €/m² dakrenovatie)")
+    _ec = st.columns(3)
+    _ec[0].checkbox("Dakkapel-loodwerk", key="dak_sc_extra_dakkapel")
+    _ec[1].checkbox("Bakgoot / regenwater", key="dak_sc_extra_goot")
+    _ec[2].checkbox("Vogelwering", key="dak_sc_extra_vogelwering")
 
     def _dak_apply_calc():
         _v = st.session_state.get("_dak_roof_calc")
@@ -1724,8 +1736,8 @@ with tab_dak:
                       help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
     _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
                   f"≈ €{_ksc_incl / dak_opp:.0f}/m²" if _ksc_incl else "—", delta_color="off",
-                  help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak. "
-                       "De band eromheen staat bij 'Vergelijking & advies'.")
+                  help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak; alleen "
+                       "de hierboven aangevinkte extra's tellen mee. De band staat bij 'Vergelijking & advies'.")
     _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
     _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
                   (_knext[1][:16] if _knext else None), delta_color="off",
