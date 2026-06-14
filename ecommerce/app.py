@@ -1567,6 +1567,12 @@ with tab_niches:
     st.progress(_nd / len(_ns_steps))
     for _i, (_nm, _ok, _stat, _instr) in enumerate(_ns_steps, 1):
         st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
+    _ns_todo = [(idx, s) for idx, s in enumerate(_ns_steps, 1) if not s[1]]
+    if _ns_todo:
+        _ti, _ts = _ns_todo[0]
+        st.info(f"👉 **Nu doen — Stap {_ti}: {_ts[0]}.** {_ts[3]}")
+    else:
+        st.success("🎉 Alle stappen klaar — voer je actieplan uit en houd de voortgang bij.")
     st.divider()
 
     def _fitnum(f):
@@ -1980,6 +1986,12 @@ with tab_dak:
     st.progress(_done / len(_steps))
     for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1):
         st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
+    _todo = [(idx, s) for idx, s in enumerate(_steps, 1) if not s[1]]
+    if _todo:
+        _ti, _ts = _todo[0]
+        st.info(f"👉 **Nu doen — Stap {_ti}: {_ts[0]}.** {_ts[3]}")
+    else:
+        st.success("🎉 Alle stappen klaar — bevestig je gekozen aannemer.")
     st.divider()
 
     st.markdown("#### 📐 Stap 1 — Dak opmeten (dak, pannen, 3D & perceel)")
