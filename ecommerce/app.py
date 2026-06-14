@@ -2468,11 +2468,15 @@ with tab_dak:
                     if str(_row.get("Bedrijf") or "").strip() and str(_row.get("Status") or "") != "Geannuleerd":
                         _row["Status"] = "Geannuleerd"
                         _geannuleerd.append(_row)
-            _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-            # Guard tegen dubbel ingezette afspraken: een rij met een datum vóór het filter valt in
-            # _verborgen terwijl de data_editor (zelfde key, want len(_zichtbaar) blijft gelijk) zijn
-            # added_rows opnieuw toepast — dan zit dezelfde rij in zowel _verborgen als _af_rows. Vouw
-            # exact identieke rijen samen (veilig: byte-identiek = altijd een echte dubbele).
+            # Guard tegen dubbel ingezette afspraken: vouw exact identieke rijen samen (byte-identiek =
+            # altijd een echte dubbele, nooit twee aparte afspraken). Een rij met een datum vóór het
+            # filter valt in _verborgen terwijl de data_editor (zelfde key, want len(_zichtbaar) blijft
+            # gelijk) zijn added_rows opnieuw toepast. Dedup hier _af_rows (gebruikt door agenda/export)
+            # én de samengestelde lijst, zodat editor, agenda én Gist-opslag in één render schoon zijn.
+            _af_rows = []
+            for _r in _af.to_dict("records"):
+                if str(_r.get("Bedrijf") or "").strip() and _r not in _af_rows:
+                    _af_rows.append(_r)
             _nieuw_afspr = []
             for _r in _verborgen + _af_rows + _geannuleerd:
                 if _r not in _nieuw_afspr:
