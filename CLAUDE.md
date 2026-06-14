@@ -13,11 +13,11 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
   actual data, check that UI elements truly render (not just that the code compiles),
   re-read the relevant code before changing it, and double-check the result matches
   what the user will actually see. Accuracy over speed.
-- **Git: back up + verify MCP, then push to `main` directly.** That is the user's
-  preferred, faster flow. Before every push: (1) create a backup tag of HEAD,
-  (2) confirm the GitHub MCP tools are available, then push to `main`. Only use a
-  feature branch + PR when the user explicitly asks for it. Never force-push or
-  `reset --hard` without explicit instruction.
+- **Git: back up, then push to `main` directly.** That is the user's preferred, faster
+  flow. Before every push: create a backup tag of HEAD, then `git push` to `main`. A
+  plain push does **not** need MCP — don't make the user re-authorize for it. Only use
+  a feature branch + PR when the user explicitly asks. Never force-push or `reset
+  --hard` without explicit instruction.
 - Communicate with the user in English
 - For changes spanning several files, make all edits in one commit
 - Match the style of the surrounding code — don't introduce new patterns
@@ -44,20 +44,21 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 
 ## Before pushing to git
 1. **Back up**: create a git tag from current HEAD (`git tag backup/pre-<description> HEAD`)
-2. **Verify MCP**: confirm the GitHub MCP tools are available. If they're missing /
-   the `github` MCP server reports "requires authentication", the OAuth has simply
-   expired — **re-authenticate, don't give up**:
-   - Call `mcp__github__authenticate`; it returns an authorization URL.
-   - Give the user that URL; they authorize in the browser. The redirect to
-     `http://localhost:<port>/callback?code=...` will fail to load on a remote
-     session — that's expected; the URL in the address bar is still valid.
-   - Ask the user to paste that full callback URL, then call
-     `mcp__github__complete_authentication` with it. The GitHub MCP tools come back.
-3. Once the backup is done and MCP is verified, push
+2. **Push** with plain `git push` (the git remote — this does **not** use MCP, so a
+   plain push to `main` never needs MCP or any user action).
+
+**About MCP (separate from pushing):** the GitHub MCP tools are only for GitHub-**API**
+actions — opening/merging PRs, reading CI status, PR comments. They are normally on;
+don't make a routine "MCP check" block a push, and **don't ask the user to re-authorize
+unless a GitHub-API action is actually needed and the tools are genuinely missing**
+(they usually reconnect on their own). Only if such an action is needed and MCP reports
+"requires authentication": call `mcp__github__authenticate`, share the URL, have the
+user authorize, then paste the `http://localhost:<port>/callback?...` URL into
+`mcp__github__complete_authentication`.
 
 ## Git constraints
-- Push directly to `main` is fine — but ALWAYS back up (tag HEAD) and verify MCP
-  first (see "Before pushing"). Use a feature branch + PR only when the user asks.
+- Push directly to `main` is fine — just back up (tag HEAD) first; a plain push does
+  not need MCP. Use a feature branch + PR only when the user asks.
 - Only push to `gerrit0492-create/obsidian`
 - **Never push to the `claude/funny-goldberg-*` branch** — the user did not choose
   it. Push to the branch the user is actually working on, and always back up
