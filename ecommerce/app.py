@@ -1938,26 +1938,25 @@ with tab_dak:
     _st_n = len(_koffs)
     _st_gekozen = [o for o in st.session_state.get("dakofferte", []) if str(o.get("Status") or "") == "Gekozen"]
     _steps = [
-        ("Dakoppervlak bepalen", dak_opp > 0, f"{dak_opp:.0f} m²",
-         "Meet je dak in '📐 Opmeten & model' (of vul het oppervlak bovenaan in)."),
+        ("Dak opmeten", dak_opp > 0, f"{dak_opp:.0f} m²",
+         "Meet je dak (of vul het oppervlak bovenaan in) onder '📐 Stap 1 — Dak opmeten' hieronder."),
         ("Aannemers & afspraken", bool(_st_afspr), f"{len(_st_afspr)} contact(en)",
-         "Zet aannemers + bezoekafspraken in tab '🔎 Aannemers & afspraken'."),
+         "Zet aannemers + bezoekafspraken in het tabblad 'Stap 2'."),
         ("Offertes verzamelen", _st_n >= 1, f"{_st_n} offerte(s)",
-         "Voeg offertes toe of upload de PDF in tab '📥 Offertes'."),
-        ("Vergelijken", _st_n >= 2, "kan vanaf 2 offertes",
-         "Vergelijk prijs, scope en should-cost in tab '⚖️ Vergelijken · advies · kiezen'."),
-        ("Kiezen", bool(_st_gekozen), (_st_gekozen[0].get("Bedrijf", "") if _st_gekozen else "nog niet gekozen"),
-         "Kies onderaan 'Vergelijken' je aannemer — die krijgt status 'Gekozen'."),
+         "Voeg offertes toe of upload de PDF in het tabblad 'Stap 3'."),
+        ("Vergelijken & kiezen", (_st_n >= 2 or bool(_st_gekozen)),
+         (f"gekozen: {_st_gekozen[0].get('Bedrijf', '')}" if _st_gekozen else "vergelijk vanaf 2 offertes"),
+         "Vergelijk prijs/scope/should-cost en kies onderaan je aannemer in het tabblad 'Stap 4'."),
     ]
     _done = sum(1 for _, _ok, _s, _i in _steps if _ok)
-    st.markdown(f"### 📋 Stappenplan — {_done}/5 stappen klaar")
-    st.caption("Geen verstand van daken? Volg deze stappen gewoon van boven naar beneden.")
+    st.markdown(f"### 📋 Stappenplan — {_done}/{len(_steps)} stappen klaar")
+    st.caption("Geen verstand van daken? Volg deze stappen gewoon van boven naar beneden — tabblad voor tabblad.")
     st.progress(_done / len(_steps))
     for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1):
-        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i}: {_nm}** · _{_stat}_ — {_instr}")
+        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
     st.divider()
 
-    st.markdown("#### 📐 Opmeten & model — dak, pannen, 3D & perceel")
+    st.markdown("#### 📐 Stap 1 — Dak opmeten (dak, pannen, 3D & perceel)")
     _meet = st.tabs(["📐 Dak m² (Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
     with _meet[0]:
         st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
@@ -2256,7 +2255,8 @@ with tab_dak:
             "ISDE-subsidie en een **eerlijke vergelijking** (gelijke scope) netto. Download het rapport (Excel/PDF met grafieken).\n"
             "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
 
-    _stage = st.tabs(["🔎 Aannemers & afspraken", "📥 Offertes", "⚖️ Vergelijken · advies · kiezen"])
+    _stage = st.tabs(["🔎 Stap 2 · Aannemers & afspraken", "📥 Stap 3 · Offertes",
+                      "⚖️ Stap 4 · Vergelijken & kiezen"])
     with _stage[1]:
         _off_tabs = st.tabs(["📋 Offertetabel", "📄 Offerte uitwerken", "⬆️ Uploaden (PDF)",
                              "➕ Handmatig toevoegen"])
