@@ -1976,8 +1976,9 @@ with tab_dak:
          "Zet aannemers + bezoekafspraken in het tabblad 'Stap 2'."),
         ("Offertes verzamelen", _st_n >= 1, f"{_st_n} offerte(s)",
          "Voeg offertes toe of upload de PDF in het tabblad 'Stap 3'."),
-        ("Vergelijken & kiezen", (_st_n >= 2 or bool(_st_gekozen)),
-         (f"gekozen: {_st_gekozen[0].get('Bedrijf', '')}" if _st_gekozen else "vergelijk vanaf 2 offertes"),
+        ("Vergelijken & kiezen", bool(_st_gekozen),
+         (f"gekozen: {_st_gekozen[0].get('Bedrijf', '')}" if _st_gekozen
+          else (f"{_st_n} offertes — vergelijk & kies" if _st_n >= 2 else "wacht op ≥ 2 offertes")),
          "Vergelijk prijs/scope/should-cost en kies onderaan je aannemer in het tabblad 'Stap 4'."),
     ]
     _done = sum(1 for _, _ok, _s, _i in _steps if _ok)
