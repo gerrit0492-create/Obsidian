@@ -224,53 +224,54 @@ DAK_RENO_PANTYPE = {
     "Keramisch (antraciet)": (26.0, 45.0),           # bron ≈ €35–75/m² incl.
 }
 
-# Directe arbeid (cao-dakdekker incl. directe werkgeverslasten, excl. AK/W&R/btw).
-DAK_RENO_UURTARIEF = 45.0  # €/uur
-# Gedetailleerde cost-price-opbouw per scope-onderdeel (directe kosten €/m², excl. AK/W&R/btw) — "zo
-# bouwt de dakdekker de kostprijs op". Per regel: (component, €/m², bron); arbeid is uren × €45/u met
-# de uren in het label. De som per scope is gelijk aan het scope-gemiddelde van de LCL–UCL-band.
+# Directe arbeid — basistarief; in de UI instelbaar (dak_uurtarief).
+DAK_RENO_UURTARIEF = 45.0  # €/uur (cao-dakdekker incl. directe werkgeverslasten, excl. AK/W&R/btw)
+# Gedetailleerde cost-price-opbouw per scope-onderdeel (directe kosten, excl. AK/W&R/btw) — "zo bouwt de
+# dakdekker de kostprijs op". Per regel: (component, hoeveelheid, soort, bron) met soort "u" = uren/m²
+# (× het ingestelde uurtarief) of "m" = vast €/m² (materiaal/materieel). Bij het basistarief is de som per
+# scope het scope-gemiddelde van de LCL–UCL-band.
 # Bronnen: Kosten-Dakdekker, Oranje Dakbeheer, Homedeal, Werkspot, containerverhuur NL (2025/26).
 DAK_RENO_DETAIL = {
     "Oude pannen/tengels/panlatten verwijderen (sloop, arbeid)": [
-        ("Demontage pannen + tengels/panlatten (0,16 u/m² × €45)", 7.20, "Kosten-Dakdekker"),
-        ("Klein materieel, dekzeilen, zakgoed (toegerekend)", 1.30, "Werkspot"),
+        ("Demontage pannen + tengels/panlatten (0,16 u/m²)", 0.16, "u", "Kosten-Dakdekker"),
+        ("Klein materieel, dekzeilen, zakgoed (toegerekend)", 1.30, "m", "Werkspot"),
     ],
     "Afvoer afval — container(s) + stortkosten (pannen/hout/folie)": [
-        ("Afvalcontainer 6 m³ + plaatsen (~1 per 40 m², toegerekend)", 3.60, "containerverhuur NL"),
-        ("Stortkosten pannen/bouwafval", 3.00, "verwerkingstarief"),
-        ("Laden container (0,02 u/m² × €45)", 0.90, "—"),
+        ("Afvalcontainer 6 m³ + plaatsen (~1 per 40 m², toegerekend)", 3.60, "m", "containerverhuur NL"),
+        ("Stortkosten pannen/bouwafval", 3.00, "m", "verwerkingstarief"),
+        ("Laden container (0,02 u/m²)", 0.02, "u", "—"),
     ],
     "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)": [
-        ("Dampopen onderdakfolie (materiaal)", 2.60, "fabrikantprijs"),
-        ("Aanbrengen folie (0,042 u/m² × €45)", 1.90, "—"),
+        ("Dampopen onderdakfolie (materiaal)", 2.60, "m", "fabrikantprijs"),
+        ("Aanbrengen folie (0,042 u/m²)", 0.0422, "u", "—"),
     ],
     "Isolatie Rd 3,8 — materiaal + aanbrengen": [
-        ("Isolatieplaat Rd 3,8 — PIR/steenwol (materiaal)", 18.00, "Homedeal/Oranje Dakbeheer"),
-        ("Aanbrengen isolatie (0,156 u/m² × €45, kan 9% btw)", 7.00, "—"),
+        ("Isolatieplaat Rd 3,8 — PIR/steenwol (materiaal)", 18.00, "m", "Homedeal/Oranje Dakbeheer"),
+        ("Aanbrengen isolatie (0,156 u/m², kan 9% btw)", 0.1556, "u", "—"),
     ],
     "Nieuwe tengels + panlatten — materiaal + arbeid": [
-        ("Tengels + panlatten — hout (materiaal)", 5.60, "houthandel"),
-        ("Aanbrengen tengels/panlatten (0,109 u/m² × €45)", 4.90, "—"),
+        ("Tengels + panlatten — hout (materiaal)", 5.60, "m", "houthandel"),
+        ("Aanbrengen tengels/panlatten (0,109 u/m²)", 0.1089, "u", "—"),
     ],
     "Pannen leggen — arbeid": [
-        ("Pannen leggen (0,40 u/m² × €45)", 18.00, "Kosten-Dakdekker (leggen 30–35%)"),
-        ("Pashulp, snijwerk, bevestiging (0,044 u/m² × €45)", 2.00, "—"),
+        ("Pannen leggen (0,40 u/m²)", 0.40, "u", "Kosten-Dakdekker (leggen 30–35%)"),
+        ("Pashulp, snijwerk, bevestiging (0,044 u/m²)", 0.0444, "u", "—"),
     ],
     "Nok-/kantpannen (droge nok/vorst), hulpstukken, bevestiging": [
-        ("Nok-/kant-/vorstpannen + droge-noksysteem (materiaal)", 4.60, "fabrikantprijs"),
-        ("Aanbrengen nok/vorst (0,076 u/m² × €45)", 3.40, "—"),
+        ("Nok-/kant-/vorstpannen + droge-noksysteem (materiaal)", 4.60, "m", "fabrikantprijs"),
+        ("Aanbrengen nok/vorst (0,076 u/m²)", 0.0756, "u", "—"),
     ],
     "Dakrandafwerking — boeiboord/windveer, daktrim": [
-        ("Boeiboord/windveer + daktrim (materiaal)", 2.70, "—"),
-        ("Aanbrengen dakrand (0,04 u/m² × €45)", 1.80, "—"),
+        ("Boeiboord/windveer + daktrim (materiaal)", 2.70, "m", "—"),
+        ("Aanbrengen dakrand (0,04 u/m²)", 0.04, "u", "—"),
     ],
     "Steiger (toegerekend per m²)": [
-        ("Steigerhuur — toegerekend over de looptijd", 6.80, "steigerverhuur NL"),
-        ("Op- en afbouw steiger (0,06 u/m² × €45)", 2.70, "—"),
+        ("Steigerhuur — toegerekend over de looptijd", 6.80, "m", "steigerverhuur NL"),
+        ("Op- en afbouw steiger (0,06 u/m²)", 0.06, "u", "—"),
     ],
     "Materiaaltransport, kraan/hijswerk, klein materieel": [
-        ("Kraan/pannenlift — toegerekend", 2.50, "—"),
-        ("Transport materiaal + klein materieel", 2.00, "—"),
+        ("Kraan/pannenlift — toegerekend", 2.50, "m", "—"),
+        ("Transport materiaal + klein materieel", 2.00, "m", "—"),
     ],
 }
 
@@ -999,6 +1000,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_migr"] = _data.get("dak_migr", 0)
     if "actieplan" not in st.session_state:
         st.session_state["actieplan"] = _data.get("actieplan", [])
+    if "dak_uurtarief" not in st.session_state:
+        st.session_state["dak_uurtarief"] = float(_data.get("dak_uurtarief", DAK_RENO_UURTARIEF) or DAK_RENO_UURTARIEF)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
 
 
@@ -1009,6 +1012,7 @@ def _persist():
                        "dak_afspraken": st.session_state.get("dak_afspraken", []),
                        "dak_shouldcost": st.session_state.get("dak_shouldcost", []),
                        "dak_opp": st.session_state.get("dak_opp", 60.0),
+                       "dak_uurtarief": st.session_state.get("dak_uurtarief", DAK_RENO_UURTARIEF),
                        "actieplan": st.session_state.get("actieplan", []),
                        "dak_migr": st.session_state.get("dak_migr", 0)})
 
@@ -1685,8 +1689,9 @@ with tab_acties:
     st.caption("Je acties uit de 🚀 Founder-check (en eigen invoer) als trackbare taken. Zet de status op "
                "Open / Bezig / Klaar; rij toevoegen met +. Wordt automatisch bewaard.")
     _ap = list(st.session_state.get("actieplan", []))
+    _ap_df = pd.DataFrame(_ap, columns=["Actie", "Niche", "Deadline", "Status"]).fillna("").astype(str)
     _ap_ed = st.data_editor(
-        pd.DataFrame(_ap).reindex(columns=["Actie", "Niche", "Deadline", "Status"]), num_rows="dynamic",
+        _ap_df, num_rows="dynamic",
         use_container_width=True, key=f"actieplan_oe_{len(_ap)}",
         column_config={
             "Actie": st.column_config.TextColumn(width="large"),
@@ -2333,13 +2338,23 @@ with tab_dak:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
                        "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                        "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
-            # Pannen-materiaal als band over de pankeuze: LCL = goedkoopste pan (Sneldek, grootformaat
-            # beton), UCL = duurste (kleinere keramische pan). Data-gedreven uit DAK_RENO_PANTYPE.
-            _plo = min(_lo for _lo, _hi in DAK_RENO_PANTYPE.values())   # goedkoopste pan = LCL
-            _phi = max(_hi for _lo, _hi in DAK_RENO_PANTYPE.values())   # duurste pan = UCL
+            # Instelbaar uurtarief (directe arbeid), €45 als basis — stuurt alle arbeidsregels én de band.
+            st.session_state.setdefault("dak_uurtarief", DAK_RENO_UURTARIEF)
+            _tarief = st.number_input("Uurtarief directe arbeid (€/u)", 20.0, 120.0, step=1.0,
+                                      key="dak_uurtarief", on_change=_persist_safe,
+                                      help="Directe arbeid, excl. AK/W&R/btw. €45 = basisraming; wijzig je het, dan "
+                                           "bewegen alle arbeidsregels én de should-cost-band automatisch mee.")
+            # Pannen-materiaal als band: LCL = goedkoopste pan (Sneldek), UCL = duurste (kleinere keramische pan).
+            _plo = min(_lo for _lo, _hi in DAK_RENO_PANTYPE.values())
+            _phi = max(_hi for _lo, _hi in DAK_RENO_PANTYPE.values())
             st.caption("Pannen-materiaal als band: **LCL = Sneldek** (goedkoopste grootformaat beton) → "
                        "**UCL = keramische kleinere pan** (duurder, meer pannen/m²).")
-            _rows = list(DAK_RENO_SHOULDCOST)
+            # De band schuift met het uurtarief: per scope het arbeidsdeel (uren × Δtarief t.o.v. €45).
+            _uren_sc = {_s: sum(_a for (_l, _a, _k, _b) in _c if _k == "u") for _s, _c in DAK_RENO_DETAIL.items()}
+            _tsh = _tarief - DAK_RENO_UURTARIEF
+            _rows = [{"Onderdeel": r["Onderdeel"],
+                      "Laag": r["Laag"] + _uren_sc.get(r["Onderdeel"], 0.0) * _tsh,
+                      "Hoog": r["Hoog"] + _uren_sc.get(r["Onderdeel"], 0.0) * _tsh} for r in DAK_RENO_SHOULDCOST]
             _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
             _rows.insert(_ix, {"Onderdeel": "Dakpannen — materiaal (Sneldek=LCL → keramisch klein=UCL)",
                                "Laag": _plo, "Hoog": _phi})
@@ -2360,26 +2375,31 @@ with tab_dak:
             _opp_col = f"€ voor {dak_opp:.0f} m²"
             with st.expander("🔍 Gedetailleerde kostenopbouw per scope — zo bouw ik de kostprijs op", expanded=False):
                 st.caption(f"Bottom-up **directe kosten** per m² (excl. AK/W&R/btw) én wat dat voor jouw "
-                           f"**{dak_opp:.0f} m²** is. Arbeid = uren × €{DAK_RENO_UURTARIEF:.0f}/u. Bron per regel.")
+                           f"**{dak_opp:.0f} m²** is. Arbeid = uren × €{_tarief:.0f}/u. Bron per regel.")
                 for _, _scr in _rb.iterrows():
                     _onam = str(_scr["Onderdeel"])
                     _det = DAK_RENO_DETAIL.get(_onam)
                     if _det is None and "pannen — materiaal" in _onam:
                         _det = [(f"Dakpannen — Sneldek €{_plo:.0f} → keramisch €{_phi:.0f}/m² (mean)",
-                                 round((_plo + _phi) / 2.0, 2), "prijsoverzicht pannen")]
+                                 round((_plo + _phi) / 2.0, 2), "m", "prijsoverzicht pannen")]
                     if not _det:
                         continue
-                    _drows = [{"Component": _c, "€/m²": round(_e, 2), _opp_col: round(_e * dak_opp)}
-                              for _c, _e, _bron in _det]
-                    _ssum = sum(_e for _c, _e, _bron in _det)
+                    _drows = []
+                    for _c, _amt, _kind, _bron in _det:
+                        _e = _amt * _tarief if _kind == "u" else _amt
+                        _lbl = f"{_c} × €{_tarief:.0f}/u" if _kind == "u" else _c
+                        _drows.append({"Component": _lbl, "€/m²": round(_e, 2), _opp_col: round(_e * dak_opp),
+                                       "Bron": _bron})
+                    _ssum = sum(_r["€/m²"] for _r in _drows)
                     st.markdown(f"**{_onam}** — €{_ssum:.0f}/m² → **{eur(_ssum * dak_opp)}** voor {dak_opp:.0f} m²")
-                    st.dataframe(pd.DataFrame(_drows), use_container_width=True, hide_index=True,
+                    st.dataframe(pd.DataFrame(_drows)[["Component", "€/m²", _opp_col]], use_container_width=True,
+                                 hide_index=True,
                                  column_config={"€/m²": st.column_config.NumberColumn(format="€%.2f"),
                                                 _opp_col: st.column_config.NumberColumn(format="€%.0f"),
                                                 "Component": st.column_config.TextColumn(width="large")})
-                    for _c, _e, _bron in _det:
-                        _detail_rows.append({"Scope": _onam, "Component": _c, "€/m²": round(_e, 2),
-                                             "€ voor dit dak": round(_e * dak_opp), "Bron": _bron})
+                    for _r in _drows:
+                        _detail_rows.append({"Scope": _onam, "Component": _r["Component"], "€/m²": _r["€/m²"],
+                                             "€ voor dit dak": _r[_opp_col], "Bron": _r["Bron"]})
                 _ak_c = _dme * DAK_RENO_AK
                 _wr_c = (_dme + _ak_c) * DAK_RENO_WR
                 _excl_c = _dme + _ak_c + _wr_c
