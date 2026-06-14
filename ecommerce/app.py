@@ -224,6 +224,56 @@ DAK_RENO_PANTYPE = {
     "Betonpan (antraciet)": (20.0, 30.0),    # bron ≈ €26–36/m² incl.
 }
 
+# Directe arbeid (cao-dakdekker incl. directe werkgeverslasten, excl. AK/W&R/btw).
+DAK_RENO_UURTARIEF = 45.0  # €/uur
+# Gedetailleerde cost-price-opbouw per scope-onderdeel (indicatief, €/m²) — "zo bouwt de dakdekker de
+# kostprijs op". Per regel: (component, hoeveelheid, eenheid, prijs per eenheid, bron). Arbeidsregels
+# rekenen uren × DAK_RENO_UURTARIEF; de som per scope sluit aan op de LCL–UCL-band hierboven.
+# Bronnen: Kosten-Dakdekker, Oranje Dakbeheer, Homedeal, Werkspot, containerverhuur NL (2025/26).
+DAK_RENO_DETAIL = {
+    "Oude pannen/tengels/panlatten verwijderen (sloop, arbeid)": [
+        ("Demontage pannen + tengels/panlatten (arbeid)", 0.16, "u/m²", DAK_RENO_UURTARIEF, "Kosten-Dakdekker (sloop ≈ 0,15 u/m²)"),
+        ("Klein materieel, dekzeilen, zakgoed", 1.3, "post/m²", 1.0, "Werkspot"),
+    ],
+    "Afvoer afval — container(s) + stortkosten (pannen/hout/folie)": [
+        ("Afvalcontainer — huur + plaatsen", 3.6, "post/m²", 1.0, "containerverhuur NL"),
+        ("Stortkosten dakpannen/bouwafval", 3.0, "post/m²", 1.0, "verwerkingstarief"),
+        ("Laden container (arbeid)", 0.02, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Onderdak — waterkerende, dampopen folie (materiaal + aanbrengen)": [
+        ("Dampopen onderdakfolie (materiaal)", 2.6, "m²/m²", 1.0, "fabrikantprijs"),
+        ("Aanbrengen folie (arbeid)", 0.042, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Isolatie Rd 3,8 — materiaal + aanbrengen": [
+        ("Isolatieplaat Rd 3,8 — PIR/steenwol (materiaal)", 18.0, "m²/m²", 1.0, "Homedeal/Oranje Dakbeheer"),
+        ("Aanbrengen isolatie (arbeid — kan 9% btw)", 0.156, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Nieuwe tengels + panlatten — materiaal + arbeid": [
+        ("Tengels + panlatten — hout (materiaal)", 5.6, "m/m²", 1.0, "houthandel"),
+        ("Aanbrengen tengels/panlatten (arbeid)", 0.109, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Pannen leggen — arbeid": [
+        ("Pannen leggen (arbeid)", 0.40, "u/m²", DAK_RENO_UURTARIEF, "Kosten-Dakdekker (leggen 30–35%)"),
+        ("Pashulp, snijwerk, bevestiging (arbeid)", 0.044, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Nok-/kantpannen (droge nok/vorst), hulpstukken, bevestiging": [
+        ("Nok-/kant-/vorstpannen + droge-noksysteem (materiaal)", 4.6, "m/m²", 1.0, "fabrikantprijs"),
+        ("Aanbrengen nok/vorst (arbeid)", 0.076, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Dakrandafwerking — boeiboord/windveer, daktrim": [
+        ("Boeiboord/windveer + daktrim (materiaal)", 2.7, "m/m²", 1.0, "—"),
+        ("Aanbrengen dakrand (arbeid)", 0.04, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Steiger (toegerekend per m²)": [
+        ("Steigerhuur — toegerekend over de looptijd", 6.8, "post/m²", 1.0, "steigerverhuur NL"),
+        ("Op- en afbouw steiger (arbeid)", 0.06, "u/m²", DAK_RENO_UURTARIEF, "—"),
+    ],
+    "Materiaaltransport, kraan/hijswerk, klein materieel": [
+        ("Kraan/pannenlift — toegerekend", 2.5, "post/m²", 1.0, "—"),
+        ("Transport materiaal + klein materieel", 2.0, "post/m²", 1.0, "—"),
+    ],
+}
+
 # Dekkend aantal pannen per m² (LCL–UCL) per type — om een geoffreerd pannenaantal te toetsen aan het
 # dakoppervlak (bron: Sleiderink / dakpanrichtlijnen). Holle keramisch & OVH liggen hoger dan vlakke/beton.
 DAK_RENO_PANNEN_PER_M2 = {
@@ -2191,6 +2241,34 @@ with tab_dak:
                          column_config={"Laag": st.column_config.NumberColumn("LCL (€/m²)", format="€%.0f"),
                                         "Gem.": st.column_config.NumberColumn("Mean (€/m²)", format="€%.0f"),
                                         "Hoog": st.column_config.NumberColumn("UCL (€/m²)", format="€%.0f")})
+            # Gedetailleerde cost-price-opbouw per scope (manuren × uurtarief, materiaal, materieel + bron).
+            _detail_rows = []  # platte lijst voor de Excel-export
+            with st.expander("🔍 Gedetailleerde kostenopbouw per scope — zo bouw ik de kostprijs op", expanded=False):
+                st.caption(f"Indicatieve bottom-up opbouw per m², directe kosten **excl. AK/W&R/btw** (arbeid à "
+                           f"€{DAK_RENO_UURTARIEF:.0f}/u directe arbeid). AK, winst & risico en btw komen in de "
+                           "opbouwtabel hieronder erbovenop. Bron per regel in de kolom 'Bron'.")
+                for _, _scr in _rb.iterrows():
+                    _onam = str(_scr["Onderdeel"])
+                    _det = DAK_RENO_DETAIL.get(_onam)
+                    if _det is None and "pannen — materiaal" in _onam:
+                        _ppmean = (_plo + _phi) / 2.0
+                        _det = [(f"{_pt} dakpannen (~11 st/m²)", 11.0, "st/m²",
+                                 round(_ppmean / 11.0, 2), "prijsoverzicht pannen")]
+                    if not _det:
+                        continue
+                    _drows = [{"Component": _c, "Hoeveelheid": _h, "Eenheid": _e, "€/eenheid": round(_p, 2),
+                               "Subtotaal €/m²": round(_h * _p, 2), "Bron": _bron} for _c, _h, _e, _p, _bron in _det]
+                    _dsum = sum(_r["Subtotaal €/m²"] for _r in _drows)
+                    st.markdown(f"**{_onam}** — opbouw ≈ €{_dsum:.0f}/m² (band €{float(_scr['Laag']):.0f}–"
+                                f"€{float(_scr['Hoog']):.0f}/m²)")
+                    st.dataframe(pd.DataFrame(_drows), use_container_width=True, hide_index=True,
+                                 column_config={"€/eenheid": st.column_config.NumberColumn(format="€%.2f"),
+                                                "Subtotaal €/m²": st.column_config.NumberColumn(format="€%.2f"),
+                                                "Component": st.column_config.TextColumn(width="large")})
+                    for _r in _drows:
+                        _detail_rows.append({"Scope": _onam, **_r})
+                st.caption("Indicatief, geen offerte. Arbeidsuren × uurtarief = directe arbeid; materiaal/materieel "
+                           "is inkoop/huur. Schaalt met het dakoppervlak; loodwerk + vogelwering staan apart.")
             # Opbouw naar should-price: directe kosten + algemene kosten + winst & risico (LCL/Mean/UCL).
             _ak_lo, _ak_me, _ak_hi = _dlo * DAK_RENO_AK, _dme * DAK_RENO_AK, _dhi * DAK_RENO_AK
             _wr_lo, _wr_me, _wr_hi = ((_dlo + _ak_lo) * DAK_RENO_WR, (_dme + _ak_me) * DAK_RENO_WR,
@@ -2247,8 +2325,12 @@ with tab_dak:
                        "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
                        "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
                        "vogelwering apart. Indicatie, geen offerte.")
+            _sc_sheets = {"Directe kosten": _rb_show, "Opbouw should-price": _opb}
+            if _detail_rows:
+                _sc_sheets["Kostenopbouw per scope"] = pd.DataFrame(_detail_rows)[
+                    ["Scope", "Component", "Hoeveelheid", "Eenheid", "€/eenheid", "Subtotaal €/m²", "Bron"]]
             st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                               m.df_to_excel_bytes({"Directe kosten": _rb_show, "Opbouw should-price": _opb}),
+                               m.df_to_excel_bytes(_sc_sheets),
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
