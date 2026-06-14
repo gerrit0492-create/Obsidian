@@ -1087,17 +1087,16 @@ with _header:
     st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
                "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
-_labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
+_labels = ["🏠 Dakofferte-tracker", "🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check",
-            "🏠 Dakofferte-tracker"]
+_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
 _it = iter(st.tabs(_labels))
+tab_dak = next(_it)
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
 tab_niches = next(_it); tab_scan = next(_it); tab_onderzoek = next(_it); tab_founder = next(_it)
-tab_dak = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
