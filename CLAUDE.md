@@ -5,6 +5,9 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 `tools/` (note-lint CLI).
 
 ## Conventions
+- **"Advise" means no code.** When the user asks to advise ("adviseer"), do NOT write
+  or change any code — give advice plus concrete options for the user to choose from,
+  and wait. Only implement after the user picks an option.
 - **No assumptions.** Don't assume — verify, or ask the user. If something is
   unclear or unverified, ask a short question instead of guessing. Never invent
   numbers, names, or examples; never silently change an agreed process, workflow,
