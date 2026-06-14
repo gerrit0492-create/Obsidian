@@ -5,10 +5,17 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 `tools/` (note-lint CLI).
 
 ## Conventions
+- **No assumptions.** Don't assume — verify, or ask the user. If something is
+  unclear or unverified, ask a short question instead of guessing. Never invent
+  numbers, names, or examples; never silently change an agreed process, workflow,
+  or scope. When in doubt, check first.
 - **Work carefully and precisely.** Don't guess. Verify numbers/counts against the
   actual data, check that UI elements truly render (not just that the code compiles),
   re-read the relevant code before changing it, and double-check the result matches
   what the user will actually see. Accuracy over speed.
+- **Follow the git workflow strictly** (see "Git constraints" below): develop on a
+  feature branch, back up + verify MCP before pushing, and open a PR — never push or
+  merge straight to `main` unless the user explicitly says so.
 - Communicate with the user in English
 - For changes spanning several files, make all edits in one commit
 - Match the style of the surrounding code — don't introduce new patterns
