@@ -460,7 +460,7 @@ def _dak_vergelijking_chart_png(hl, dak_opp, lo, hi, sc_lo=None, sc_hi=None, sc_
 
 
 def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bullets, lo, hi, normdf=None,
-                                sc_lo=None, sc_hi=None, sc_mid=None, detail_rows=None):
+                                sc_lo=None, sc_hi=None, sc_mid=None):
     """Printbaar A4-rapport van de offertevergelijking met grafieken, scope en advies."""
     import io
     from datetime import date
@@ -532,18 +532,6 @@ def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bul
     _prows2 = [[str(r["Bedrijf"]), str(r["Onderdeel"]), f"€{float(r['Prijs excl. btw']):.0f}", f"{int(r['Btw %'])}%"]
                for _, r in posten_df.iterrows()]
     el.append(_tbl(["Offerte", "Post", "Excl. btw", "Btw"], _prows2, [32 * mm, 96 * mm, 22 * mm, 12 * mm]))
-    if detail_rows:
-        el.append(Spacer(1, 8))
-        el.append(Paragraph("Should-cost — kostenopbouw per scope (indicatief, €/m²)", h2))
-        el.append(Paragraph("Zo is de should-cost opgebouwd: manuren × uurtarief (directe arbeid), materiaal, "
-                            "containerhuur en materieel — directe kosten excl. AK/W&amp;R/btw.", sub))
-        el.append(Spacer(1, 3))
-        _dcols = ["Scope", "Component", "Hoeveelheid", "€/eenheid", "€/m²"]
-        _drows = [[str(r.get("Scope", "")), str(r.get("Component", "")),
-                   f"{r.get('Hoeveelheid', '')} {r.get('Eenheid', '')}".strip(),
-                   f"€{float(r.get('€/eenheid', 0) or 0):.2f}", f"€{float(r.get('Subtotaal €/m²', 0) or 0):.2f}"]
-                  for r in detail_rows]
-        el.append(_tbl(_dcols, _drows, [34 * mm, 68 * mm, 26 * mm, 20 * mm, 18 * mm]))
     doc.build(el)
     return buf.getvalue()
 
@@ -2337,8 +2325,12 @@ with tab_dak:
                        "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
                        "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
                        "vogelwering apart. Indicatie, geen offerte.")
+            _sc_sheets = {"Directe kosten": _rb_show, "Opbouw should-price": _opb}
+            if _detail_rows:
+                _sc_sheets["Kostenopbouw per scope"] = pd.DataFrame(_detail_rows)[
+                    ["Scope", "Component", "Hoeveelheid", "Eenheid", "€/eenheid", "Subtotaal €/m²", "Bron"]]
             st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                               m.df_to_excel_bytes({"Directe kosten": _rb_show, "Opbouw should-price": _opb}),
+                               m.df_to_excel_bytes(_sc_sheets),
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
@@ -3246,8 +3238,7 @@ with tab_dak:
                                                     DAK_MARKT_LO, DAK_MARKT_HI, _normdf,
                                                     sc_lo=_sc_lcl_i / dak_opp if dak_opp else None,
                                                     sc_hi=_sc_ucl_i / dak_opp if dak_opp else None,
-                                                    sc_mid=(_scx + _scb) / dak_opp if dak_opp else None,
-                                                    detail_rows=_detail_rows)
+                                                    sc_mid=(_scx + _scb) / dak_opp if dak_opp else None)
                 _cdb.download_button("🖨️ Vergelijking — PDF (met grafieken)", _pdfb,
                                      file_name="dakrenovatie_vergelijking.pdf", mime="application/pdf",
                                      key="dak_vergelijk_pdf", use_container_width=True)
