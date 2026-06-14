@@ -2446,9 +2446,10 @@ with tab_dak:
             _bl_incl = sum(float(p["Prijs excl. btw"]) * (1 + float(p["Btw %"]) / 100) for p in _bl)
             _bl_lcl = sum(float(p.get("LCL", p["Prijs excl. btw"])) * (1 + float(p["Btw %"]) / 100) for p in _bl)
             _bl_ucl = sum(float(p.get("UCL", p["Prijs excl. btw"])) * (1 + float(p["Btw %"]) / 100) for p in _bl)
-            st.markdown(f"**Complete should-cost** (kale dakrenovatie **+** goot/loodwerk/vogelwering) voor "
-                        f"{dak_opp:.0f} m²: **{eur(_bl_incl)} incl.** (band {eur(_bl_lcl)} – {eur(_bl_ucl)}) — "
-                        "**dezelfde baseline als in ⚖️ Vergelijking & advies**. Hiertegen toets je de offertes.")
+            st.markdown(f"**Complete should-cost — richtprijs** (kale dakrenovatie **+** goot/loodwerk/vogelwering) "
+                        f"voor {dak_opp:.0f} m²: **{eur(_bl_incl)} incl.** (spreiding {eur(_bl_lcl)} – {eur(_bl_ucl)}). "
+                        "Offertes worden beoordeeld op **marge t.o.v. de richtprijs**: 🟢 ±10% · 🟡 +10–25% · "
+                        "🔴 >+25%. Zelfde baseline als ⚖️ Vergelijking & advies.")
             _toets = [o for o in st.session_state.get("dakofferte", [])
                       if str(o.get("Bedrijf") or "").strip() and str(o.get("Status") or "") != "Afgewezen"
                       and (float(o.get("Excl. btw") or 0) > 0 or float(o.get("Incl. btw") or 0) > 0)]
@@ -2461,17 +2462,18 @@ with tab_dak:
                         _oin = round(_oex * 1.21, 2)
                     if _oex <= 0 and _oin > 0:
                         _oex = round(_oin / 1.21, 2)
-                    if _oin < _bl_lcl:
-                        _ov = "🔵 onder de band (scherp)"
-                    elif _oin <= _bl_ucl:
-                        _ov = "🟢 binnen de band (marktconform)"
-                    elif _oin <= _bl_ucl * 1.15:
-                        _ov = "🟡 net boven de band"
+                    _dpct = (_oin / _bl_incl - 1) * 100 if _bl_incl else 0.0
+                    if _oin <= _bl_incl * 0.95:
+                        _ov = "🔵 onder de richtprijs (scherp)"
+                    elif _oin <= _bl_incl * 1.10:
+                        _ov = "🟢 marktconform (±10%)"
+                    elif _oin <= _bl_incl * 1.25:
+                        _ov = "🟡 aan de hoge kant (+10–25%)"
                     else:
-                        _ov = "🔴 fors boven de band"
+                        _ov = "🔴 fors boven (>+25%)"
                     _oim2 = _oin / dak_opp if dak_opp else 0.0
                     st.markdown(f"- **{_o.get('Bedrijf')}**: {eur(_oex)} excl. · {eur(_oin)} incl. "
-                                f"(€{_oim2:.0f}/m²) → {_ov}")
+                                f"(€{_oim2:.0f}/m²) → {_ov} ({_dpct:+.0f}% t.o.v. richtprijs)")
             else:
                 st.caption("Nog geen offertes om te toetsen — voeg ze toe bij **📥 Offertes**.")
             _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
