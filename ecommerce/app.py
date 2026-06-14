@@ -2239,11 +2239,16 @@ with tab_dak:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
                        "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                        "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
-            _pt = st.selectbox("Pantype (volgt de offerte)", list(DAK_RENO_PANTYPE), key="dak_pantype")
-            _plo, _phi = DAK_RENO_PANTYPE[_pt]
+            # Pannen-materiaal als band over de pankeuze: LCL = goedkoopste pan (Sneldek, grootformaat
+            # beton), UCL = duurste (kleinere keramische pan). Data-gedreven uit DAK_RENO_PANTYPE.
+            _plo = min(_lo for _lo, _hi in DAK_RENO_PANTYPE.values())   # goedkoopste pan = LCL
+            _phi = max(_hi for _lo, _hi in DAK_RENO_PANTYPE.values())   # duurste pan = UCL
+            st.caption("Pannen-materiaal als band: **LCL = Sneldek** (goedkoopste grootformaat beton) → "
+                       "**UCL = keramische kleinere pan** (duurder, meer pannen/m²).")
             _rows = list(DAK_RENO_SHOULDCOST)
             _ix = next(i for i, r in enumerate(_rows) if "leggen" in r["Onderdeel"].lower())
-            _rows.insert(_ix, {"Onderdeel": f"{_pt} pannen — materiaal", "Laag": _plo, "Hoog": _phi})
+            _rows.insert(_ix, {"Onderdeel": "Dakpannen — materiaal (Sneldek=LCL → keramisch klein=UCL)",
+                               "Laag": _plo, "Hoog": _phi})
             _rb = pd.DataFrame(_rows)
             _rb["Gem."] = (_rb["Laag"] + _rb["Hoog"]) / 2.0
             _dlo, _dhi = float(_rb["Laag"].sum()), float(_rb["Hoog"].sum())  # directe kosten €/m²
@@ -2266,9 +2271,9 @@ with tab_dak:
                     _onam = str(_scr["Onderdeel"])
                     _det = DAK_RENO_DETAIL.get(_onam)
                     if _det is None and "pannen — materiaal" in _onam:
-                        _ppmean = (_plo + _phi) / 2.0
-                        _det = [(f"{_pt} dakpannen (~11 st/m²)", 11.0, "st/m²",
-                                 round(_ppmean / 11.0, 2), "prijsoverzicht pannen")]
+                        _det = [(f"Dakpannen — materiaal (Sneldek €{_plo:.0f} → keramisch €{_phi:.0f}/m²)",
+                                 1.0, "m²", round((_plo + _phi) / 2.0, 2),
+                                 "prijsoverzicht pannen (beton/Sneldek → keramisch)")]
                     if not _det:
                         continue
                     _drows = [{"Component": _c, "Hoeveelheid": _h, "Eenheid": _e, "€/eenheid": round(_p, 2),
