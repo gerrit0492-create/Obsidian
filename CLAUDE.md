@@ -44,7 +44,15 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 
 ## Before pushing to git
 1. **Back up**: create a git tag from current HEAD (`git tag backup/pre-<description> HEAD`)
-2. **Verify MCP**: confirm the GitHub MCP tools are available
+2. **Verify MCP**: confirm the GitHub MCP tools are available. If they're missing /
+   the `github` MCP server reports "requires authentication", the OAuth has simply
+   expired — **re-authenticate, don't give up**:
+   - Call `mcp__github__authenticate`; it returns an authorization URL.
+   - Give the user that URL; they authorize in the browser. The redirect to
+     `http://localhost:<port>/callback?code=...` will fail to load on a remote
+     session — that's expected; the URL in the address bar is still valid.
+   - Ask the user to paste that full callback URL, then call
+     `mcp__github__complete_authentication` with it. The GitHub MCP tools come back.
 3. Once the backup is done and MCP is verified, push
 
 ## Git constraints
