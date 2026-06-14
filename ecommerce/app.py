@@ -2147,6 +2147,9 @@ with tab_dak:
                                    key="dak_uitwerk_xlsx")
 
     with _stage[2]:
+        if st.session_state.get("dak_flash"):
+            _lvl, _msg = st.session_state.pop("dak_flash")
+            getattr(st, _lvl, st.info)(_msg)
         _cmp_tabs = st.tabs(["🧮 Should-cost", "🔍 Posten vergelijken", "⚖️ Vergelijking & advies"])
         with _cmp_tabs[0]:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
@@ -2230,10 +2233,6 @@ with tab_dak:
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
-
-        if st.session_state.get("dak_flash"):
-            _lvl, _msg = st.session_state.pop("dak_flash")
-            getattr(st, _lvl, st.info)(_msg)
     with _stage[1]:
         with _off_tabs[2]:
             _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
@@ -2795,6 +2794,10 @@ with tab_dak:
     with _cmp_tabs[2]:
         # ---- Insightful scope comparison to help pick the right quote ----
         _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
+        if not _detbedr_real:
+            st.info("Nog geen detailposten per offerte — voeg ze toe bij **🔍 Posten vergelijken** of "
+                    "upload offerte-PDF's. Dan verschijnt hier de vergelijking per onderdeel tegen de "
+                    "should-cost-baseline.")
         if _detbedr_real:
             st.markdown("#### 📊 Vergelijking & advies — welke offerte?")
             st.caption("Naast de offertes staat een **should-cost baseline**: een onafhankelijke, complete "
