@@ -2694,15 +2694,28 @@ with tab_dak:
                     st.rerun()
                 else:
                     st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
-            if st.button("🧹 Dubbele afspraken verwijderen", key="dak_afspr_dedup",
-                         help="Houdt per bedrijf + datum + tijd één afspraak over (bv. dubbel geïmporteerd uit de agenda)."):
-                _seen, _uniq = set(), []
-                for _r in st.session_state.get("dak_afspraken", []):
-                    _k = _afspr_key(_r)
-                    if _k not in _seen:
-                        _seen.add(_k)
-                        _uniq.append(_r)
-                _dups = len(st.session_state.get("dak_afspraken", [])) - len(_uniq)
+            if st.button("🧹 Dubbele afspraken opruimen (zelfde datum + tijd)", key="dak_afspr_dedup",
+                         help="Behandelt afspraken op dezelfde **datum + tijd** als één afspraak — ook bij een "
+                              "andere schrijfwijze van de naam (bv. 'Stipt Dakgroep' vs 'Stipt dak groep offerte'). "
+                              "De meest complete rij blijft staan. Afspraken zonder datum/tijd worden niet aangeraakt."):
+                _rows = st.session_state.get("dak_afspraken", [])
+
+                def _slotkey(r):
+                    _d, _t = str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip()
+                    return ("slot", _d, _t) if (_d and _t) else ("exact",) + _afspr_key(r)
+
+                def _filled(r):
+                    return sum(1 for v in r.values() if str(v or "").strip())
+                _best, _order = {}, []
+                for _r in _rows:
+                    _k = _slotkey(_r)
+                    if _k not in _best:
+                        _best[_k] = _r
+                        _order.append(_k)
+                    elif _filled(_r) > _filled(_best[_k]):
+                        _best[_k] = _r  # houd de meest complete rij van dit tijdslot
+                _uniq = [_best[_k] for _k in _order]
+                _dups = len(_rows) - len(_uniq)
                 if _dups:
                     st.session_state["dak_afspraken"] = _uniq
                     st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
@@ -2710,10 +2723,10 @@ with tab_dak:
                         _persist()
                     except Exception:  # noqa: BLE001
                         pass
-                    st.success(f"{_dups} dubbele afspra(a)k(en) verwijderd.")
+                    st.success(f"{_dups} dubbele afspra(a)k(en) opgeruimd (zelfde datum + tijd).")
                     st.rerun()
                 else:
-                    st.info("Geen dubbele afspraken gevonden.")
+                    st.info("Geen dubbele afspraken op dezelfde datum + tijd gevonden.")
             if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
                 try:
                     _persist()
