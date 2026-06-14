@@ -1565,8 +1565,9 @@ with tab_niches:
     st.markdown(f"### 📋 Stappenplan — {_nd}/{len(_ns_steps)} stappen klaar")
     st.caption("Nieuw hierin? Volg deze stappen van boven naar beneden — tabblad voor tabblad.")
     st.progress(_nd / len(_ns_steps))
-    for _i, (_nm, _ok, _stat, _instr) in enumerate(_ns_steps, 1):
-        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
+    st.markdown("\n".join(
+        f"- {'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** — {_stat} — {_instr}"
+        for _i, (_nm, _ok, _stat, _instr) in enumerate(_ns_steps, 1)))
     _ns_todo = [(idx, s) for idx, s in enumerate(_ns_steps, 1) if not s[1]]
     if _ns_todo:
         _ti, _ts = _ns_todo[0]
@@ -1985,8 +1986,9 @@ with tab_dak:
     st.markdown(f"### 📋 Stappenplan — {_done}/{len(_steps)} stappen klaar")
     st.caption("Geen verstand van daken? Volg deze stappen gewoon van boven naar beneden — tabblad voor tabblad.")
     st.progress(_done / len(_steps))
-    for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1):
-        st.markdown(f"{'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** · _{_stat}_ — {_instr}")
+    st.markdown("\n".join(
+        f"- {'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** — {_stat} — {_instr}"
+        for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1)))
     _todo = [(idx, s) for idx, s in enumerate(_steps, 1) if not s[1]]
     if _todo:
         _ti, _ts = _todo[0]
