@@ -2051,7 +2051,9 @@ with tab_dak:
 
     _stage = st.tabs(["🔎 Aannemers & afspraken", "📥 Offertes", "⚖️ Vergelijken · advies · kiezen"])
     with _stage[1]:
-        with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
+        _off_tabs = st.tabs(["📋 Offertetabel", "📄 Offerte uitwerken", "⬆️ Uploaden (PDF)",
+                             "➕ Handmatig toevoegen"])
+        with _off_tabs[1]:
             _off = st.session_state.get("dakofferte", DAK_DEFAULT)
             _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
             if not _bedrijven:
@@ -2145,7 +2147,8 @@ with tab_dak:
                                    key="dak_uitwerk_xlsx")
 
     with _stage[2]:
-        with st.expander("🧮 Should-cost dakrenovatie — wat zou het dak mógen kosten?", expanded=False):
+        _cmp_tabs = st.tabs(["🧮 Should-cost", "🔍 Posten vergelijken", "⚖️ Vergelijking & advies"])
+        with _cmp_tabs[0]:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
                        "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                        "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
@@ -2232,7 +2235,7 @@ with tab_dak:
             _lvl, _msg = st.session_state.pop("dak_flash")
             getattr(st, _lvl, st.info)(_msg)
     with _stage[1]:
-        with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
+        with _off_tabs[2]:
             _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
             if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
                 if not ai.available():
@@ -2306,7 +2309,7 @@ with tab_dak:
                        "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
 
     with _stage[1]:
-        with st.expander("➕ Nieuwe offerte handmatig toevoegen", expanded=False):
+        with _off_tabs[3]:
             with st.form("dak_add", clear_on_submit=True):
                 af = st.columns(2)
                 _b = af[0].text_input("Bedrijf *")
@@ -2333,7 +2336,7 @@ with tab_dak:
                     else:
                         st.warning("Vul minimaal het bedrijf in.")
 
-    with _stage[1]:
+    with _off_tabs[0]:
         st.markdown("#### Offertes vergelijken")
         st.caption("Of bewerk hieronder rechtstreeks in de tabel (rij toevoegen met +).")
         _dak_edit = st.data_editor(
@@ -2713,7 +2716,7 @@ with tab_dak:
                                    file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
                                    key="dak_afspr_pdf")
 
-    with _stage[2]:
+    with _cmp_tabs[1]:
         st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
         st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
                    "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
@@ -2789,6 +2792,7 @@ with tab_dak:
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_posten_xlsx")
 
+    with _cmp_tabs[2]:
         # ---- Insightful scope comparison to help pick the right quote ----
         _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
         if _detbedr_real:
