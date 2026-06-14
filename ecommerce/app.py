@@ -2318,11 +2318,24 @@ with tab_dak:
             st.caption(f"Voor {dak_opp:.0f} m²: {eur(_slo * dak_opp)} – {eur(_shi * dak_opp)} excl. btw "
                        f"(mean {eur(_sme * dak_opp)}) → **{eur(_silo * dak_opp)} – {eur(_sihi * dak_opp)} incl. btw "
                        f"(mean {eur(_sime * dak_opp)})**.")
-            _wm_m2 = 15000.0 / dak_opp  # dakrenovatie-deel van Westermeer (zonder lood/vogelwering)
-            _wm_v = ("🟢 marktconform" if _wm_m2 <= _shi
-                     else "🟡 aan de hoge kant" if _wm_m2 <= _shi * 1.25 else "🔴 fors boven should-price")
-            st.markdown(f"**Westermeer dakrenovatie:** {eur(15000.0)} excl. = **€{_wm_m2:.0f}/m²** → {_wm_v} "
-                        f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
+            # Toets álle offertes (niet één hardcoded naam) aan de should-price — driven door de data.
+            _toets = [o for o in st.session_state.get("dakofferte", [])
+                      if str(o.get("Bedrijf") or "").strip() and str(o.get("Status") or "") != "Afgewezen"
+                      and float(o.get("Excl. btw") or 0) > 0]
+            if _toets:
+                st.markdown("**Offertes getoetst aan de should-price** (€/m² excl. btw):")
+                for _o in _toets:
+                    _oex = float(_o.get("Excl. btw") or 0)
+                    _om2 = _oex / dak_opp if dak_opp else 0.0
+                    _ov = ("🟢 marktconform" if _om2 <= _shi
+                           else "🟡 aan de hoge kant" if _om2 <= _shi * 1.25 else "🔴 fors boven should-price")
+                    st.markdown(f"- **{_o.get('Bedrijf')}**: {eur(_oex)} excl. = **€{_om2:.0f}/m²** → {_ov} "
+                                f"(should-price €{_slo:.0f}–€{_shi:.0f}/m²).")
+                st.caption("De should-price is het **dakrenovatie-deel** (excl. lood/vogelwering/goot); "
+                           "offertetotalen bevatten die vaak wél → die liggen hoger. Voor de zuivere, "
+                           "scope-genormaliseerde vergelijking zie **⚖️ Vergelijking & advies**.")
+            else:
+                st.caption("Nog geen offertes om te toetsen — voeg ze toe bij **📥 Offertes**.")
             _q = st.number_input("Andere offerte toetsen (€ excl. btw voor de dakrenovatie · 0 = overslaan)",
                                  0.0, 1_000_000.0, 0.0, 250.0, key="dak_reno_quote")
             if _q > 0:
