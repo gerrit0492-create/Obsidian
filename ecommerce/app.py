@@ -1869,12 +1869,6 @@ with tab_dak:
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
     for _ek in ("dakkapel", "goot", "vogelwering"):
         st.session_state.setdefault(f"dak_sc_extra_{_ek}", True)
-    st.caption("Welke extra's zitten in dít dak? (uitvinken = lagere should-cost; deze posten staan los "
-               "van de kale €/m² dakrenovatie)")
-    _ec = st.columns(3)
-    _ec[0].checkbox("Dakkapel-loodwerk", key="dak_sc_extra_dakkapel")
-    _ec[1].checkbox("Bakgoot / regenwater", key="dak_sc_extra_goot")
-    _ec[2].checkbox("Vogelwering", key="dak_sc_extra_vogelwering")
 
     def _dak_apply_calc():
         _v = st.session_state.get("_dak_roof_calc")
@@ -2259,22 +2253,6 @@ with tab_dak:
             st.caption("Huis-footprint = echt uit het 3D BAG. Perceel = Kadaster (knop) of handmatige maten. "
                        "Carport/schuur plaats je vrij met de schuifjes. Op schaal in RD-meters.")
 
-    st.markdown("**🧭 Werkwijze:**  1️⃣ Aannemers vinden  →  2️⃣ Uitnodigen / offerte aanvragen  →  "
-                "3️⃣ Offerte ontvangen (⬆️ upload)  →  4️⃣ Vergelijken  →  5️⃣ Inzichten & advies  →  6️⃣ Kiezen")
-    with st.expander("🧭 Werkwijze — wat doe je in elke stap?", expanded=False):
-        st.markdown(
-            "1. **Aannemers vinden** — zoek lokale dakdekkers (Werkspot, Trustoo, mond-tot-mond) en leg ze vast "
-            "onder **📇 Contacten & afspraken**.\n"
-            "2. **Uitnodigen / offerte aanvragen** — plan een inspectie/bezoek; zet de afspraak in de agenda "
-            "(of importeer via iCal). Status: *Aangevraagd*.\n"
-            "3. **Offerte ontvangen** — upload de PDF bij **⬆️ Offerte uploaden**: posten, bedragen en btw worden "
-            "uitgelezen, de **PDF wordt bewaard** (altijd terugvindbaar) en de offerte verschijnt overal. "
-            "*Elke nieuwe offerte krijgt automatisch exact dezelfde uitwerking* — uploaden, vergelijken, advies.\n"
-            "4. **Vergelijken** — **🔍 Posten vergelijken**: per post wie wat rekent en waar de scope verschilt.\n"
-            "5. **Inzichten & advies** — **📊 Vergelijking & advies**: €/m², markttoets, ontbrekende scope, "
-            "ISDE-subsidie en een **eerlijke vergelijking** (gelijke scope) netto. Download het rapport (Excel/PDF met grafieken).\n"
-            "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
-
     _stage = st.tabs(["🔎 Stap 2 · Aannemers & afspraken", "📥 Stap 3 · Offertes",
                       "⚖️ Stap 4 · Vergelijken & kiezen"])
     with _stage[1]:
@@ -2388,6 +2366,12 @@ with tab_dak:
                                       key="dak_uurtarief", on_change=_persist_safe,
                                       help="Directe arbeid, excl. AK/W&R/btw. €45 = basisraming; wijzig je het, dan "
                                            "bewegen alle arbeidsregels én de should-cost-band automatisch mee.")
+            st.caption("Welke extra's zitten in dít dak? (uitvinken = lagere should-cost; deze posten staan los "
+                       "van de kale €/m² dakrenovatie).")
+            _ec = st.columns(3)
+            _ec[0].checkbox("Dakkapel-loodwerk", key="dak_sc_extra_dakkapel")
+            _ec[1].checkbox("Bakgoot / regenwater", key="dak_sc_extra_goot")
+            _ec[2].checkbox("Vogelwering", key="dak_sc_extra_vogelwering")
             # Pannen-materiaal als band: LCL = goedkoopste pan (Sneldek), UCL = duurste (kleinere keramische pan).
             _plo = min(_lo for _lo, _hi in DAK_RENO_PANTYPE.values())
             _phi = max(_hi for _lo, _hi in DAK_RENO_PANTYPE.values())
