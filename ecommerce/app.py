@@ -2815,30 +2815,31 @@ with tab_dak:
                    "in de tabel kan, maar hoeft niet. Een lege cel = die post zit niet in die offerte.")
         _pin = pd.DataFrame(st.session_state.get("dak_posten", DAK_POSTEN_DEFAULT))
         _pin["Btw %"] = _pin["Btw %"].fillna(21).astype(int) if "Btw %" in _pin.columns else 21
-        _pe = st.data_editor(
-            _pin, num_rows="dynamic",
-            use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
-            column_config={
-                "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
-                "Btw %": st.column_config.SelectboxColumn(options=[21, 9], default=21,
-                                                          help="9% (arbeid/isolatie) of 21% (materiaal)"),
-                "Onderdeel": st.column_config.TextColumn(width="large"),
-            })
-        _prows = []
-        for r in _pe.to_dict("records"):
-            if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip():
+        with st.expander("✏️ Detailposten handmatig bewerken / toevoegen", expanded=False):
+            _pe = st.data_editor(
+                _pin, num_rows="dynamic",
+                use_container_width=True, key=f"dak_posten_oe_{len(st.session_state.get('dak_posten', []))}",
+                column_config={
+                    "Prijs excl. btw": st.column_config.NumberColumn(format="€%.2f"),
+                    "Btw %": st.column_config.SelectboxColumn(options=[21, 9], default=21,
+                                                              help="9% (arbeid/isolatie) of 21% (materiaal)"),
+                    "Onderdeel": st.column_config.TextColumn(width="large"),
+                })
+            _prows = []
+            for r in _pe.to_dict("records"):
+                if str(r.get("Bedrijf") or "").strip() and str(r.get("Onderdeel") or "").strip():
+                    try:
+                        r["Btw %"] = int(float(r.get("Btw %") or 21))
+                    except Exception:  # noqa: BLE001
+                        r["Btw %"] = 21
+                    _prows.append(r)
+            st.session_state["dak_posten"] = _prows
+            if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
                 try:
-                    r["Btw %"] = int(float(r.get("Btw %") or 21))
-                except Exception:  # noqa: BLE001
-                    r["Btw %"] = 21
-                _prows.append(r)
-        st.session_state["dak_posten"] = _prows
-        if store.enabled() and st.button("💾 Posten bewaren in Gist", key="dak_posten_save"):
-            try:
-                _persist()
-                st.success("Opgeslagen.")
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Opslaan mislukt: {exc}")
+                    _persist()
+                    st.success("Opgeslagen.")
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Opslaan mislukt: {exc}")
 
         # Automatisch aanvullen: elke offerte uit de offertetabel zonder eigen posten krijgt een totaalregel.
         _TOTREGEL = "Totaal offerte (excl. btw)"
@@ -2859,9 +2860,16 @@ with tab_dak:
         if _auto:
             _pm = pd.DataFrame(_auto).pivot_table(
                 index="Onderdeel", columns="Bedrijf", values="Prijs excl. btw", aggfunc="sum")
+            _bedr_cols = list(_pm.columns)
             _disp = _pm.round(0).copy()
-            _disp.loc["── Totaal (excl. btw) ──"] = _pm.sum()
-            st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True)
+            # Scope-indicator: in hoeveel offertes zit deze post? (maakt scope-verschillen scanbaar)
+            _disp.insert(0, "Scope", _pm.notna().sum(axis=1).astype(int).astype(str) + f"/{len(_bedr_cols)}")
+            _disp.loc["── Totaal (excl. btw) ──"] = [""] + list(_pm.sum().round(0).values)
+            _colcfg = {_c: st.column_config.NumberColumn(format="€%.0f") for _c in _bedr_cols}
+            _colcfg["Onderdeel"] = st.column_config.TextColumn(width="large")
+            _colcfg["Scope"] = st.column_config.TextColumn(width="small",
+                                                           help="In hoeveel offertes deze post voorkomt")
+            st.dataframe(_disp.reset_index(), use_container_width=True, hide_index=True, column_config=_colcfg)
             if _auto_added:
                 st.caption("🔄 Automatisch aangevuld uit de offertetabel (totaalregel): "
                            + ", ".join(sorted(set(_auto_added))) + ". Upload hun PDF voor detailposten.")
