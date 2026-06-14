@@ -100,23 +100,27 @@ def _dak_shouldcost_posten(opp):
     puntvergelijking, de band toont wat een offerte 'zou moeten' kosten.
     """
     r = max(float(opp or 60), 1.0) / 60.0
-    items = [  # (Onderdeel, LCL @60 m², UCL @60 m², btw %, schaalt mee met oppervlak)
-        ("Steiger + materieel + pannenlift", 900, 1400, 21, False),
-        ("Sloop + afvoer + container", 700, 1100, 21, True),
-        ("Isolatie materiaal (Rd ≥ 3,5)", 900, 1400, 21, True),
-        ("Isolatie aanbrengen (arbeid)", 500, 800, 9, True),
-        ("Tengels + panlatten", 600, 1000, 21, True),
-        ("Dakpannen (beton, midmarkt)", 1000, 1600, 21, True),
-        ("Dakpannen leggen / montage", 1000, 1600, 21, True),
-        ("Nokvorsten + ruiters", 400, 800, 21, False),
-        ("Kant-/gevelpannen", 300, 600, 21, False),
-        ("Zinken bakgoot + gootbeugels", 900, 1500, 21, False),
-        ("Loodaansluiting dakkapel (10 m)", 500, 900, 21, False),
-        ("Vogelwering + dakvoet (12 m)", 250, 450, 21, False),
-        ("Panhaken / stormklemmen", 150, 350, 21, False),
+    items = [  # (Onderdeel, LCL @60 m², UCL @60 m², btw %, schaalt mee, optie-key of None)
+        ("Steiger + materieel + pannenlift", 900, 1400, 21, False, None),
+        ("Sloop + afvoer + container", 700, 1100, 21, True, None),
+        ("Isolatie materiaal (Rd ≥ 3,5)", 900, 1400, 21, True, None),
+        ("Isolatie aanbrengen (arbeid)", 500, 800, 9, True, None),
+        ("Tengels + panlatten", 600, 1000, 21, True, None),
+        ("Dakpannen (beton, midmarkt)", 1000, 1600, 21, True, None),
+        ("Dakpannen leggen / montage", 1000, 1600, 21, True, None),
+        ("Nokvorsten + ruiters", 400, 800, 21, False, None),
+        ("Kant-/gevelpannen", 300, 600, 21, False, None),
+        ("Zinken bakgoot + gootbeugels", 900, 1500, 21, False, "goot"),
+        ("Loodaansluiting dakkapel (10 m)", 500, 900, 21, False, "dakkapel"),
+        ("Vogelwering + dakvoet (12 m)", 250, 450, 21, False, "vogelwering"),
+        ("Panhaken / stormklemmen", 150, 350, 21, False, None),
     ]
     out = []
-    for _n, _lo, _hi, _b, _s in items:
+    for _n, _lo, _hi, _b, _s, _opt in items:
+        # Huis-specifieke extra's (goot/dakkapel-lood/vogelwering) tellen alleen mee als dit dak ze
+        # heeft — anders staat de should-cost kunstmatig hoog voor een 60 m²-referentie mét dakkapel.
+        if _opt is not None and not st.session_state.get(f"dak_sc_extra_{_opt}", True):
+            continue
         _sc = r if _s else 1.0
         _l, _u = round(_lo * _sc), round(_hi * _sc)
         out.append({"Bedrijf": "Should-cost (baseline)", "Onderdeel": _n,
@@ -229,22 +233,9 @@ DAK_RENO_PANNEN_PER_M2 = {
 }
 
 # Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — gesynchroniseerd met de DePoorter-agenda.
-DAK_AFSPRAKEN_DEFAULT = [
-    {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Offerte-overleg", "Datum": "2026-06-11", "Tijd": "15:00",
-     "Contactpersoon": "", "Telefoon": "040 304 14 75", "E-mail": "info@dakbedrijfeindhoven.nl",
-     "Status": "Offerte ontvangen", "Notitie": "Offerte OFF-2026-0189 ontvangen (agenda: 'Dak offerte westerman')"},
-    {"Bedrijf": "Albers Dakbedekking", "Type": "Bezoek/inspectie", "Datum": "2026-06-12", "Tijd": "08:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek uitgevoerd", "Notitie": "Uit agenda DePoorter"},
-    {"Bedrijf": "Dak & Timmerwerken Deluxe", "Type": "Bezoek/inspectie", "Datum": "2026-06-13", "Tijd": "12:30",
-     "Contactpersoon": "Giovanni", "Telefoon": "+31 6 85302895", "E-mail": "", "Status": "Bezoek gepland",
-     "Notitie": "Giovanni belt of hij vóór 13:30 kan, anders volgende week"},
-    {"Bedrijf": "Stipt Dakgroep", "Type": "Offerte-overleg", "Datum": "2026-06-15", "Tijd": "09:00",
-     "Contactpersoon": "", "Telefoon": "06 53755391", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Offerte (agenda DePoorter)"},
-    {"Bedrijf": "Tony Pennings (klusbedrijf)", "Type": "Bezoek/inspectie", "Datum": "2026-06-16", "Tijd": "16:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Voor het dak, via Roy"},
-    {"Bedrijf": "Bonné Dakonderhoud", "Type": "Bezoek/inspectie", "Datum": "2026-06-18", "Tijd": "10:00",
-     "Contactpersoon": "", "Telefoon": "013 440 0270", "E-mail": "info@bonnedak.nl", "Status": "Bezoek gepland", "Notitie": "Uit agenda DePoorter"},
-]
+# Geen geseede afspraken: de afsprakenlijst komt volledig uit je eigen agenda (iCal-import) en
+# handmatige invoer. (Een verse start toont dus een lege lijst tot je importeert of toevoegt.)
+DAK_AFSPRAKEN_DEFAULT = []
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
 DAK_AFSPR_STATUS = ["Bezoek gepland", "Bezoek uitgevoerd", "Wachten op offerte", "Offerte ontvangen", "Geannuleerd"]
 DAK_AFSPR_GAP_MIN = 60  # minimaal aantal minuten tussen twee afspraken op dezelfde dag
@@ -482,7 +473,7 @@ def _dak_vergelijking_pdf_bytes(hl, cmpdf, posten_df, dak_opp, isde1, isde2, bul
     for b in bullets:
         el.append(Paragraph("• " + esc(b.replace("**", "")), small))
     if normdf is not None and len(normdf):
-        el.append(Paragraph("Appels met appels — zelfde scope, netto (incl. btw)", h2))
+        el.append(Paragraph("Eerlijke vergelijking — zelfde scope, netto (incl. btw)", h2))
         _ncols = [c for c in normdf.columns if c != "Toegevoegd"]
         _nrows = [[(str(r[c]) if c == "Offerte" else f"€{r[c]:.0f}") for c in _ncols] for _, r in normdf.iterrows()]
         el.append(_tbl(_ncols, _nrows, None))
@@ -888,6 +879,14 @@ def _afspr_key(r):
             str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip())
 
 
+def _afspr_slotkey(r):
+    """Dedup op tijdslot: zelfde datum + tijd = dezelfde afspraak, ook bij een andere schrijfwijze
+    van de naam (bv. seed 'Dakbedrijf Westermeer' vs agenda 'Dak offerte westerman'). Afspraken
+    zonder datum én tijd vallen terug op de exacte bedrijf+datum+tijd-sleutel."""
+    _d, _t = str(r.get("Datum") or "").strip(), str(r.get("Tijd") or "").strip()
+    return ("slot", _d, _t) if (_d and _t) else ("exact",) + _afspr_key(r)
+
+
 def _ics_dak_afspraken(text, keyword="dak", today=None, min_datum=None):
     """Afspraken uit iCal waarvan de titel het trefwoord bevat en datum >= min_datum."""
     from datetime import date
@@ -1088,17 +1087,16 @@ with _header:
     st.caption("Plan marge, productmix, de businesscase, de markt én de Nederlandse regels op één plek. "
                "Alle getallen zijn aanpasbare schattingen om te valideren — geen beloftes.")
 
-_labels = ["🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
+_labels = ["🏠 Dakofferte-tracker", "🧮 Marge-calculator", "📦 Productportfolio", "📈 Businesscase",
            "🌍 Markt & strategie", "📋 Regels & belasting"]
 if show_route:
     _labels.append("🧰 Installateur-route")
-_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check",
-            "🏠 Dakofferte-tracker"]
+_labels += ["💡 Niches (overzicht)", "🔎 Niche-scan", "📑 Onderzoek & groei", "🚀 Founder-check"]
 _it = iter(st.tabs(_labels))
+tab_dak = next(_it)
 tab_calc = next(_it); tab_port = next(_it); tab_case = next(_it); tab_markt = next(_it); tab_regels = next(_it)
 tab_route = next(_it) if show_route else None
 tab_niches = next(_it); tab_scan = next(_it); tab_onderzoek = next(_it); tab_founder = next(_it)
-tab_dak = next(_it)
 
 
 # --- 1. Marge-calculator ---------------------------------------------------
@@ -1677,6 +1675,14 @@ with tab_dak:
     dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp")
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
+    for _ek in ("dakkapel", "goot", "vogelwering"):
+        st.session_state.setdefault(f"dak_sc_extra_{_ek}", True)
+    st.caption("Welke extra's zitten in dít dak? (uitvinken = lagere should-cost; deze posten staan los "
+               "van de kale €/m² dakrenovatie)")
+    _ec = st.columns(3)
+    _ec[0].checkbox("Dakkapel-loodwerk", key="dak_sc_extra_dakkapel")
+    _ec[1].checkbox("Bakgoot / regenwater", key="dak_sc_extra_goot")
+    _ec[2].checkbox("Vogelwering", key="dak_sc_extra_vogelwering")
 
     def _dak_apply_calc():
         _v = st.session_state.get("_dak_roof_calc")
@@ -1712,18 +1718,24 @@ with tab_dak:
             if _kd >= _ktoday and (_knext is None or _kd < _knext[0]):
                 _knext = (_kd, str(_r.get("Bedrijf") or ""))
     _km = st.columns(4)
-    _km[0].metric("Offertes", str(len(_koffs)))
+    _km[0].metric("Offertes", str(len(_koffs)),
+                  help="Aantal offertes met een bedrag boven €0.")
     if _koffs:
         _klo = min(_koffs, key=lambda o: float(o["Incl. btw"]))
         _km[1].metric("Laagste (incl. btw)", f"€{float(_klo['Incl. btw']):,.0f}".replace(",", "."),
-                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off")
+                      str(_klo.get("Bedrijf") or "")[:16], delta_color="off",
+                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
     else:
-        _km[1].metric("Laagste (incl. btw)", "—")
+        _km[1].metric("Laagste (incl. btw)", "—",
+                      help="Laagste totaalprijs incl. btw; eronder staat de aannemer.")
     _km[2].metric("Should-cost (mean)", f"€{_ksc_incl:,.0f}".replace(",", "."),
-                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²", delta_color="off")
+                  f"≈ €{_ksc_incl / dak_opp:.0f}/m²" if _ksc_incl else "—", delta_color="off",
+                  help="Onafhankelijke richtprijs (bottom-up), geschaald naar dit dakoppervlak; alleen "
+                       "de hierboven aangevinkte extra's tellen mee. De band staat bij 'Vergelijking & advies'.")
     _kmnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
     _km[3].metric("Eerstvolgend bezoek", f"{_knext[0].day} {_kmnd[_knext[0].month - 1]}" if _knext else "—",
-                  (_knext[1][:16] if _knext else None), delta_color="off")
+                  (_knext[1][:16] if _knext else None), delta_color="off",
+                  help="Eerstvolgende geplande inspectie/bezoek uit de agenda.")
     _kexp = []
     for o in _koffs:
         _kg = str(o.get("Geldig t/m") or "").strip()
@@ -1737,6 +1749,18 @@ with tab_dak:
             _kexp.append(f"**{o.get('Bedrijf')}** verloopt over {_kdays} dag(en)")
     if _kexp:
         st.warning("⏳ Let op vervaldatum: " + " · ".join(_kexp))
+    if _koffs and _ksc_incl:
+        _klo_incl = float(_klo["Incl. btw"])
+        _kgap = _klo_incl - _ksc_incl
+        _kpct = _kgap / _ksc_incl * 100
+        _knm = str(_klo.get("Bedrijf") or "")
+        _keur = f"€{abs(_kgap):,.0f}".replace(",", ".")
+        if _kgap <= 0:
+            st.success(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **onder** de should-cost ({_kpct:.0f}%) — scherp geprijsd.")
+        elif _kpct <= 10:
+            st.info(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — binnen een normale marge.")
+        else:
+            st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
 
     st.markdown("#### 📐 Opmeten & model — dak, pannen, 3D & perceel")
     _meet = st.tabs(["📐 Dak m² (Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
@@ -2028,12 +2052,14 @@ with tab_dak:
             "*Elke nieuwe offerte krijgt automatisch exact dezelfde uitwerking* — uploaden, vergelijken, advies.\n"
             "4. **Vergelijken** — **🔍 Posten vergelijken**: per post wie wat rekent en waar de scope verschilt.\n"
             "5. **Inzichten & advies** — **📊 Vergelijking & advies**: €/m², markttoets, ontbrekende scope, "
-            "ISDE-subsidie en **appels-met-appels** netto. Download het rapport (Excel/PDF met grafieken).\n"
+            "ISDE-subsidie en een **eerlijke vergelijking** (gelijke scope) netto. Download het rapport (Excel/PDF met grafieken).\n"
             "6. **Kiezen** — kies onderaan je aannemer; die offerte krijgt status *Gekozen*.")
 
     _stage = st.tabs(["🔎 Aannemers & afspraken", "📥 Offertes", "⚖️ Vergelijken · advies · kiezen"])
     with _stage[1]:
-        with st.expander("📄 Offerte uitwerken — posten, totaal & markttoets", expanded=True):
+        _off_tabs = st.tabs(["📋 Offertetabel", "📄 Offerte uitwerken", "⬆️ Uploaden (PDF)",
+                             "➕ Handmatig toevoegen"])
+        with _off_tabs[1]:
             _off = st.session_state.get("dakofferte", DAK_DEFAULT)
             _bedrijven = [str(o.get("Bedrijf") or "").strip() for o in _off if str(o.get("Bedrijf") or "").strip()]
             if not _bedrijven:
@@ -2127,7 +2153,11 @@ with tab_dak:
                                    key="dak_uitwerk_xlsx")
 
     with _stage[2]:
-        with st.expander("🧮 Should-cost dakrenovatie — wat zou het dak mógen kosten?", expanded=False):
+        if st.session_state.get("dak_flash"):
+            _lvl, _msg = st.session_state.pop("dak_flash")
+            getattr(st, _lvl, st.info)(_msg)
+        _cmp_tabs = st.tabs(["🧮 Should-cost", "🔍 Posten vergelijken", "⚖️ Vergelijking & advies"])
+        with _cmp_tabs[0]:
             st.caption("Onafhankelijke bottom-up referentie (€/m² excl. btw) om de dakrenovatie te toetsen — "
                        "zoals een cost engineer een should-cost opbouwt. Hellend pannendak vervangen incl. "
                        "isolatie; schaalt mee met het dakoppervlak hierboven. Loodwerk + vogelwering zijn apart.")
@@ -2209,12 +2239,8 @@ with tab_dak:
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
-
-        if st.session_state.get("dak_flash"):
-            _lvl, _msg = st.session_state.pop("dak_flash")
-            getattr(st, _lvl, st.info)(_msg)
     with _stage[1]:
-        with st.expander("⬆️ Offerte uploaden — posten automatisch toevoegen", expanded=False):
+        with _off_tabs[2]:
             _up = st.file_uploader("Offerte (PDF)", type=["pdf"], key="dak_up")
             if _up is not None and st.button("Verwerk upload (AI)", key="dak_up_btn", type="primary"):
                 if not ai.available():
@@ -2288,7 +2314,7 @@ with tab_dak:
                        "Op Streamlit Cloud wordt de PDF zelf niet bewaard; de uitgelezen gegevens wél (Gist).")
 
     with _stage[1]:
-        with st.expander("➕ Nieuwe offerte handmatig toevoegen", expanded=False):
+        with _off_tabs[3]:
             with st.form("dak_add", clear_on_submit=True):
                 af = st.columns(2)
                 _b = af[0].text_input("Bedrijf *")
@@ -2315,7 +2341,7 @@ with tab_dak:
                     else:
                         st.warning("Vul minimaal het bedrijf in.")
 
-    with _stage[1]:
+    with _off_tabs[0]:
         st.markdown("#### Offertes vergelijken")
         st.caption("Of bewerk hieronder rechtstreeks in de tabel (rij toevoegen met +).")
         _dak_edit = st.data_editor(
@@ -2417,62 +2443,100 @@ with tab_dak:
         st.caption("Leg per bedrijf de contactgegevens en afspraken vast — datum, tijd, type en status. "
                    "Rij toevoegen met +, of gebruik het formulier eronder.")
         from datetime import date as _date_af
-        _vanaf = st.date_input("Toon afspraken vanaf", value=_date_af(2026, 6, 1), key="dak_afspr_vanaf",
-                               format="DD-MM-YYYY")
-        _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
-        _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
-        _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
-        _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
-        _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
-        _af_key = f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}"
-        _af = st.data_editor(
-            pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
-            use_container_width=True,
-            key=_af_key,
-            column_config={
-                "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
-                "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
-                "Tijd": st.column_config.TextColumn(help="uu:mm"),
-                "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
-                "Notitie": st.column_config.TextColumn(width="large"),
-            })
-        # Een rij verwijderen = de afspraak op 'Geannuleerd' zetten (zacht verwijderen): de
-        # afspraak blijft bewaard in de log/Excel, maar valt uit het overzicht geplande bezoeken.
-        _deleted = (st.session_state.get(_af_key) or {}).get("deleted_rows", []) or []
-        _geannuleerd = []
-        for _i in _deleted:
-            if 0 <= _i < len(_zichtbaar):
-                _row = dict(_zichtbaar[_i])
-                if str(_row.get("Bedrijf") or "").strip() and str(_row.get("Status") or "") != "Geannuleerd":
-                    _row["Status"] = "Geannuleerd"
-                    _geannuleerd.append(_row)
-        _af_rows = [r for r in _af.to_dict("records") if str(r.get("Bedrijf") or "").strip()]
-        _nieuw_afspr = _verborgen + _af_rows + _geannuleerd
-        if _nieuw_afspr != st.session_state.get("dak_afspraken"):
-            # Een wijziging in de tabel (rij geannuleerd of bewerkt) meteen vastleggen,
-            # zodat de aanpassing ook na herladen behouden blijft.
-            st.session_state["dak_afspraken"] = _nieuw_afspr
-            try:
-                _persist()
-            except Exception:  # noqa: BLE001
-                pass
-            if _geannuleerd:
-                # Editor opnieuw opbouwen: de geannuleerde afspraak komt terug in beeld (status
-                # Geannuleerd) en de verwijder-markering uit de oude editor-state vervalt.
+        _af_tabs = st.tabs(["📇 Overzicht", "📅 Agenda & bezoeken", "➕ Toevoegen & importeren",
+                            "🛠️ Acties & export"])
+
+        with _af_tabs[0]:
+            _vanaf = st.date_input("Toon afspraken vanaf", value=_date_af(2026, 6, 1), key="dak_afspr_vanaf",
+                                   format="DD-MM-YYYY")
+            _vanaf_s = _vanaf.isoformat() if hasattr(_vanaf, "isoformat") else str(_vanaf)
+            _acols = ["Bedrijf", "Type", "Datum", "Tijd", "Contactpersoon", "Telefoon", "E-mail", "Status", "Notitie"]
+            _alle_afspr = list(st.session_state.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT))
+            # Automatisch ontdubbelen op tijdslot (datum+tijd): seed- en agenda-varianten van dezelfde
+            # afspraak (bv. 'Dakbedrijf Westermeer' vs 'Dak offerte westerman', of 'Bonné Dakonderhoud'
+            # vs 'Bonné dak onderhoud') vallen samen — de meest complete rij blijft staan, geannuleerde
+            # afspraken blijven los (geannuleerd + nieuwe = twee aparte). Eénmalig opslaan zodat ook de
+            # Gist schoon wordt; daarna komen de dubbelen niet meer terug.
+            def _af_filled(r):
+                return sum(1 for v in r.values() if str(v or "").strip())
+            _seen_slot, _clean_afspr = {}, []
+            for _r in _alle_afspr:
+                if str(_r.get("Status") or "") == "Geannuleerd":
+                    _clean_afspr.append(_r)
+                    continue
+                _k = _afspr_slotkey(_r)
+                if _k not in _seen_slot:
+                    _seen_slot[_k] = len(_clean_afspr)
+                    _clean_afspr.append(_r)
+                elif _af_filled(_r) > _af_filled(_clean_afspr[_seen_slot[_k]]):
+                    _clean_afspr[_seen_slot[_k]] = _r  # houd de meest complete rij van dit tijdslot
+            if len(_clean_afspr) != len(_alle_afspr):
+                _alle_afspr = _clean_afspr
+                st.session_state["dak_afspraken"] = _clean_afspr
                 st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
                 st.rerun()
-        else:
-            st.session_state["dak_afspraken"] = _nieuw_afspr
-        if _verborgen:
-            st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
-                       "(blijven wel bewaard).")
-        _conflicten = _afspraak_conflicten(_af_rows)
-        if _conflicten:
-            st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
-                       + "\n".join(f"- {c}" for c in _conflicten))
-        elif _af_rows:
-            st.caption("✅ Planning-check: nergens overlap — overal minstens een uur tussen afspraken op dezelfde dag.")
-        with st.expander("➕ Afspraak / contact toevoegen", expanded=False):
+            _verborgen = [r for r in _alle_afspr if str(r.get("Datum") or "") and str(r.get("Datum")) < _vanaf_s]
+            _zichtbaar = [r for r in _alle_afspr if r not in _verborgen]
+            _af_key = f"dak_afspr_oe_{len(_zichtbaar)}_{st.session_state.get('dak_afspr_nonce', 0)}"
+            _af = st.data_editor(
+                pd.DataFrame(_zichtbaar, columns=_acols), num_rows="dynamic",
+                use_container_width=True,
+                key=_af_key,
+                column_config={
+                    "Type": st.column_config.SelectboxColumn(options=DAK_AFSPR_TYPES),
+                    "Datum": st.column_config.TextColumn(help="jjjj-mm-dd"),
+                    "Tijd": st.column_config.TextColumn(help="uu:mm"),
+                    "Status": st.column_config.SelectboxColumn(options=DAK_AFSPR_STATUS),
+                    "Notitie": st.column_config.TextColumn(width="large"),
+                })
+            _deleted = (st.session_state.get(_af_key) or {}).get("deleted_rows", []) or []
+            _geannuleerd = []
+            for _i in _deleted:
+                if 0 <= _i < len(_zichtbaar):
+                    _row = dict(_zichtbaar[_i])
+                    if str(_row.get("Bedrijf") or "").strip() and str(_row.get("Status") or "") != "Geannuleerd":
+                        _row["Status"] = "Geannuleerd"
+                        _geannuleerd.append(_row)
+            # Guard tegen dubbel ingezette afspraken: vouw exact identieke rijen samen (byte-identiek =
+            # altijd een echte dubbele, nooit twee aparte afspraken). Een rij met een datum vóór het
+            # filter valt in _verborgen terwijl de data_editor (zelfde key, want len(_zichtbaar) blijft
+            # gelijk) zijn added_rows opnieuw toepast. Dedup hier _af_rows (gebruikt door agenda/export)
+            # én de samengestelde lijst, zodat editor, agenda én Gist-opslag in één render schoon zijn.
+            _af_rows = []
+            for _r in _af.to_dict("records"):
+                if str(_r.get("Bedrijf") or "").strip() and _r not in _af_rows:
+                    _af_rows.append(_r)
+            _nieuw_afspr = []
+            for _r in _verborgen + _af_rows + _geannuleerd:
+                if _r not in _nieuw_afspr:
+                    _nieuw_afspr.append(_r)
+            if _nieuw_afspr != st.session_state.get("dak_afspraken"):
+                st.session_state["dak_afspraken"] = _nieuw_afspr
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                if _geannuleerd:
+                    st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                    st.rerun()
+            else:
+                st.session_state["dak_afspraken"] = _nieuw_afspr
+            if _verborgen:
+                st.caption(f"🔽 {len(_verborgen)} afspra(a)k(en) vóór {_vanaf.strftime('%d-%m-%Y')} verborgen "
+                           "(blijven wel bewaard).")
+            _conflicten = _afspraak_conflicten(_af_rows)
+            if _conflicten:
+                st.warning("⚠️ Te krap gepland — overlap of minder dan een uur ertussen:\n"
+                           + "\n".join(f"- {c}" for c in _conflicten))
+            elif _af_rows:
+                st.caption("✅ Planning-check: nergens overlap — overal minstens een uur tussen afspraken op dezelfde dag.")
+
+        with _af_tabs[2]:
+            st.markdown("**➕ Afspraak / contact toevoegen**")
             with st.form("dak_afspr_add", clear_on_submit=True):
                 gf = st.columns(2)
                 _ab = gf[0].text_input("Bedrijf *")
@@ -2500,7 +2564,8 @@ with tab_dak:
                         st.rerun()
                     else:
                         st.warning("Vul minimaal het bedrijf in.")
-        with st.expander("📅 Importeer uit Google Agenda (iCal) — niets overtypen", expanded=False):
+            st.divider()
+            st.markdown("**📅 Importeer uit Google Agenda (iCal) — niets overtypen**")
             st.caption("Plak het **'Geheime adres in iCal-indeling'** van je agenda (Google Agenda → "
                        "Instellingen → kies je agenda → *Privé-adres in iCal-indeling*). Of zet 'm in "
                        "`secrets.toml` als `dak_ical_url`. Ik haal alle afspraken op waarvan de titel het "
@@ -2521,10 +2586,14 @@ with tab_dak:
                     try:
                         _new = _ics_dak_afspraken(_fetch_url(_ical.strip()), keyword=(_kw or "dak").strip().lower(),
                                                   min_datum=_vanaf_s)
-                        _have = {_afspr_key(r) for r in st.session_state.get("dak_afspraken", [])}
+                        # Ontdubbel op tijdslot (datum+tijd) tegen wat er al staat — zo komt dezelfde
+                        # afspraak niet onder een agenda-naamvariant nóg eens binnen. Geannuleerde
+                        # afspraken tellen niet mee: een nieuwe afspraak op dat vrijgekomen slot mag wél.
+                        _have = {_afspr_slotkey(r) for r in st.session_state.get("dak_afspraken", [])
+                                 if str(r.get("Status") or "") != "Geannuleerd"}
                         _added = []
-                        for r in _new:                       # ontdubbel t.o.v. bestaande én binnen de import zelf
-                            k = _afspr_key(r)
+                        for r in _new:
+                            k = _afspr_slotkey(r)
                             if k not in _have:
                                 _have.add(k)
                                 _added.append(r)
@@ -2542,152 +2611,191 @@ with tab_dak:
                             st.info(f"{len(_new)} dak-afspraak(en) gevonden — allemaal al in de log.")
                     except Exception as exc:  # noqa: BLE001
                         st.error(f"Ophalen mislukt: {exc}")
-        if st.button("↪️ Fases bijwerken (na bezoek → wachten op offerte)", key="dak_afspr_bump",
-                     help="Zet een langsgeweest 'Bezoek gepland' (datum voorbij) op 'Bezoek uitgevoerd', "
-                          "en 'Bezoek uitgevoerd' door naar 'Wachten op offerte'. Eén fase per klik."):
-            from datetime import date as _date
-            _vandaag = _date.today().isoformat()
-            _bump = 0
-            for _r in st.session_state.get("dak_afspraken", []):
-                _s = str(_r.get("Status") or "")
-                if _s == "Bezoek gepland" and str(_r.get("Datum") or "9999") < _vandaag:
-                    _r["Status"] = "Bezoek uitgevoerd"
-                    _bump += 1
-                elif _s == "Bezoek uitgevoerd":
-                    _r["Status"] = "Wachten op offerte"
-                    _bump += 1
-            if _bump:
-                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
-                try:
-                    _persist()
-                except Exception:  # noqa: BLE001
-                    pass
-                st.success(f"{_bump} afspra(a)k(en) een fase doorgezet.")
-                st.rerun()
+
+        with _af_tabs[1]:
+            if _af_rows:
+                _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
+                _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
+                _weekrijen = []  # plat overzicht voor de Excel-export
+                if not _komend.empty:
+                    from datetime import date as _date
+                    _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+                    _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
+
+                    def _weekdag(d):
+                        try:
+                            return _dagen[_date.fromisoformat(str(d)).weekday()]
+                        except Exception:  # noqa: BLE001
+                            return ""
+                    _per_dag = {}
+                    for _r in _afdf.to_dict("records"):
+                        try:
+                            _dd = _date.fromisoformat(str(_r.get("Datum")))
+                        except Exception:  # noqa: BLE001
+                            continue
+                        _per_dag.setdefault(_dd.isoformat(), []).append(
+                            (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip(),
+                             str(_r.get("Status") or "").strip()))
+                    for _iso in _per_dag:
+                        _per_dag[_iso].sort()
+                    _planmaanden = set()
+                    for _x in _komend["Datum"]:
+                        try:
+                            _pm = _date.fromisoformat(str(_x))
+                            _planmaanden.add((_pm.year, _pm.month))
+                        except Exception:  # noqa: BLE001
+                            continue
+                    _mnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+                    _emo = {"Bezoek gepland": "🔵", "Bezoek uitgevoerd": "✅", "Offerte ontvangen": "🟠",
+                            "Wachten op offerte": "🟠", "Geannuleerd": "⚪"}
+                    _today = _date.today()
+                    _plan = sorted((_date.fromisoformat(k), t, b) for k in _per_dag for t, b, s in _per_dag[k]
+                                   if s == "Bezoek gepland")
+                    _upcoming = [x for x in _plan if x[0] >= _today]
+                    st.markdown("**📅 Agenda — geplande bezoeken**")
+                    _sum = f"**{len(_plan)}** gepland bezoek" + ("en" if len(_plan) != 1 else "")
+                    if _upcoming:
+                        _nx = _upcoming[0]
+                        _sum += f" · eerstvolgende **{_nx[0].day} {_mnd[_nx[0].month - 1]}** — {_nx[2]}"
+                    if _conf_dat:
+                        _sum += f" · ⚠️ **{len(_conf_dat)}** dag(en) met conflict"
+                    st.caption(_sum)
+                    _lines = []
+                    for _iso in sorted(_per_dag):
+                        _d = _date.fromisoformat(_iso)
+                        _chips = []
+                        for _t, _b, _s in _per_dag[_iso]:
+                            _e = "⚠️" if _iso in _conf_dat else _emo.get(_s, "•")
+                            _bb = f"~~{_b}~~" if _s == "Geannuleerd" else _b
+                            _chips.append(f"{_e} {(_t + ' ') if _t else ''}{_bb}")
+                        _pre = "🔴 " if _iso in _conf_dat else ("· " if _d < _today else "")
+                        _lines.append(f"{_pre}**{_dagen[_d.weekday()]} {_d.day} {_mnd[_d.month - 1]}** — "
+                                      + " · ".join(_chips))
+                    st.markdown("  \n".join(_lines) if _lines else "_Nog geen afspraken in beeld._")
+                    st.caption("🔵 gepland · ✅ uitgevoerd · 🟠 offerte/wachten · ⚪ geannuleerd"
+                               + (" · 🔴 ⚠️ conflict" if _conf_dat else ""))
+                    with st.expander("🗓️ Maandkalender (visueel)", expanded=False):
+                        for _jr, _mn in sorted(_planmaanden):
+                            _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
+                    for _iso in sorted(_per_dag):
+                        _dd = _date.fromisoformat(_iso)
+                        if (_dd.year, _dd.month) not in _planmaanden:
+                            continue
+                        for _t, _b, _sstat in _per_dag[_iso]:
+                            _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
+                                               "Bedrijf": _b, "Status": _sstat,
+                                               "Let op": "conflict" if _iso in _conf_dat else ""})
+                    _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
+                    with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
+                        st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
+                                     use_container_width=True, hide_index=True)
+                else:
+                    st.info("Nog geen geplande bezoeken — zet bij een afspraak de status op **Bezoek gepland**.")
             else:
-                st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
-        if st.button("🧹 Dubbele afspraken verwijderen", key="dak_afspr_dedup",
-                     help="Houdt per bedrijf + datum + tijd één afspraak over (bv. dubbel geïmporteerd uit de agenda)."):
-            _seen, _uniq = set(), []
-            for _r in st.session_state.get("dak_afspraken", []):
-                _k = _afspr_key(_r)
-                if _k not in _seen:
-                    _seen.add(_k)
-                    _uniq.append(_r)
-            _dups = len(st.session_state.get("dak_afspraken", [])) - len(_uniq)
-            if _dups:
-                st.session_state["dak_afspraken"] = _uniq
-                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
-                try:
-                    _persist()
-                except Exception:  # noqa: BLE001
-                    pass
-                st.success(f"{_dups} dubbele afspra(a)k(en) verwijderd.")
-                st.rerun()
-            else:
-                st.info("Geen dubbele afspraken gevonden.")
-        if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
-            try:
-                _persist()
-                st.success("Opgeslagen.")
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Opslaan mislukt: {exc}")
-        if _af_rows:
-            _afdf = pd.DataFrame(_af_rows).sort_values(["Datum", "Tijd"], na_position="last")
-            _komend = _afdf[_afdf["Status"] == "Bezoek gepland"].copy()
-            _weekrijen = []  # plat overzicht voor de Excel-export
-            if not _komend.empty:
+                st.info("Nog geen afspraken — voeg er een toe bij **➕ Toevoegen & importeren**.")
+
+        with _af_tabs[3]:
+            if st.button("↪️ Fases bijwerken (na bezoek → wachten op offerte)", key="dak_afspr_bump",
+                         help="Zet een langsgeweest 'Bezoek gepland' (datum voorbij) op 'Bezoek uitgevoerd', "
+                              "en 'Bezoek uitgevoerd' door naar 'Wachten op offerte'. Eén fase per klik."):
                 from datetime import date as _date
-                _dagen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
-                _conf_dat = {str(c).split(":", 1)[0] for c in _conflicten}
+                _vandaag = _date.today().isoformat()
+                _bump = 0
+                for _r in st.session_state.get("dak_afspraken", []):
+                    _s = str(_r.get("Status") or "")
+                    if _s == "Bezoek gepland" and str(_r.get("Datum") or "9999") < _vandaag:
+                        _r["Status"] = "Bezoek uitgevoerd"
+                        _bump += 1
+                    elif _s == "Bezoek uitgevoerd":
+                        _r["Status"] = "Wachten op offerte"
+                        _bump += 1
+                if _bump:
+                    st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                    try:
+                        _persist()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    st.success(f"{_bump} afspra(a)k(en) een fase doorgezet.")
+                    st.rerun()
+                else:
+                    st.info("Niets om door te zetten — geen voorbije bezoeken of afgeronde bezoeken open.")
+            if st.button("🧹 Dubbele afspraken opruimen (zelfde datum + tijd)", key="dak_afspr_dedup",
+                         help="Behandelt afspraken op dezelfde **datum + tijd** als één afspraak — ook bij een "
+                              "andere schrijfwijze van de naam (bv. 'Stipt Dakgroep' vs 'Stipt dak groep offerte'). "
+                              "De meest complete rij blijft staan. **Geannuleerde** afspraken en afspraken zonder "
+                              "datum/tijd blijven ongemoeid (een geannuleerde + een nieuwe op een ander tijdstip "
+                              "zijn twee verschillende afspraken)."):
+                _rows = st.session_state.get("dak_afspraken", [])
 
-                def _weekdag(d):
-                    try:
-                        return _dagen[_date.fromisoformat(str(d)).weekday()]
-                    except Exception:  # noqa: BLE001
-                        return ""
-                # alle zichtbare afspraken per dag (voor kleur per status); maanden uit de geplande bezoeken
-                _per_dag = {}
-                for _r in _afdf.to_dict("records"):
-                    try:
-                        _dd = _date.fromisoformat(str(_r.get("Datum")))
-                    except Exception:  # noqa: BLE001
+                def _filled(r):
+                    return sum(1 for v in r.values() if str(v or "").strip())
+                _seen, _uniq = {}, []  # slot-sleutel -> index in _uniq van de bewaarde rij
+                for _r in _rows:
+                    if str(_r.get("Status") or "") == "Geannuleerd":
+                        _uniq.append(_r)  # geannuleerde records nooit samenvoegen of verwijderen
                         continue
-                    _per_dag.setdefault(_dd.isoformat(), []).append(
-                        (str(_r.get("Tijd") or "").strip(), str(_r.get("Bedrijf") or "").strip(),
-                         str(_r.get("Status") or "").strip()))
-                for _iso in _per_dag:
-                    _per_dag[_iso].sort()
-                _planmaanden = set()
-                for _x in _komend["Datum"]:
+                    _k = _afspr_slotkey(_r)
+                    if _k not in _seen:
+                        _seen[_k] = len(_uniq)
+                        _uniq.append(_r)
+                    elif _filled(_r) > _filled(_uniq[_seen[_k]]):
+                        _uniq[_seen[_k]] = _r  # houd de meest complete rij van dit tijdslot
+                _dups = len(_rows) - len(_uniq)
+                if _dups:
+                    st.session_state["dak_afspraken"] = _uniq
+                    st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
                     try:
-                        _pm = _date.fromisoformat(str(_x))
-                        _planmaanden.add((_pm.year, _pm.month))
+                        _persist()
                     except Exception:  # noqa: BLE001
-                        continue
-                _mnd = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
-                _emo = {"Bezoek gepland": "🔵", "Bezoek uitgevoerd": "✅", "Offerte ontvangen": "🟠",
-                        "Wachten op offerte": "🟠", "Geannuleerd": "⚪"}
-                _today = _date.today()
-                _plan = sorted((_date.fromisoformat(k), t, b) for k in _per_dag for t, b, s in _per_dag[k]
-                               if s == "Bezoek gepland")
-                _upcoming = [x for x in _plan if x[0] >= _today]
-                st.markdown("**📅 Agenda — geplande bezoeken**")
-                _sum = f"**{len(_plan)}** gepland bezoek" + ("en" if len(_plan) != 1 else "")
-                if _upcoming:
-                    _nx = _upcoming[0]
-                    _sum += f" · eerstvolgende **{_nx[0].day} {_mnd[_nx[0].month - 1]}** — {_nx[2]}"
-                if _conf_dat:
-                    _sum += f" · ⚠️ **{len(_conf_dat)}** dag(en) met conflict"
-                st.caption(_sum)
-                _lines = []
-                for _iso in sorted(_per_dag):
-                    _d = _date.fromisoformat(_iso)
-                    _chips = []
-                    for _t, _b, _s in _per_dag[_iso]:
-                        _e = "⚠️" if _iso in _conf_dat else _emo.get(_s, "•")
-                        _bb = f"~~{_b}~~" if _s == "Geannuleerd" else _b
-                        _chips.append(f"{_e} {(_t + ' ') if _t else ''}{_bb}")
-                    _pre = "🔴 " if _iso in _conf_dat else ("· " if _d < _today else "")
-                    _lines.append(f"{_pre}**{_dagen[_d.weekday()]} {_d.day} {_mnd[_d.month - 1]}** — "
-                                  + " · ".join(_chips))
-                st.markdown("  \n".join(_lines) if _lines else "_Nog geen afspraken in beeld._")
-                st.caption("🔵 gepland · ✅ uitgevoerd · 🟠 offerte/wachten · ⚪ geannuleerd"
-                           + (" · 🔴 ⚠️ conflict" if _conf_dat else ""))
-                with st.expander("🗓️ Maandkalender (visueel)", expanded=False):
-                    for _jr, _mn in sorted(_planmaanden):
-                        _render_maand_kalender(_jr, _mn, _per_dag, _conf_dat)
-                # platte rijen (alleen plan-maanden) voor de Excel-export
-                for _iso in sorted(_per_dag):
-                    _dd = _date.fromisoformat(_iso)
-                    if (_dd.year, _dd.month) not in _planmaanden:
-                        continue
-                    for _t, _b, _sstat in _per_dag[_iso]:
-                        _weekrijen.append({"Datum": _iso, "Dag": _dagen[_dd.weekday()], "Tijd": _t,
-                                           "Bedrijf": _b, "Status": _sstat,
-                                           "Let op": "conflict" if _iso in _conf_dat else ""})
-                _komend.insert(0, "Dag", _komend["Datum"].map(_weekdag))
-                with st.expander("📋 Geplande bezoeken — lijst", expanded=False):
-                    st.dataframe(_komend[["Dag", "Datum", "Tijd", "Bedrijf", "Type"]].sort_values(["Datum", "Tijd"]),
-                                 use_container_width=True, hide_index=True)
-            _sheets = {"Afspraken": _afdf}
-            if _weekrijen:
-                _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Status", "Let op"]]
-            _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
-                                         if _conflicten else
-                                         pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
-                                                                          "tussen afspraken op dezelfde dag."]}))
-            st.download_button("⬇️ Download contacten & afspraken (Excel)",
-                               m.df_to_excel_bytes(_sheets),
-                               file_name="dakrenovatie_afspraken.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               key="dak_afspr_xlsx")
-            st.download_button("🖨️ Print / PDF — contacten & afspraken",
-                               _afspraken_pdf_bytes(_af_rows, _conflicten),
-                               file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
-                               key="dak_afspr_pdf")
+                        pass
+                    st.success(f"{_dups} dubbele afspra(a)k(en) opgeruimd (zelfde datum + tijd).")
+                    st.rerun()
+                else:
+                    st.info("Geen dubbele afspraken op dezelfde datum + tijd gevonden.")
+            st.divider()
+            _wipe_ok = st.checkbox("Ik weet het zeker (verwijderen kan niet ongedaan)", key="dak_afspr_wipe_ok")
+            if st.button("🗑️ Agenda leegmaken — alleen 'Offerte ontvangen' behouden",
+                         key="dak_afspr_wipe", disabled=not _wipe_ok,
+                         help="Verwijdert álle afspraken behalve die met status 'Offerte ontvangen' (de afgeronde "
+                              "bezoeken met ontvangen offerte). Zet die status eerst op de afspraken die je wilt "
+                              "behouden. Daarna kun je opnieuw uit de iCal importeren."):
+                _all = st.session_state.get("dak_afspraken", [])
+                _keep = [r for r in _all if str(r.get("Status") or "") == "Offerte ontvangen"]
+                _removed = len(_all) - len(_keep)
+                st.session_state["dak_afspraken"] = _keep
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.success(f"{_removed} afspra(a)k(en) gewist — {len(_keep)} met 'Offerte ontvangen' behouden. "
+                           "Importeer nu opnieuw uit de iCal (tab ➕ Toevoegen & importeren).")
+                st.rerun()
+            if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
+                try:
+                    _persist()
+                    st.success("Opgeslagen.")
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Opslaan mislukt: {exc}")
+            if _af_rows:
+                _sheets = {"Afspraken": _afdf}
+                if _weekrijen:
+                    _sheets["Weekoverzicht"] = pd.DataFrame(_weekrijen)[["Datum", "Dag", "Tijd", "Bedrijf", "Status", "Let op"]]
+                _sheets["Planning-check"] = (pd.DataFrame({"Te krap (< 1 uur / overlap)": _conflicten})
+                                             if _conflicten else
+                                             pd.DataFrame({"Planning-check": ["Geen overlap — minstens 1 uur "
+                                                                              "tussen afspraken op dezelfde dag."]}))
+                st.download_button("⬇️ Download contacten & afspraken (Excel)",
+                                   m.df_to_excel_bytes(_sheets),
+                                   file_name="dakrenovatie_afspraken.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="dak_afspr_xlsx")
+                st.download_button("🖨️ Print / PDF — contacten & afspraken",
+                                   _afspraken_pdf_bytes(_af_rows, _conflicten),
+                                   file_name="dakrenovatie_afspraken.pdf", mime="application/pdf",
+                                   key="dak_afspr_pdf")
 
-    with _stage[2]:
+    with _cmp_tabs[1]:
         st.markdown("#### 🔍 Posten vergelijken (ook bij verschillende scope)")
         st.caption("Wordt **automatisch** gevuld: detailposten uit geüploade offertes (⬆️ hierboven, AI) "
                    "én een totaalregel uit de offertetabel voor offertes zonder PDF. Handmatig bijwerken "
@@ -2763,8 +2871,13 @@ with tab_dak:
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_posten_xlsx")
 
+    with _cmp_tabs[2]:
         # ---- Insightful scope comparison to help pick the right quote ----
         _detbedr_real = sorted({str(p.get("Bedrijf") or "").strip() for p in _prows if str(p.get("Bedrijf") or "").strip()})
+        if not _detbedr_real:
+            st.info("Nog geen detailposten per offerte — voeg ze toe bij **🔍 Posten vergelijken** of "
+                    "upload offerte-PDF's. Dan verschijnt hier de vergelijking per onderdeel tegen de "
+                    "should-cost-baseline.")
         if _detbedr_real:
             st.markdown("#### 📊 Vergelijking & advies — welke offerte?")
             st.caption("Naast de offertes staat een **should-cost baseline**: een onafhankelijke, complete "
@@ -2953,7 +3066,7 @@ with tab_dak:
             st.caption("Vergelijk op **gelijke scope**: een lagere prijs met ontbrekende posten (bv. vogelwering "
                        "of goot/regenpijpen) is niet per se goedkoper. Let ook op **garantietermijn** en of "
                        "stelposten realistisch zijn.")
-            # ---- Appels met appels: normaliseer elke offerte naar dezelfde (firm) scope ----
+            # ---- Eerlijke vergelijking: normaliseer elke offerte naar dezelfde (firm) scope ----
             _cat_eur = {b: {c: sum(float(p.get("Prijs excl. btw") or 0) for p in items
                                    if "bundel" not in str(p.get("Onderdeel") or "").lower())
                             for c, items in _assign[b].items()} for b in _detbedr}
@@ -2976,7 +3089,7 @@ with tab_dak:
                               "Gelijke scope": round(_ni), "− ISDE": _isde1, "Netto": round(_ni - _isde1),
                               "Toegevoegd": ", ".join(_added) or "—"})
             _normdf = pd.DataFrame(_norm)
-            st.markdown("**🍏 Appels met appels — zelfde scope, incl. btw, ná ISDE**")
+            st.markdown("**⚖️ Eerlijke vergelijking — zelfde scope, incl. btw, ná ISDE**")
             st.dataframe(_normdf, use_container_width=True, hide_index=True,
                          column_config={_c: st.column_config.NumberColumn(format="€%.0f") for _c in
                                         ["Zoals geoffreerd", "+ ontbrekende scope", "Gelijke scope", "− ISDE", "Netto"]})
@@ -2995,18 +3108,19 @@ with tab_dak:
                     if _gs <= _sc_ucl_i:
                         _v = "🟢 binnen de band" if _gs >= _sc_lcl_i else "🔵 onder LCL (scherp)"
                     else:
-                        _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{(_gs - _sc_ucl_i) / _sc_ucl_i * 100:.0f}%)"
+                        _ovp = (_gs - _sc_ucl_i) / _sc_ucl_i * 100 if _sc_ucl_i else 0
+                        _v = f"🔴 €{_gs - _sc_ucl_i:.0f} boven UCL (+{_ovp:.0f}%)"
                     _parts.append(f"**{n['Offerte']}** {_v}")
                 st.markdown("📐 **Toets aan de should-cost band** (gelijke scope, incl. btw): " + " · ".join(_parts) + ".")
             st.caption("De **should-cost (baseline)** is een onafhankelijke complete raming; ontbrekende scope bij een "
                        "offerte wordt bijgeschat met de firm-prijs van de andere offertes/baseline (stelposten tellen "
-                       "niet mee). Zo vergelijk je appels met appels.")
+                       "niet mee). Zo vergelijk je op een eerlijke, gelijke basis.")
 
             _posten_df = pd.DataFrame([{"Bedrijf": p.get("Bedrijf", ""), "Onderdeel": p.get("Onderdeel", ""),
                                         "Prijs excl. btw": float(p.get("Prijs excl. btw") or 0),
                                         "Btw %": int(float(p.get("Btw %") or 21))}
                                        for b in _detbedr for p in _byb[b]])
-            _xlsx = {"Kerncijfers": _hldf, "Appels-met-appels": _normdf, "Scope-vergelijking": _cmpdf,
+            _xlsx = {"Kerncijfers": _hldf, "Eerlijke vergelijking": _normdf, "Scope-vergelijking": _cmpdf,
                      "Posten": _posten_df,
                      "ISDE & advies": pd.DataFrame({"Advies / ISDE": [b.replace("**", "") for b in _bullets]
                                                     + [f"ISDE-subsidie: ± €{_isde1:.0f} (1 maatregel) tot "
