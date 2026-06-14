@@ -233,22 +233,9 @@ DAK_RENO_PANNEN_PER_M2 = {
 }
 
 # Contacten & afspraken per dakbedrijf (datum/tijd/type/status) — gesynchroniseerd met de DePoorter-agenda.
-DAK_AFSPRAKEN_DEFAULT = [
-    {"Bedrijf": "Dakbedrijf Westermeer", "Type": "Offerte-overleg", "Datum": "2026-06-11", "Tijd": "15:00",
-     "Contactpersoon": "", "Telefoon": "040 304 14 75", "E-mail": "info@dakbedrijfeindhoven.nl",
-     "Status": "Offerte ontvangen", "Notitie": "Offerte OFF-2026-0189 ontvangen (agenda: 'Dak offerte westerman')"},
-    {"Bedrijf": "Albers Dakbedekking", "Type": "Bezoek/inspectie", "Datum": "2026-06-12", "Tijd": "08:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek uitgevoerd", "Notitie": "Uit agenda DePoorter"},
-    {"Bedrijf": "Dak & Timmerwerken Deluxe", "Type": "Bezoek/inspectie", "Datum": "2026-06-13", "Tijd": "12:30",
-     "Contactpersoon": "Giovanni", "Telefoon": "+31 6 85302895", "E-mail": "", "Status": "Bezoek gepland",
-     "Notitie": "Giovanni belt of hij vóór 13:30 kan, anders volgende week"},
-    {"Bedrijf": "Stipt Dakgroep", "Type": "Offerte-overleg", "Datum": "2026-06-15", "Tijd": "09:00",
-     "Contactpersoon": "", "Telefoon": "06 53755391", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Offerte (agenda DePoorter)"},
-    {"Bedrijf": "Tony Pennings (klusbedrijf)", "Type": "Bezoek/inspectie", "Datum": "2026-06-16", "Tijd": "16:30",
-     "Contactpersoon": "", "Telefoon": "", "E-mail": "", "Status": "Bezoek gepland", "Notitie": "Voor het dak, via Roy"},
-    {"Bedrijf": "Bonné Dakonderhoud", "Type": "Bezoek/inspectie", "Datum": "2026-06-18", "Tijd": "10:00",
-     "Contactpersoon": "", "Telefoon": "013 440 0270", "E-mail": "info@bonnedak.nl", "Status": "Bezoek gepland", "Notitie": "Uit agenda DePoorter"},
-]
+# Geen geseede afspraken: de afsprakenlijst komt volledig uit je eigen agenda (iCal-import) en
+# handmatige invoer. (Een verse start toont dus een lege lijst tot je importeert of toevoegt.)
+DAK_AFSPRAKEN_DEFAULT = []
 DAK_AFSPR_TYPES = ["Contact", "Bellen", "Mailen", "Bezoek/inspectie", "Offerte-overleg", "Oplevering", "Overig"]
 DAK_AFSPR_STATUS = ["Bezoek gepland", "Bezoek uitgevoerd", "Wachten op offerte", "Offerte ontvangen", "Geannuleerd"]
 DAK_AFSPR_GAP_MIN = 60  # minimaal aantal minuten tussen twee afspraken op dezelfde dag
