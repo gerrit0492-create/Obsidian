@@ -391,6 +391,57 @@ NICHES = [
         ],
         "bronnen": [("RVO — ISDE", "https://www.rvo.nl/subsidies-financiering/isde")],
     },
+    {
+        "naam": "🔋 Thuisbatterijen — verkoop + installatie", "fit": "7/10",
+        "marge": "Midden (hardware ~15–30% + installatie)", "drempel": "Midden–hoog (kapitaal, voorraad, eisen)",
+        "waarom": "Saldering stopt definitief op 1-1-2027 → eigen opslag wordt veel aantrekkelijker; sterk "
+                  "groeiende markt, en jouw energie-/data-edge maakt eerlijk advies + slimme inzet (zelfverbruik + "
+                  "dynamisch contract) geloofwaardig.",
+        "wat": "Verkoop + installatie van thuisbatterijen (AC-gekoppeld of hybride omvormer), inclusief configuratie "
+               "voor maximaal zelfverbruik en sturing op een dynamisch energiecontract; eventueel een monitoring-/"
+               "service-abonnement.",
+        "klant": "Huiseigenaren met zonnepanelen die na de salderingsstop hun overschot willen opslaan; mensen met "
+                 "een dynamisch contract; VvE's/MKB met netcongestie of hoge avondtarieven.",
+        "verdienmodel": [
+            "Marge op hardware: ~15–30% afhankelijk van merk/groothandel (prijzen staan onder druk).",
+            "Installatie-arbeid per project (omvormer, montage, aansluiting, aanmelding netbeheerder).",
+            "Configuratie/optimalisatie: instellen op zelfverbruik + dynamisch contract.",
+            "Terugkerend: monitoring-/service-abonnement (firmware, checks, garantieafhandeling).",
+        ],
+        "start": [
+            "KvK + bedrijfs-/beroepsaansprakelijkheid; installatie door een bekwaam persoon (NEN 1010) of "
+            "samenwerken met een erkend installateur.",
+            "Kies 1–2 merken + een groothandel en reken een scherpe landed inkoop uit (tab Marge-calculator).",
+            "Combineer met zonnepanelen-installatie → 0% btw als één project (groot prijsvoordeel voor de klant).",
+            "Beachhead: bestaande zonnepanelen-klanten/installateurs in je regio.",
+        ],
+        "eisen": [
+            "Gecertificeerde batterijen: CE, IEC 62619 (cel/pack + BMS), UN38.3 (transport).",
+            "Installatie conform NEN 1010; aanmelding/akkoord netbeheerder; let op brandveiligheid en opstelplaats.",
+            "0% btw alleen bij gelijktijdige PV-installatie als één project/installateur; anders 21% (evt. "
+            "btw-teruggave via de ondernemersroute bij een dynamisch contract).",
+            "Aansprakelijkheid goed verzekeren (lithium = brandrisico).",
+        ],
+        "klanten_werven": [
+            "Samenwerken met zonnepanelen-installateurs / je eigen PV-klantenbestand.",
+            "Lokale SEO 'thuisbatterij [regio]' + Google Mijn Bedrijf.",
+            "Content met cijfers (jouw kracht): 'wat kost de salderingsstop je en wat levert opslag op?'.",
+            "Terugverdientijd-/besparingscalculator als leadmagnet.",
+        ],
+        "cijfers": "Systeem 10 kWh ≈ €5.500–8.500 incl. installatie (≈ €600–1.000/kWh); hardware-marge ~15–30% + "
+                   "installatie-arbeid. Klantbesparing: zelfverbruik + dynamisch contract ≈ €200–600/jaar extra; "
+                   "terugverdientijd ~6–9 jaar. Markt groeit hard richting de salderingsstop op 1-1-2027.",
+        "risicos": [
+            "Hardware-marges onder druk (prijzen −30–40% in enkele jaren; veel aanbieders).",
+            "Kapitaal/voorraad + aansprakelijkheid (lithium-brandrisico).",
+            "Sterk beleidsafhankelijk: saldering, btw-regel, terugleverkosten en subsidies wijzigen.",
+            "Netcongestie / aanmelding netbeheerder kan installatie of teruglevering beperken.",
+        ],
+        "bronnen": [("Solar Energy Center — prijs 2026", "https://solarenergycenter.nl/thuisbatterij/prijs/"),
+                    ("Saldering2027 — terugleverkosten", "https://saldering2027.nl/kennisbank/saldering-afbouw-terugleverkosten-2027/"),
+                    ("EcoHandel — btw thuisbatterij 2026", "https://www.ecohandel.nl/blogs/kennis/btw-teruggave-thuisbatterij-2026"),
+                    ("Thuisbatterijenhulp — verdienmodellen", "https://thuisbatterijenhulp.nl/kennisbank/verdienmodellen-van-een-thuisbatterij/")],
+    },
 ]
 
 
@@ -620,6 +671,7 @@ REGELS_ALGEMEEN = [
 INSTALLATIE_NICHES = {
     "🔌 EV-laadpaal installatie + advies",
     "🛠️ Onderhoud/monitoring-abonnementen",
+    "🔋 Thuisbatterijen — verkoop + installatie",
 }
 
 
@@ -710,5 +762,15 @@ NICHE_REGELS = {
         "**Advies:** geen verplichte certificering; **installatie aan koudemiddelen vereist een F-gassen-certificaat**.",
         "**ISDE-subsidie** voor warmtepompen: actuele voorwaarden via RVO.",
         "Bewaak **onafhankelijkheid** als je 'onafhankelijk advies' aanbiedt.",
+    ],
+    "🔋 Thuisbatterijen — verkoop + installatie": [
+        "**Saldering** stopt definitief op **1 januari 2027** (t/m 2026 nog salderen). Daarna een lagere "
+        "terugleververgoeding (~€0,04–0,11/kWh) + mogelijke **terugleverkosten** → zelf opslaan loont sterker.",
+        "**0% btw** op de batterij alleen bij **gelijktijdige** installatie met zonnepanelen als één project/"
+        "installateur; los geplaatst geldt **21%** (evt. btw-teruggave via de **ondernemersroute** bij een dynamisch contract).",
+        "**Veiligheid/certificering:** CE, **IEC 62619** (cel/pack + BMS) en **UN38.3** (transport).",
+        "**Installatie:** conform **NEN 1010**; **aanmelding bij de netbeheerder**; let op brandveiligheid en opstelplaats.",
+        "**Subsidies:** wisselend per gemeente/provincie (geen landelijke ISDE voor losse batterijen) — check actueel.",
+        "**Producentenverantwoordelijkheid (WEEE/batterijen)** en verwijderingsbijdrage van toepassing.",
     ],
 }
