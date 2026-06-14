@@ -13,9 +13,11 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
   actual data, check that UI elements truly render (not just that the code compiles),
   re-read the relevant code before changing it, and double-check the result matches
   what the user will actually see. Accuracy over speed.
-- **Follow the git workflow strictly** (see "Git constraints" below): develop on a
-  feature branch, back up + verify MCP before pushing, and open a PR — never push or
-  merge straight to `main` unless the user explicitly says so.
+- **Git: back up + verify MCP, then push to `main` directly.** That is the user's
+  preferred, faster flow. Before every push: (1) create a backup tag of HEAD,
+  (2) confirm the GitHub MCP tools are available, then push to `main`. Only use a
+  feature branch + PR when the user explicitly asks for it. Never force-push or
+  `reset --hard` without explicit instruction.
 - Communicate with the user in English
 - For changes spanning several files, make all edits in one commit
 - Match the style of the surrounding code — don't introduce new patterns
@@ -46,7 +48,8 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 3. Once the backup is done and MCP is verified, push
 
 ## Git constraints
-- Develop on a feature branch; open a PR to merge into `main`
+- Push directly to `main` is fine — but ALWAYS back up (tag HEAD) and verify MCP
+  first (see "Before pushing"). Use a feature branch + PR only when the user asks.
 - Only push to `gerrit0492-create/obsidian`
 - **Never push to the `claude/funny-goldberg-*` branch** — the user did not choose
   it. Push to the branch the user is actually working on, and always back up
