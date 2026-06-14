@@ -943,6 +943,8 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_afspraken"] = _data.get("dak_afspraken", DAK_AFSPRAKEN_DEFAULT)
     if "dak_shouldcost" not in st.session_state:
         st.session_state["dak_shouldcost"] = _data.get("dak_shouldcost", [])  # [] = automatisch
+    if "dak_opp" not in st.session_state:
+        st.session_state["dak_opp"] = float(_data.get("dak_opp", 60.0) or 60.0)
     if "dak_migr" not in st.session_state:
         st.session_state["dak_migr"] = _data.get("dak_migr", 0)
 NS = st.session_state["niche_state"]  # {niche: {"producten":[...], "bc":{...}}}
@@ -954,7 +956,16 @@ def _persist():
                        "dak_posten": st.session_state.get("dak_posten", []),
                        "dak_afspraken": st.session_state.get("dak_afspraken", []),
                        "dak_shouldcost": st.session_state.get("dak_shouldcost", []),
+                       "dak_opp": st.session_state.get("dak_opp", 60.0),
                        "dak_migr": st.session_state.get("dak_migr", 0)})
+
+
+def _persist_safe():
+    """Opslaan zonder te crashen (bv. voor widget on_change-callbacks)."""
+    try:
+        _persist()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 _DAK_SEED_KW = ("westermeer", "albers")  # trefwoorden van de geseedde offertes
@@ -1672,7 +1683,8 @@ with tab_dak:
     st.caption("Compiègnehof 11, Eindhoven · volledige dakrenovatie. Vergelijk op €/m² incl. btw.")
     dc = st.columns(3)
     st.session_state.setdefault("dak_opp", 60.0)
-    dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp")
+    dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp",
+                                 on_change=_persist_safe)
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
     dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
     for _ek in ("dakkapel", "goot", "vogelwering"):
@@ -1688,6 +1700,7 @@ with tab_dak:
         _v = st.session_state.get("_dak_roof_calc")
         if _v:
             st.session_state["dak_opp"] = float(round(_v))
+            _persist_safe()
 
     def _dak_apply_foot():
         st.session_state["dak_perc_huis"] = float(round(st.session_state.get("dak_bag_footprint", 0.0)))
