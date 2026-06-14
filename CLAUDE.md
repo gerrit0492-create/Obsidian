@@ -5,6 +5,10 @@ A small monorepo for working with Obsidian. See `README.md` for the layout:
 `tools/` (note-lint CLI).
 
 ## Conventions
+- **Work carefully and precisely.** Don't guess. Verify numbers/counts against the
+  actual data, check that UI elements truly render (not just that the code compiles),
+  re-read the relevant code before changing it, and double-check the result matches
+  what the user will actually see. Accuracy over speed.
 - Communicate with the user in English
 - For changes spanning several files, make all edits in one commit
 - Match the style of the surrounding code — don't introduce new patterns

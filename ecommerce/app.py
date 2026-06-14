@@ -1543,37 +1543,26 @@ with tab_niches:
     st.caption("Alle niches — bekende én je eigen — gesorteerd op fit en marge. "
                "Klik ‘Activeer’ om het hele dashboard op die niche te zetten.")
 
-    # --- Stappenplan voor de niche-flow: kies → scan → founder-check → actieplan → uitvoeren ---
+    # --- Stappenplan niche-flow (als tabel: alle rijen zichtbaar; 'Nu' = de stand, geen valse 'klaar') ---
     _ns_chosen = bool(actieve_niche) and actieve_niche != "(eigen / vrij)"
     _ns_scans = st.session_state.get("scans", [])
     _ns_founder = bool(st.session_state.get("founder_last_out"))
     _ns_acties = st.session_state.get("actieplan", [])
-    _ns_bezig = any(str(a.get("Status") or "") in ("Bezig", "Klaar") for a in _ns_acties)
-    _ns_steps = [
-        ("Niche kiezen", _ns_chosen, (actieve_niche if _ns_chosen else "nog niet gekozen"),
-         "Kies hieronder een niche en klik 'Activeer' (of zet 'm in de zijbalk)."),
-        ("Niche scannen", bool(_ns_scans), f"{len(_ns_scans)} gescand",
-         "Scoor de niche op 6 criteria in tab '🔎 Niche-scan'."),
-        ("Founder-check", _ns_founder, ("analyse gedaan" if _ns_founder else "nog niet"),
-         "Pressure-test het idee in tab '🚀 Founder-check' (incl. afzetmarkt NL/Benelux)."),
-        ("Actieplan vullen", bool(_ns_acties), f"{len(_ns_acties)} acties",
-         "Zet de voorgestelde acties op je lijst (knop in Founder-check / Onderzoek & groei)."),
-        ("Uitvoeren", _ns_bezig, ("bezig/klaar" if _ns_bezig else "nog te starten"),
-         "Werk de acties af in tab '✅ Actieplan' (status Bezig → Klaar)."),
-    ]
-    _nd = sum(1 for _, _ok, _s, _i in _ns_steps if _ok)
-    st.markdown(f"### 📋 Stappenplan — {_nd}/{len(_ns_steps)} stappen klaar")
-    st.caption("Nieuw hierin? Volg deze stappen van boven naar beneden — tabblad voor tabblad.")
-    st.progress(_nd / len(_ns_steps))
-    st.markdown("\n".join(
-        f"- {'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** — {_stat} — {_instr}"
-        for _i, (_nm, _ok, _stat, _instr) in enumerate(_ns_steps, 1)))
-    _ns_todo = [(idx, s) for idx, s in enumerate(_ns_steps, 1) if not s[1]]
-    if _ns_todo:
-        _ti, _ts = _ns_todo[0]
-        st.info(f"👉 **Nu doen — Stap {_ti}: {_ts[0]}.** {_ts[3]}")
-    else:
-        st.success("🎉 Alle stappen klaar — voer je actieplan uit en houd de voortgang bij.")
+    _ns_klaar = sum(1 for a in _ns_acties if str(a.get("Status") or "") == "Klaar")
+    st.markdown("### 📋 Stappenplan niche")
+    st.caption("Werk van boven naar beneden. 'Nu' toont waar je staat — je kunt blijven aanvullen.")
+    st.table(pd.DataFrame([
+        {"Stap": "1 · Niche kiezen", "Nu": (actieve_niche if _ns_chosen else "nog niet gekozen"),
+         "Wat / waar": "Kies hieronder een niche en klik 'Activeer' (of zet 'm in de zijbalk)."},
+        {"Stap": "2 · Niche scannen", "Nu": f"{len(_ns_scans)} gescand",
+         "Wat / waar": "Scoor de niche op 6 criteria in tab '🔎 Niche-scan'."},
+        {"Stap": "3 · Founder-check", "Nu": ("analyse gedaan" if _ns_founder else "nog niet"),
+         "Wat / waar": "Pressure-test het idee in tab '🚀 Founder-check' (incl. afzetmarkt NL/Benelux)."},
+        {"Stap": "4 · Actieplan vullen", "Nu": f"{len(_ns_acties)} acties",
+         "Wat / waar": "Zet de voorgestelde acties op je lijst (knop in Founder-check / Onderzoek & groei)."},
+        {"Stap": "5 · Uitvoeren", "Nu": f"{_ns_klaar}/{len(_ns_acties)} klaar",
+         "Wat / waar": "Werk de acties af in tab '✅ Actieplan' (status Bezig → Klaar)."},
+    ]))
     st.divider()
 
     def _fitnum(f):
@@ -1966,35 +1955,25 @@ with tab_dak:
         else:
             st.warning(f"💡 Laagste offerte (**{_knm}**) ligt {_keur} **boven** de should-cost (+{_kpct:.0f}%) — de moeite waard om na te vragen.")
 
-    # --- Stappenplan: begeleide, statusbewuste flow voor wie geen verstand van daken heeft ---
+    # --- Stappenplan (als tabel: toont gegarandeerd alle rijen; 'Nu' = de stand, geen valse 'klaar') ---
     _st_afspr = [r for r in st.session_state.get("dak_afspraken", []) if str(r.get("Bedrijf") or "").strip()]
     _st_n = len(_koffs)
     _st_gekozen = [o for o in st.session_state.get("dakofferte", []) if str(o.get("Status") or "") == "Gekozen"]
-    _steps = [
-        ("Dak opmeten", dak_opp > 0, f"{dak_opp:.0f} m²",
-         "Meet je dak (of vul het oppervlak bovenaan in) onder '📐 Stap 1 — Dak opmeten' hieronder."),
-        ("Aannemers & afspraken", bool(_st_afspr), f"{len(_st_afspr)} contact(en)",
-         "Zet aannemers + bezoekafspraken in het tabblad 'Stap 2'."),
-        ("Offertes verzamelen", _st_n >= 1, f"{_st_n} offerte(s)",
-         "Voeg offertes toe of upload de PDF in het tabblad 'Stap 3'."),
-        ("Vergelijken & kiezen", bool(_st_gekozen),
-         (f"gekozen: {_st_gekozen[0].get('Bedrijf', '')}" if _st_gekozen
-          else (f"{_st_n} offertes — vergelijk & kies" if _st_n >= 2 else "wacht op ≥ 2 offertes")),
-         "Vergelijk prijs/scope/should-cost en kies onderaan je aannemer in het tabblad 'Stap 4'."),
-    ]
-    _done = sum(1 for _, _ok, _s, _i in _steps if _ok)
-    st.markdown(f"### 📋 Stappenplan — {_done}/{len(_steps)} stappen klaar")
-    st.caption("Geen verstand van daken? Volg deze stappen gewoon van boven naar beneden — tabblad voor tabblad.")
-    st.progress(_done / len(_steps))
-    st.markdown("\n".join(
-        f"- {'✅' if _ok else '⬜'} **Stap {_i} — {_nm}** — {_stat} — {_instr}"
-        for _i, (_nm, _ok, _stat, _instr) in enumerate(_steps, 1)))
-    _todo = [(idx, s) for idx, s in enumerate(_steps, 1) if not s[1]]
-    if _todo:
-        _ti, _ts = _todo[0]
-        st.info(f"👉 **Nu doen — Stap {_ti}: {_ts[0]}.** {_ts[3]}")
-    else:
-        st.success("🎉 Alle stappen klaar — bevestig je gekozen aannemer.")
+    st.markdown("### 📋 Stappenplan dakofferte")
+    st.caption("Werk van boven naar beneden. 'Nu' toont waar je staat — je kunt offertes en afspraken "
+               "blijven toevoegen; pas bij stap 4 maak je de keuze.")
+    st.table(pd.DataFrame([
+        {"Stap": "1 · Dak opmeten", "Nu": f"{dak_opp:.0f} m²",
+         "Wat / waar": "Meet je dak onder 'Stap 1' hieronder (of vul het oppervlak bovenaan in)."},
+        {"Stap": "2 · Aannemers & afspraken", "Nu": f"{len(_st_afspr)} contact(en)",
+         "Wat / waar": "Voeg aannemers + bezoekafspraken toe in tabblad 'Stap 2'."},
+        {"Stap": "3 · Offertes verzamelen", "Nu": f"{_st_n} offerte(s)",
+         "Wat / waar": "Voeg offertes toe of upload de PDF in tabblad 'Stap 3' — blijf aanvullen."},
+        {"Stap": "4 · Vergelijken & kiezen",
+         "Nu": (f"gekozen: {_st_gekozen[0].get('Bedrijf', '')}" if _st_gekozen
+                else ("klaar om te vergelijken" if _st_n >= 2 else "wacht op ≥ 2 offertes")),
+         "Wat / waar": "Vergelijk prijs/scope/should-cost en kies onderaan tabblad 'Stap 4'."},
+    ]))
     st.divider()
 
     st.markdown("#### 📐 Stap 1 — Dak opmeten (dak, pannen, 3D & perceel)")
