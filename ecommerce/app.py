@@ -2337,12 +2337,8 @@ with tab_dak:
                        "BTW-regel = 21% (gelijk aan de offerte); valt de **isolatie-arbeid** onder 9% (woning > 2 "
                        "jr) dan ligt incl. iets lager. Pannen-materiaal volgt het **pantype**. Loodwerk + "
                        "vogelwering apart. Indicatie, geen offerte.")
-            _sc_sheets = {"Directe kosten": _rb_show, "Opbouw should-price": _opb}
-            if _detail_rows:
-                _sc_sheets["Kostenopbouw per scope"] = pd.DataFrame(_detail_rows)[
-                    ["Scope", "Component", "Hoeveelheid", "Eenheid", "€/eenheid", "Subtotaal €/m²", "Bron"]]
             st.download_button("⬇️ Download should-cost dakrenovatie (Excel)",
-                               m.df_to_excel_bytes(_sc_sheets),
+                               m.df_to_excel_bytes({"Directe kosten": _rb_show, "Opbouw should-price": _opb}),
                                file_name="dakrenovatie_shouldcost.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                key="dak_reno_xlsx")
