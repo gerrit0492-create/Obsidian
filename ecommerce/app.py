@@ -1733,6 +1733,15 @@ with tab_dak:
     st.caption("Compiègnehof 11, Eindhoven · volledige dakrenovatie. Vergelijk op €/m² incl. btw.")
     dc = st.columns(3)
     st.session_state.setdefault("dak_opp", 60.0)
+    # Automatisch: volg het berekende 3D-BAG-dakvlak (hellende vlakken − dakkapellen + carport-patch).
+    # Eénmalig overnemen per nieuwe berekening; daarna kun je het veld nog handmatig bijstellen.
+    _bag_area = st.session_state.get("_dak_bag_area")
+    if _bag_area:
+        _ba = float(min(max(round(_bag_area), 1), 1000))
+        if st.session_state.get("_dak_bag_area_applied") != _ba:
+            st.session_state["dak_opp"] = _ba
+            st.session_state["_dak_bag_area_applied"] = _ba
+            _persist_safe()
     dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp",
                                  on_change=_persist_safe)
     dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
@@ -1976,6 +1985,11 @@ with tab_dak:
                                "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
                                "is het 'echte dakvlak minus de dakkapellen'. De carport-patch (breedte × lengte langs "
                                "de helling) komt erbij. Indicatief, geen meetstaat.")
+                    st.session_state["_dak_bag_area"] = _tarea
+                    st.caption(f"➡️ Dit berekende dakvlak (**{_tarea:.0f} m²** = hellende vlakken − dakkapellen + "
+                               "carport-patch) wordt **automatisch** als dakoppervlak gebruikt voor de should-cost en €/m².")
+                    if round(_tarea) != st.session_state.get("_dak_bag_area_applied"):
+                        st.rerun()
                     _flat = _info3.get("flat_patches", [])
                     st.session_state["dak_bag_flat"] = _flat
                     if _flat:
