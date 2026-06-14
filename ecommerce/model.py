@@ -411,7 +411,12 @@ NICHES = [
         "start": [
             "KvK + bedrijfs-/beroepsaansprakelijkheid; installatie door een bekwaam persoon (NEN 1010) of "
             "samenwerken met een erkend installateur.",
-            "Kies 1–2 merken + een groothandel en reken een scherpe landed inkoop uit (tab Marge-calculator).",
+            "Klein beginnen: koop **2 units bij een EU-distributeur** (Memodo, Krannich, Segen, Solarclarity, "
+            "Natec) of plug-in via een marktplaats — CE + Declaration of Conformity zitten erbij, lage MOQ, "
+            "géén importeur-last.",
+            "Verkoop + installeer, pak de marge en **herinvesteer de winst** in meer units (2 → 4 → 8). Directe "
+            "import uit China pas bij volume — dan word jíj wettelijk importeur/producent (volledige compliance + "
+            "ADR-transport + invoerrechten).",
             "Combineer met zonnepanelen-installatie → 0% btw als één project (groot prijsvoordeel voor de klant).",
             "Beachhead: bestaande zonnepanelen-klanten/installateurs in je regio.",
         ],
@@ -769,6 +774,9 @@ NICHE_REGELS = {
         "**0% btw** op de batterij alleen bij **gelijktijdige** installatie met zonnepanelen als één project/"
         "installateur; los geplaatst geldt **21%** (evt. btw-teruggave via de **ondernemersroute** bij een dynamisch contract).",
         "**Veiligheid/certificering:** CE, **IEC 62619** (cel/pack + BMS) en **UN38.3** (transport).",
+        "**EU-Batterijverordening (2023/1542):** koop je bij een EU-distributeur, dan ligt de producent-last bij "
+        "fabrikant/distributeur. Importeer je **zelf uit China**, dan ben je wettelijk **importeur/producent** — "
+        "volledige compliance + UPV-registratie, en vanaf **18-8-2026** label-/markeringseisen (toezicht NEa).",
         "**Installatie:** conform **NEN 1010**; **aanmelding bij de netbeheerder**; let op brandveiligheid en opstelplaats.",
         "**Subsidies:** wisselend per gemeente/provincie (geen landelijke ISDE voor losse batterijen) — check actueel.",
         "**Producentenverantwoordelijkheid (WEEE/batterijen)** en verwijderingsbijdrage van toepassing.",
