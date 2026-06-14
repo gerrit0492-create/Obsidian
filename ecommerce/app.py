@@ -2752,6 +2752,25 @@ with tab_dak:
                     st.rerun()
                 else:
                     st.info("Geen dubbele afspraken op dezelfde datum + tijd gevonden.")
+            st.divider()
+            _wipe_ok = st.checkbox("Ik weet het zeker (verwijderen kan niet ongedaan)", key="dak_afspr_wipe_ok")
+            if st.button("🗑️ Agenda leegmaken — alleen 'Offerte ontvangen' behouden",
+                         key="dak_afspr_wipe", disabled=not _wipe_ok,
+                         help="Verwijdert álle afspraken behalve die met status 'Offerte ontvangen' (de afgeronde "
+                              "bezoeken met ontvangen offerte). Zet die status eerst op de afspraken die je wilt "
+                              "behouden. Daarna kun je opnieuw uit de iCal importeren."):
+                _all = st.session_state.get("dak_afspraken", [])
+                _keep = [r for r in _all if str(r.get("Status") or "") == "Offerte ontvangen"]
+                _removed = len(_all) - len(_keep)
+                st.session_state["dak_afspraken"] = _keep
+                st.session_state["dak_afspr_nonce"] = st.session_state.get("dak_afspr_nonce", 0) + 1
+                try:
+                    _persist()
+                except Exception:  # noqa: BLE001
+                    pass
+                st.success(f"{_removed} afspra(a)k(en) gewist — {len(_keep)} met 'Offerte ontvangen' behouden. "
+                           "Importeer nu opnieuw uit de iCal (tab ➕ Toevoegen & importeren).")
+                st.rerun()
             if store.enabled() and st.button("💾 Afspraken bewaren in Gist", key="dak_afspr_save"):
                 try:
                     _persist()
