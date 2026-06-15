@@ -996,6 +996,10 @@ if "niche_state" not in st.session_state:
         st.session_state["dak_shouldcost"] = _data.get("dak_shouldcost", [])  # [] = automatisch
     if "dak_opp" not in st.session_state:
         st.session_state["dak_opp"] = float(_data.get("dak_opp", 60.0) or 60.0)
+    if "dak_carport_m2" not in st.session_state:
+        st.session_state["dak_carport_m2"] = float(_data.get("dak_carport_m2", 0.0) or 0.0)
+    if "dak_schuur_m2" not in st.session_state:
+        st.session_state["dak_schuur_m2"] = float(_data.get("dak_schuur_m2", 0.0) or 0.0)
     if "dak_migr" not in st.session_state:
         st.session_state["dak_migr"] = _data.get("dak_migr", 0)
     if "actieplan" not in st.session_state:
@@ -1012,6 +1016,8 @@ def _persist():
                        "dak_afspraken": st.session_state.get("dak_afspraken", []),
                        "dak_shouldcost": st.session_state.get("dak_shouldcost", []),
                        "dak_opp": st.session_state.get("dak_opp", 60.0),
+                       "dak_carport_m2": st.session_state.get("dak_carport_m2", 0.0),
+                       "dak_schuur_m2": st.session_state.get("dak_schuur_m2", 0.0),
                        "dak_uurtarief": st.session_state.get("dak_uurtarief", DAK_RENO_UURTARIEF),
                        "actieplan": st.session_state.get("actieplan", []),
                        "dak_migr": st.session_state.get("dak_migr", 0)})
@@ -1854,8 +1860,11 @@ with tab_dak:
     st.caption("Compiègnehof 11, Eindhoven · volledige dakrenovatie. Vergelijk op €/m² incl. btw.")
     dc = st.columns(3)
     st.session_state.setdefault("dak_opp", 60.0)
-    # Automatisch: volg het berekende 3D-BAG-dakvlak (hellende vlakken − dakkapellen + carport-patch).
-    # Eénmalig overnemen per nieuwe berekening; daarna kun je het veld nog handmatig bijstellen.
+    st.session_state.setdefault("dak_carport_m2", 0.0)
+    st.session_state.setdefault("dak_schuur_m2", 0.0)
+    # Automatisch: volg het berekende 3D-BAG-hoofddak (hellende vlakken − dakkapellen). Eénmalig overnemen
+    # per nieuwe berekening; daarna kun je het veld nog handmatig bijstellen. Carport en schuur staan níét
+    # in het BAG-model — die tel je met de twee losse velden hiernaast zelf bij op.
     _bag_area = st.session_state.get("_dak_bag_area")
     if _bag_area:
         _ba = float(min(max(round(_bag_area), 1), 1000))
@@ -1863,10 +1872,22 @@ with tab_dak:
             st.session_state["dak_opp"] = _ba
             st.session_state["_dak_bag_area_applied"] = _ba
             _persist_safe()
-    dak_opp = dc[0].number_input("Dakoppervlak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp",
-                                 on_change=_persist_safe)
-    dc[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
-    dc[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
+    _hoofddak = dc[0].number_input("Hoofddak (m²)", min_value=1.0, max_value=1000.0, step=1.0, key="dak_opp",
+                                   on_change=_persist_safe,
+                                   help="Het hellende hoofddak. Komt automatisch uit het 3D BAG-model "
+                                        "(Stap 1 hieronder); pas aan indien nodig.")
+    _carport_m2 = dc[1].number_input("Carport-dakvlak (m²)", min_value=0.0, max_value=1000.0, step=1.0,
+                                     key="dak_carport_m2", on_change=_persist_safe,
+                                     help="Carport-dakvlak — staat níét in het BAG-model, dus tel je hier zelf bij op.")
+    _schuur_m2 = dc[2].number_input("Schuur-dakvlak (m²)", min_value=0.0, max_value=1000.0, step=1.0,
+                                    key="dak_schuur_m2", on_change=_persist_safe,
+                                    help="Schuur-/bergingdakvlak — staat níét in het BAG-model, dus tel je hier zelf bij op.")
+    dak_opp = float(_hoofddak) + float(_carport_m2) + float(_schuur_m2)
+    _dm = st.columns(3)
+    _dm[0].metric("Totaal dakoppervlak", f"{dak_opp:.0f} m²",
+                  f"hoofddak {_hoofddak:.0f} + carport {_carport_m2:.0f} + schuur {_schuur_m2:.0f}", delta_color="off")
+    _dm[1].metric("Marktindicatie", f"€{DAK_MARKT_LO:.0f}–€{DAK_MARKT_HI:.0f}/m²", "incl. btw")
+    _dm[2].caption("Bron: Werkspot / Oranje Dakbeheer / Homedeal — indicatie, geen taxatie.")
     for _ek in ("dakkapel", "goot", "vogelwering"):
         st.session_state.setdefault(f"dak_sc_extra_{_ek}", True)
 
@@ -1912,55 +1933,127 @@ with tab_dak:
     ]))
     st.divider()
 
-    st.markdown("#### 📐 Stap 1 — Dak opmeten (dak, pannen, 3D & perceel)")
-    st.caption("Meet de **footprint** (het dakvlak van bovenaf) in Google Maps: rechtsklik op de kaart → "
-               "*Afstand meten* en klik de dakomtrek rond. Een hellend dak is gróter dan die platte footprint: "
-               "**dakvlak ≈ footprint ÷ cos(dakhelling)** (gezadeld dak, beide schilden even steil).")
-    _mode = st.radio("Footprint invoeren als", ["Oppervlak (m²)", "Lengte × breedte"],
-                     horizontal=True, key="dak_calc_mode")
-    if _mode == "Lengte × breedte":
-        _lb = st.columns(2)
-        _l = _lb[0].number_input("Lengte (m)", 1.0, 200.0, 10.0, 0.1, key="dak_calc_l")
-        _b = _lb[1].number_input("Breedte (m)", 1.0, 200.0, 6.0, 0.1, key="dak_calc_b")
-        _fp = _l * _b
-    else:
-        _fp = st.number_input("Footprint uit Google Maps (m²)", 1.0, 3000.0, 50.0, 1.0, key="dak_calc_fp")
-    _pitch = st.slider("Dakhelling (°)", 0, 70, 40, 1, key="dak_calc_pitch",
-                       help="0° = plat dak (dakvlak = footprint). Hellend pannendak in NL: meestal 35–45°.")
-    _factor = 1.0 / math.cos(math.radians(_pitch))
-    _main = _fp * _factor
-    st.markdown("**Dakkapellen** — tel de dakvlakken van de dakkapellen mee (uit 3D BAG of zelf gemeten).")
-    for _k, _v in {"dak_calc_dk_br": 3.0, "dak_calc_dk_di": 1.2,
-                   "dak_calc_dkf_br": 3.0, "dak_calc_dkf_di": 1.5}.items():
-        st.session_state.setdefault(_k, _v)
-    _dk = st.columns([1.3, 1, 1])
-    _dk_on = _dk[0].checkbox("Achterzijde meetellen", value=True, key="dak_calc_dk_on")
-    _dk_br = _dk[1].number_input("Breedte achter (m)", 0.0, 50.0, step=0.1, key="dak_calc_dk_br")
-    _dk_di = _dk[2].number_input("Uitbouw achter (m)", 0.0, 20.0, step=0.1, key="dak_calc_dk_di")
-    _dkf = st.columns([1.3, 1, 1])
-    _dkf_on = _dkf[0].checkbox("Voorzijde meetellen", value=True, key="dak_calc_dkf_on")
-    _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, step=0.1, key="dak_calc_dkf_br")
-    _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, step=0.1, key="dak_calc_dkf_di")
-    _dr = st.columns(2)
-    _dr[0].number_input("Dakkapel vóór — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.5, 0.1,
-                        key="dak_calc_dk_right_f", help="Rechterrand van de voorste dakkapel t.o.v. de rechtergevel.")
-    _dr[1].number_input("Dakkapel achter — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.3, 0.1,
-                        key="dak_calc_dk_right_b", help="Rechterrand van de achterste dakkapel t.o.v. de rechtergevel.")
-    _dk_extra = (_dk_br * _dk_di if _dk_on else 0.0) + (_dkf_br * _dkf_di if _dkf_on else 0.0)
-    _roof = _main + _dk_extra
-    st.session_state["_dak_roof_calc"] = _roof
-    _mc = st.columns(2)
-    _mc[0].metric("Berekend dakoppervlak", f"{_roof:.0f} m²",
-                  f"hoofddak {_main:.0f} m² (×{_factor:.2f}) + dakkapellen {_dk_extra:.0f} m²", delta_color="off")
-    _mc[1].button("📥 Gebruik als dakoppervlak", key="dak_calc_apply", on_click=_dak_apply_calc,
-                  help="Zet dit berekende dakvlak bovenaan als dakoppervlak (m²).")
-    st.caption("Google Maps meet het **platte** grondvlak; de helling maakt er het echte schuine dakvlak van. "
-               "Tel bij de dakkapel alleen mee wat met pannen wordt bedekt (een platte dakkapelkap niet). "
-               "De achterzijde-dakkapel is hier 1,2 m uitgebouwd → breedte × 1,2 m extra dakvlak.")
+    st.markdown("#### 📐 Stap 1 — Dak opmeten (3D BAG, pannen & perceel)")
+    st.caption("Het **3D BAG** (TU Delft) geeft het echte hellende hoofddak op je adres — de betrouwbaarste "
+               "meting; die wordt automatisch in het veld **Hoofddak (m²)** bovenaan gezet. Carport en schuur "
+               "staan níét in het BAG-model: tel die bovenaan bij met de velden **Carport-dakvlak** en "
+               "**Schuur-dakvlak**. Geen internet? Gebruik de handmatige Google Maps-rekenhulp onder "
+               "'Geavanceerd meten'.")
+    st.caption("Haalt het werkelijke gebouwmodel (LoD 2.2) op uit het **3D BAG** (TU Delft) via de "
+               "PDOK-adressenservice. Vereist internettoegang naar `api.pdok.nl` en `api.3dbag.nl`.")
+    _adr = st.text_input("Adres", value="Compiègnehof 11, Eindhoven", key="dak_bag_adres")
+    if st.button("🛰️ Haal 3D BAG-model op", key="dak_bag_fetch"):
+        try:
+            _hits = _bag_geocode(_adr.strip())
+            if not _hits:
+                st.session_state.pop("dak_bag_xy", None)
+                st.warning("Geen adres gevonden — schrijf het als 'Straat 11, Plaats'.")
+            else:
+                st.session_state["dak_bag_xy"] = [_hits[0]["x"], _hits[0]["y"]]
+                st.session_state["dak_bag_naam"] = _hits[0]["naam"]
+        except Exception as exc:  # noqa: BLE001
+            st.session_state.pop("dak_bag_xy", None)
+            st.error(f"Adres opzoeken mislukt: {exc}. Staat `api.pdok.nl` op de allowlist?")
+    _xy = st.session_state.get("dak_bag_xy")
+    if _xy:
+        try:
+            _fig3, _info3 = _bag3d_fig(_bag3d_fc_text(_xy[0], _xy[1]), _xy[0], _xy[1])
+            if _info3["faces"]:
+                _pnd = ", ".join(p.split(".")[-1] for p in _info3["panden"]) or "—"
+                st.caption(f"{st.session_state.get('dak_bag_naam', '')} · pand {_pnd} · "
+                           f"{_info3['faces']} vlakken ({_info3['roof']} dak). Officieel 3D BAG LoD 2.2-model "
+                           "(blokkig); sleep om te draaien.")
+                st.plotly_chart(_fig3, use_container_width=True)
+                st.session_state["dak_bag_footprint"] = float(_info3.get("footprint_m2", 0.0))
+                st.session_state["dak_bag_foot_rings"] = _info3.get("footprint_rings", [])
+                _slope = float(_info3.get("roof_sloped_m2", 0.0))
+                st.markdown("**Dakvlak & pannen uit het 3D BAG-model (LoD 2.2)**")
+                _bm = st.columns(3)
+                _bm[0].metric("Totaal dakvlak", f"{_info3.get('roof_m2', 0):.0f} m²", delta_color="off")
+                _bm[1].metric("Hellend — hoofddak (pannen)", f"{_slope:.0f} m²", "excl. platte dakkapellen", delta_color="off")
+                _bm[2].metric("Plat (dakkapel/plat dak)", f"{_info3.get('roof_flat_m2', 0):.0f} m²", delta_color="off")
+                _ppm = st.number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
+                                       help="Beton/Sneldek & vlakke keramisch 10–12; holle keramisch / OVH 14–16.")
+                st.metric("Pannen-aantal hoofddak", f"{round(_slope * _ppm)} pannen",
+                          f"{_slope:.0f} m² × {_ppm:.1f}/m²", delta_color="off")
+                st.caption("Afgeleid uit het 3D BAG LoD 2.2-model: som van de **hellende** dakvlakken "
+                           "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
+                           "is het 'echte dakvlak minus de dakkapellen'. Indicatief, geen meetstaat.")
+                st.session_state["_dak_bag_area"] = _slope
+                st.caption(f"➡️ Dit hoofddak (**{_slope:.0f} m²** = hellende vlakken − dakkapellen) wordt "
+                           "**automatisch** in het veld **Hoofddak (m²)** bovenaan gezet. Carport en schuur "
+                           "staan níét in het BAG-model — tel die bovenaan bij met de losse velden.")
+                if round(_slope) != st.session_state.get("_dak_bag_area_applied"):
+                    st.rerun()
+                _flat = _info3.get("flat_patches", [])
+                st.session_state["dak_bag_flat"] = _flat
+                if _flat:
+                    st.markdown("**Dakkapel-maten uit het model** (platte dakvlakken = dakkapeltoppen):")
+                    st.dataframe(pd.DataFrame([{"Vlak": f"#{i + 1}", "Breedte ≈ (m)": round(p["w"], 1),
+                                                "Diepte ≈ (m)": round(p["d"], 1), "Oppervlak (m²)": round(p["m2"], 1)}
+                                               for i, p in enumerate(_flat)]),
+                                 hide_index=True, use_container_width=True)
+                    st.button("📥 Neem de 2 grootste over als dakkapel vóór/achter", key="dak_bag_dk_apply",
+                              on_click=_dak_apply_dakkapel,
+                              help="Zet breedte × diepte van de twee grootste platte vlakken in de dakkapel-velden "
+                                   "in de Google Maps-rekenhulp. Hoogte staat niet in de meting.")
+                    st.caption("Let op: een plat dak/aanbouw kan hier ook tussen staan — kies de juiste. "
+                               "Hoogte van de dakkapel staat niet in deze meting (van bovenaf niet zichtbaar).")
+            else:
+                st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"3D BAG-model laden mislukt: {exc}")
 
-    with st.expander("🔧 Geavanceerd meten — pannen-check, 3D, 3D BAG & perceel", expanded=False):
-        _adv = st.tabs(["🧱 Pannen-check", "🏠 Schema 3D", "🛰️ 3D BAG", "🗺️ Perceel & plattegrond"])
+    with st.expander("🔧 Geavanceerd meten — handmatig (Google Maps), pannen-check, 3D & perceel", expanded=False):
+        _adv = st.tabs(["📐 Handmatig (Google Maps)", "🧱 Pannen-check", "🏠 Schema 3D", "🗺️ Perceel & plattegrond"])
         with _adv[0]:
+            st.caption("Geen internet of geen BAG-model? Meet de **footprint** (het dakvlak van bovenaf) in "
+                       "Google Maps: rechtsklik op de kaart → *Afstand meten* en klik de dakomtrek rond. Een "
+                       "hellend dak is gróter dan die platte footprint: **dakvlak ≈ footprint ÷ cos(dakhelling)** "
+                       "(gezadeld dak, beide schilden even steil).")
+            _mode = st.radio("Footprint invoeren als", ["Oppervlak (m²)", "Lengte × breedte"],
+                             horizontal=True, key="dak_calc_mode")
+            if _mode == "Lengte × breedte":
+                _lb = st.columns(2)
+                _l = _lb[0].number_input("Lengte (m)", 1.0, 200.0, 10.0, 0.1, key="dak_calc_l")
+                _b = _lb[1].number_input("Breedte (m)", 1.0, 200.0, 6.0, 0.1, key="dak_calc_b")
+                _fp = _l * _b
+            else:
+                _fp = st.number_input("Footprint uit Google Maps (m²)", 1.0, 3000.0, 50.0, 1.0, key="dak_calc_fp")
+            _pitch = st.slider("Dakhelling (°)", 0, 70, 40, 1, key="dak_calc_pitch",
+                               help="0° = plat dak (dakvlak = footprint). Hellend pannendak in NL: meestal 35–45°.")
+            _factor = 1.0 / math.cos(math.radians(_pitch))
+            _main = _fp * _factor
+            st.markdown("**Dakkapellen** — tel de dakvlakken van de dakkapellen mee (uit 3D BAG of zelf gemeten).")
+            for _k, _v in {"dak_calc_dk_br": 3.0, "dak_calc_dk_di": 1.2,
+                           "dak_calc_dkf_br": 3.0, "dak_calc_dkf_di": 1.5}.items():
+                st.session_state.setdefault(_k, _v)
+            _dk = st.columns([1.3, 1, 1])
+            _dk_on = _dk[0].checkbox("Achterzijde meetellen", value=True, key="dak_calc_dk_on")
+            _dk_br = _dk[1].number_input("Breedte achter (m)", 0.0, 50.0, step=0.1, key="dak_calc_dk_br")
+            _dk_di = _dk[2].number_input("Uitbouw achter (m)", 0.0, 20.0, step=0.1, key="dak_calc_dk_di")
+            _dkf = st.columns([1.3, 1, 1])
+            _dkf_on = _dkf[0].checkbox("Voorzijde meetellen", value=True, key="dak_calc_dkf_on")
+            _dkf_br = _dkf[1].number_input("Breedte voor (m)", 0.0, 50.0, step=0.1, key="dak_calc_dkf_br")
+            _dkf_di = _dkf[2].number_input("Diepte voor (m)", 0.0, 20.0, step=0.1, key="dak_calc_dkf_di")
+            _dr = st.columns(2)
+            _dr[0].number_input("Dakkapel vóór — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.5, 0.1,
+                                key="dak_calc_dk_right_f", help="Rechterrand van de voorste dakkapel t.o.v. de rechtergevel.")
+            _dr[1].number_input("Dakkapel achter — afstand vanaf rechterwand (m)", 0.0, 50.0, 0.3, 0.1,
+                                key="dak_calc_dk_right_b", help="Rechterrand van de achterste dakkapel t.o.v. de rechtergevel.")
+            _dk_extra = (_dk_br * _dk_di if _dk_on else 0.0) + (_dkf_br * _dkf_di if _dkf_on else 0.0)
+            _roof = _main + _dk_extra
+            st.session_state["_dak_roof_calc"] = _roof
+            _mc = st.columns(2)
+            _mc[0].metric("Berekend dakoppervlak", f"{_roof:.0f} m²",
+                          f"hoofddak {_main:.0f} m² (×{_factor:.2f}) + dakkapellen {_dk_extra:.0f} m²", delta_color="off")
+            _mc[1].button("📥 Gebruik als hoofddak", key="dak_calc_apply", on_click=_dak_apply_calc,
+                          help="Zet dit berekende dakvlak bovenaan als Hoofddak (m²).")
+            st.caption("Google Maps meet het **platte** grondvlak; de helling maakt er het echte schuine dakvlak van. "
+                       "Tel bij de dakkapel alleen mee wat met pannen wordt bedekt (een platte dakkapelkap niet). "
+                       "De achterzijde-dakkapel is hier 1,2 m uitgebouwd → breedte × 1,2 m extra dakvlak.")
+
+        with _adv[1]:
             st.caption("Toets een geoffreerd aantal dakpannen aan het dakoppervlak. Dekkend aantal per m² (bron "
                        "dakpanrichtlijnen): **Sneldek (grootformaat) ~8–10**, betonpan / vlak keramisch **10–12**, "
                        "holle keramisch / OVH **14–16**.")
@@ -1992,7 +2085,7 @@ with tab_dak:
                            f"impliceert ~{_stated / _pp:.0f} m². Meer dakvlak (dakkapel/erker) of kleinere pannen; "
                            f"check de specificatie.")
 
-        with _adv[1]:
+        with _adv[2]:
             _3l = st.session_state.get("dak_calc_l")
             _3b = st.session_state.get("dak_calc_b")
             if not _3l or not _3b:
@@ -2014,79 +2107,6 @@ with tab_dak:
             st.caption("Schematisch 3D-model op basis van de afmetingen uit de rekenhulp hierboven (lengte × breedte, "
                        "dakhelling en de dakkapellen voor + achter). Sleep om te draaien/zoomen. "
                        "Indicatief — geen bouwtekening.")
-
-        with _adv[2]:
-            st.caption("Haalt het werkelijke gebouwmodel (LoD 2.2) op uit het **3D BAG** (TU Delft) via de "
-                       "PDOK-adressenservice. Vereist internettoegang naar `api.pdok.nl` en `api.3dbag.nl`.")
-            _adr = st.text_input("Adres", value="Compiègnehof 11, Eindhoven", key="dak_bag_adres")
-            if st.button("🛰️ Haal 3D BAG-model op", key="dak_bag_fetch"):
-                try:
-                    _hits = _bag_geocode(_adr.strip())
-                    if not _hits:
-                        st.session_state.pop("dak_bag_xy", None)
-                        st.warning("Geen adres gevonden — schrijf het als 'Straat 11, Plaats'.")
-                    else:
-                        st.session_state["dak_bag_xy"] = [_hits[0]["x"], _hits[0]["y"]]
-                        st.session_state["dak_bag_naam"] = _hits[0]["naam"]
-                except Exception as exc:  # noqa: BLE001
-                    st.session_state.pop("dak_bag_xy", None)
-                    st.error(f"Adres opzoeken mislukt: {exc}. Staat `api.pdok.nl` op de allowlist?")
-            _xy = st.session_state.get("dak_bag_xy")
-            if _xy:
-                try:
-                    _fig3, _info3 = _bag3d_fig(_bag3d_fc_text(_xy[0], _xy[1]), _xy[0], _xy[1])
-                    if _info3["faces"]:
-                        _pnd = ", ".join(p.split(".")[-1] for p in _info3["panden"]) or "—"
-                        st.caption(f"{st.session_state.get('dak_bag_naam', '')} · pand {_pnd} · "
-                                   f"{_info3['faces']} vlakken ({_info3['roof']} dak). Officieel 3D BAG LoD 2.2-model "
-                                   "(blokkig); sleep om te draaien.")
-                        st.plotly_chart(_fig3, use_container_width=True)
-                        st.session_state["dak_bag_footprint"] = float(_info3.get("footprint_m2", 0.0))
-                        st.session_state["dak_bag_foot_rings"] = _info3.get("footprint_rings", [])
-                        _slope = float(_info3.get("roof_sloped_m2", 0.0))
-                        st.markdown("**Dakvlak & pannen uit het 3D BAG-model (LoD 2.2)**")
-                        _bm = st.columns(3)
-                        _bm[0].metric("Totaal dakvlak", f"{_info3.get('roof_m2', 0):.0f} m²", delta_color="off")
-                        _bm[1].metric("Hellend — pannen", f"{_slope:.0f} m²", "excl. platte dakkapellen", delta_color="off")
-                        _bm[2].metric("Plat (dakkapel/plat dak)", f"{_info3.get('roof_flat_m2', 0):.0f} m²", delta_color="off")
-                        st.markdown("Carport-patch (pannen, zelfde dakhelling) — niet in het BAG-model, dus handmatig:")
-                        _bc = st.columns(3)
-                        _cpw = _bc[0].number_input("Carport breedte (m)", 0.0, 50.0, 3.0, 0.1, key="dak_bag_cpw")
-                        _cph = _bc[1].number_input("Carport langs helling (m)", 0.0, 50.0, 2.0, 0.1, key="dak_bag_cph")
-                        _ppm = _bc[2].number_input("Pannen per m²", 4.0, 20.0, 10.0, 0.5, key="dak_bag_ppm",
-                                                   help="Beton/Sneldek & vlakke keramisch 10–12; holle keramisch / OVH 14–16.")
-                        _extra = _cpw * _cph
-                        _tarea = _slope + _extra
-                        st.metric("Pannen-aantal (hellend dakvlak + carport-patch)", f"{round(_tarea * _ppm)} pannen",
-                                  f"{_tarea:.0f} m² ({_slope:.0f} dak + {_extra:.0f} carport) × {_ppm:.1f}/m²",
-                                  delta_color="off")
-                        st.caption("Afgeleid uit het 3D BAG LoD 2.2-model: som van de **hellende** dakvlakken "
-                                   "(dakhelling 20–80°). Platte vlakken (dakkapeltoppen, plat dak) tellen niet mee — dat "
-                                   "is het 'echte dakvlak minus de dakkapellen'. De carport-patch (breedte × lengte langs "
-                                   "de helling) komt erbij. Indicatief, geen meetstaat.")
-                        st.session_state["_dak_bag_area"] = _tarea
-                        st.caption(f"➡️ Dit berekende dakvlak (**{_tarea:.0f} m²** = hellende vlakken − dakkapellen + "
-                                   "carport-patch) wordt **automatisch** als dakoppervlak gebruikt voor de should-cost en €/m².")
-                        if round(_tarea) != st.session_state.get("_dak_bag_area_applied"):
-                            st.rerun()
-                        _flat = _info3.get("flat_patches", [])
-                        st.session_state["dak_bag_flat"] = _flat
-                        if _flat:
-                            st.markdown("**Dakkapel-maten uit het model** (platte dakvlakken = dakkapeltoppen):")
-                            st.dataframe(pd.DataFrame([{"Vlak": f"#{i + 1}", "Breedte ≈ (m)": round(p["w"], 1),
-                                                        "Diepte ≈ (m)": round(p["d"], 1), "Oppervlak (m²)": round(p["m2"], 1)}
-                                                       for i, p in enumerate(_flat)]),
-                                         hide_index=True, use_container_width=True)
-                            st.button("📥 Neem de 2 grootste over als dakkapel vóór/achter", key="dak_bag_dk_apply",
-                                      on_click=_dak_apply_dakkapel,
-                                      help="Zet breedte × diepte van de twee grootste platte vlakken in de dakkapel-velden "
-                                           "in de Google Maps-rekenhulp. Hoogte staat niet in de meting.")
-                            st.caption("Let op: een plat dak/aanbouw kan hier ook tussen staan — kies de juiste. "
-                                       "Hoogte van de dakkapel staat niet in deze meting (van bovenaf niet zichtbaar).")
-                    else:
-                        st.warning("Geen geometrie gevonden op deze locatie in het 3D BAG.")
-                except Exception as exc:  # noqa: BLE001
-                    st.error(f"3D BAG-model laden mislukt: {exc}")
 
         with _adv[3]:
             st.caption("Verdeel je kavel. Het **huis-footprint** komt automatisch uit het 3D BAG-model hierboven "
